@@ -23,7 +23,7 @@
 </header>
 <main id="main" tabindex="-1">
 {% with msgs = get_flashed_messages(with_categories=true) %}{% for c, m in msgs %}
-  <p class="flash {{ c }}" role="{{ 'alert' if c == 'error' else 'status' }}">{{ m }}</p>{% endfor %}{% endwith %}
+  <p class="flash noprint {{ c }}" role="{{ 'alert' if c == 'error' else 'status' }}">{{ m }}</p>{% endfor %}{% endwith %}
 {% block content %}{% endblock %}
 </main>
 </body>

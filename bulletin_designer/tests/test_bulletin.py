@@ -189,7 +189,11 @@ def test_pdf_downloads(app):
     web = c.get("/bulletins/1/download/web")
     prt = c.get("/bulletins/1/download/print")
     assert web.data.startswith(b"%PDF") and prt.data.startswith(b"%PDF")
-    assert b"/MarkInfo" in web.data and b"/Lang" in web.data
+    import io
+    from pypdf import PdfReader
+    root = PdfReader(io.BytesIO(web.data)).trailer["/Root"]
+    assert root["/MarkInfo"]["/Marked"] and root["/Lang"] and "/StructTreeRoot" in root
+    assert len(PdfReader(io.BytesIO(web.data)).pages) % 4 == 0
 
 
 def test_backup_and_restore(app, tmp_path, monkeypatch):

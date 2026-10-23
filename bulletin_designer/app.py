@@ -685,7 +685,9 @@ def create_app(config=None):
                 path = os.path.realpath(os.path.join(folder, url[len(prefix):]))
                 if not path.startswith(os.path.realpath(folder) + os.sep):
                     raise ValueError("blocked path")
-                return {"file_obj": open(path, "rb")}
+                import mimetypes
+                return {"file_obj": open(path, "rb"),
+                        "mime_type": mimetypes.guess_type(path)[0] or "application/octet-stream"}
         if url.startswith("data:"):
             return default_url_fetcher(url)
         raise ValueError("external resources are not allowed in PDFs")
