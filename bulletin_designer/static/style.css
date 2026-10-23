@@ -1,0 +1,76 @@
+/* St. Peter the Fisherman Bulletin Designer. No font size anywhere is below 12pt. */
+:root {
+  --navy: #0b3d2e; --blue: #146245; --gold: #7a5c12; --gold-bright: #d4b873; --cream: #fbf8f1;
+  --ink: #1b1b1b; --line: #c9d3e0; --ok: #1b6b34; --err: #a1121f;
+  --min: 12pt; --body: 13pt;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: var(--body)/1.5 Georgia, "Times New Roman", serif; color: var(--ink); background: #fff; }
+h1, h2, h3, nav, label, button, th, .btn { font-family: "Helvetica Neue", Arial, sans-serif; }
+h1 { font-size: 24pt; color: var(--navy); margin: .3em 0; }
+h2 { font-size: 18pt; color: var(--navy); }
+h3 { font-size: 14pt; color: var(--blue); }
+small, .small, .meta { font-size: var(--min); }
+a { color: var(--blue); } a:hover { color: var(--navy); }
+:focus-visible { outline: 3px solid #ffbf47; outline-offset: 2px; }
+.skip { position: absolute; left: -999px; top: 0; background: #fff; padding: .5em 1em; z-index: 10; }
+.skip:focus { left: 8px; top: 8px; }
+header.site { background: var(--navy); color: #fff; padding: .6em 1.2em; }
+header.site a, header.site button { color: #fff; font-size: 13pt; }
+header.site nav { display: flex; gap: 1.2em; flex-wrap: wrap; align-items: center; }
+header.site .brand img { height: 48px; width: auto; display: block; }
+header.site .brand { font-weight: bold; font-size: 15pt; text-decoration: none; margin-right: auto; }
+header.site button { background: none; border: 0; text-decoration: underline; cursor: pointer; }
+main { max-width: 1000px; margin: 1.5em auto; padding: 0 1.2em; }
+.flash { padding: .6em 1em; border-left: 6px solid; margin: 1em 0; background: #f3f6fa; }
+.flash.error { border-color: var(--err); color: var(--err); } .flash.ok { border-color: var(--ok); color: var(--ok); }
+label { display: block; font-weight: bold; margin: .9em 0 .2em; }
+input[type=text], input[type=password], input[type=date], input[type=number], select, textarea, input[type=file] {
+  width: 100%; font: inherit; padding: .5em; border: 2px solid #5b6b80; border-radius: 4px; }
+textarea { min-height: 14em; }
+.btn, button.btn { display: inline-block; background: var(--blue); color: #fff; border: 0; padding: .55em 1.1em;
+  font-size: 13pt; border-radius: 4px; cursor: pointer; text-decoration: none; }
+.btn.secondary { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: .5em; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13pt; }
+th { background: #eef3f9; color: var(--navy); }
+.badge { display: inline-block; padding: 0 .6em; border: 2px solid; border-radius: 1em; font-size: var(--min); }
+.badge.need { color: var(--err); } .badge.ok { color: var(--ok); } .badge.pend { color: var(--gold); }
+.inline { display: inline; }
+fieldset { border: 2px solid var(--line); margin: 1em 0; }
+legend { font-weight: bold; font-family: Arial, sans-serif; }
+
+/* ---------- Bulletin pages (screen preview + print) ---------- */
+.sheet { width: 8.5in; height: 11in; margin: 1em auto; padding: .6in; background: #fff; position: relative;
+  border: 1px solid #999; overflow: hidden; display: flex; flex-direction: column; }
+.sheet .pg-head { border-bottom: 4px double var(--navy); color: var(--navy); font: bold 13pt Arial, sans-serif;
+  display: flex; justify-content: space-between; padding-bottom: .3em; }
+.sheet .pg-body { flex: 1; overflow: hidden; padding-top: .5em; font-size: 12.5pt; line-height: 1.4; }
+.sheet h2 { margin: .2em 0 .3em; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
+.sheet .pg-foot { text-align: center; font: bold 12pt Arial, sans-serif; color: var(--navy); border-top: 2px solid var(--line); padding-top: .3em; }
+.sheet figure { margin: .6em 0; text-align: center; }
+.sheet img { max-width: 100%; max-height: 6in; width: auto; height: auto; object-fit: contain; }
+.sheet figcaption { font-size: 12pt; font-style: italic; }
+.sheet .src { font-size: 12pt; color: #444; }
+.sheet .overflow-warn { background: #fff3cd; color: #5c3b00; padding: .3em; font: bold 12pt Arial; }
+.sheet.cover h1 { font-size: 26pt; text-align: center; margin: .2em; }
+.toc { list-style: none; padding: 0; } .toc li { display: flex; font-size: 13pt; }
+.toc li .dots { flex: 1; border-bottom: 2px dotted #555; margin: 0 .4em .35em; }
+.cal th, .cal td { font-size: 12pt; padding: .25em .4em; }
+@media print {
+  @page { size: 8.5in 11in; margin: 0; }
+  body { background: #fff; }
+  .noprint, header.site, .skip { display: none !important; }
+  main { max-width: none; margin: 0; padding: 0; }
+  .sheet { margin: 0; border: 0; page-break-after: always; break-after: page; }
+  .overflow-warn { display: none; }
+}
+
+.mass { border-left: 6px solid var(--blue); background: var(--cream); padding: .2em .8em; margin: .5em 0; break-inside: avoid; }
+.mass h3 { margin: .2em 0; font-size: 13pt; }
+.mass dl { display: grid; grid-template-columns: max-content 1fr; gap: 0 .8em; margin: 0 0 .3em; font-size: 12pt; }
+.mass dt { font-weight: bold; } .mass dd { margin: 0; }
+
+.sheet .pg-head img { height: .45in; width: auto; }
+.cover-logo { display: block; margin: .1in auto; width: 4in; height: auto; }
+.cover-photo { margin: .1in 0; } .cover-photo img { max-height: 3.2in; width: auto; max-width: 100%; height: auto; }

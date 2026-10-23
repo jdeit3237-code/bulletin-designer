@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% block title %}{{ s.title }}{% endblock %}
+{% block content %}
+<h1>{{ s.title }}</h1>
+<p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
+{% if s.slug in ('calendar', 'youth-calendar') %}<p>Enter one event per line as <code>Date | Time | Event</code>, e.g. <code>Mon Oct 19 | 6:00pm | Bible Study</code>.</p>{% endif %}
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
+    <legend>Content</legend>
+    {% if s.slug != 'mass-schedule' %}
+    <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
+    <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
+    {% endif %}
+    {% if s.slug == 'mass-schedule' %}
+    <p>Add one block per Mass (Saturday vigil, Sunday Masses, weekday Masses). Leave unused blocks empty.</p>
+    <input type="hidden" name="mass_count" value="{{ mass|length }}">
+    {% for m in mass %}
+    <fieldset><legend>Mass {{ loop.index }}</legend>
+      <label for="m{{ loop.index0 }}_date">Date (e.g. Sunday, October 18, 2026)</label><input id="m{{ loop.index0 }}_date" name="m{{ loop.index0 }}_date" type="text" value="{{ m.date or '' }}">
+      <label for="m{{ loop.index0 }}_time">Time</label><input id="m{{ loop.index0 }}_time" name="m{{ loop.index0 }}_time" type="text" value="{{ m.time or '' }}">
+      <label for="m{{ loop.index0 }}_lector">Lector</label><input id="m{{ loop.index0 }}_lector" name="m{{ loop.index0 }}_lector" type="text" value="{{ m.lector or '' }}">
+      <label for="m{{ loop.index0 }}_sacristan">Sacristan</label><input id="m{{ loop.index0 }}_sacristan" name="m{{ loop.index0 }}_sacristan" type="text" value="{{ m.sacristan or '' }}">
+      <label for="m{{ loop.index0 }}_ministers">Eucharistic Ministers</label><input id="m{{ loop.index0 }}_ministers" name="m{{ loop.index0 }}_ministers" type="text" value="{{ m.ministers or '' }}">
+      <label for="m{{ loop.index0 }}_intention">Mass intention</label><input id="m{{ loop.index0 }}_intention" name="m{{ loop.index0 }}_intention" type="text" value="{{ m.intention or '' }}">
+    </fieldset>
+    {% endfor %}
+    {% else %}
+    <label for="body">Text (blank line starts a new paragraph)</label>
+    <textarea id="body" name="body">{{ item.body }}</textarea>
+    {% endif %}
+    <label for="source">Source / attribution (e.g. usccb.org, miamiarch.org, stpeterbpk.org)</label>
+    <input id="source" name="source" type="text" value="{{ item.source }}">
+    {% if photos %}<label for="library_id">Choose from the photo library</label>
+    <select id="library_id" name="library_id"><option value="">- none -</option>
+    {% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select>
+    <p class="meta">Or upload a new one below. <a href="{{ url_for('library') }}">Manage library</a></p>{% endif %}
+    <label for="image">Photo or graphic (PNG, JPG, GIF, WebP; shown without distortion)</label>
+    <input id="image" name="image" type="file" accept="image/*">
+    {% if item.image %}
+      <p><img src="{{ url_for('uploads', name=item.image) }}" alt="{{ item.alt }}" style="max-width:300px;height:auto">
+      <label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
+    {% endif %}
+    <label for="alt">Alternative text (describe the image for screen readers)</label>
+    <input id="alt" name="alt" type="text" value="{{ item.alt }}">
+    <label><input type="checkbox" name="decorative" value="1" {{ 'checked' if item.decorative }}> Image is purely decorative (no alt text needed)</label>
+    <label for="caption">Caption (optional)</label>
+    <input id="caption" name="caption" type="text" value="{{ item.caption }}">
+  </fieldset>
+  {% if can and b.status != 'published' %}<button class="btn">Save section</button>{% else %}<p>You have read-only access to this section.</p>{% endif %}
+  <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back</a>
+</form>
+{% endblock %}

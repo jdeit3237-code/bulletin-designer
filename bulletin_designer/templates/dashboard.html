@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block title %}Bulletins{% endblock %}
+{% block content %}
+<h1>Weekly bulletins</h1>
+{% if g.user.role in ('admin','editor') %}
+<form method="post" action="{{ url_for('new_bulletin') }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="sunday">Create bulletin for Sunday</label>
+  <input id="sunday" name="sunday" type="date" value="{{ suggested }}" required style="max-width:14em">
+  <p>Standing sections (staff, welcome, pantry, ministries...) are copied from the previous week; weekly sections (calendar, readings, Mass intentions...) start empty.</p>
+  <button class="btn">Create bulletin</button>
+</form>
+{% endif %}
+<table>
+  <caption class="small">All bulletins</caption>
+  <thead><tr><th scope="col">Sunday</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+  <tbody>
+  {% for b in bulletins %}
+    <tr><td>{{ b.sunday }}</td><td>{{ b.status|capitalize }}</td>
+        <td><a href="{{ url_for('edit', bid=b.id) }}">Sections</a> &middot; <a href="{{ url_for('preview', bid=b.id) }}">Preview / print</a></td></tr>
+  {% else %}<tr><td colspan="3">No bulletins yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

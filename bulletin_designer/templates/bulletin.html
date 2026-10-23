@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% block title %}Bulletin {{ b.sunday }}{% endblock %}
+{% block content %}
+<p class="noprint"><button class="btn" onclick="window.print()">Print from browser</button>
+  <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Download web PDF (accessible, screen size)</a>
+  <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Download print PDF (300 dpi)</a>
+  <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
+  <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
+{% for p in pages %}
+<section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
+  <div class="pg-head"><img src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span>{{ b.sunday }}</span></div>
+  <div class="pg-body">
+  {% if loop.first %}
+    <h1 class="cover-title">Parish Bulletin</h1>
+    {% if b.theme %}<p style="text-align:center"><strong>{{ b.theme }}</strong></p>{% endif %}
+    <figure class="cover-photo"><img src="{{ url_for('static', filename='church.jpg') }}" alt="St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net"></figure>
+    <h2>In this issue</h2>
+    <ol class="toc" aria-label="Table of contents">
+    {% for t in toc %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
+    </ol>
+  {% endif %}
+  {% if p.row %}
+    {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
+    {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
+    {% if r.slug in ('calendar', 'youth-calendar') %}
+      <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
+      {% for d, t, e in calendar_rows(r.body) %}<tr><td>{{ d }}</td><td>{{ t }}</td><td>{{ e }}</td></tr>{% endfor %}</tbody></table>
+    {% elif r.slug == 'mass-schedule' %}
+      {% for m in mass_rows(r.body) %}
+      <div class="mass"><h3>{{ m.date }}{% if m.time %} &ndash; {{ m.time }} Mass{% endif %}</h3>
+        <dl>{% if m.intention %}<dt>Intention</dt><dd>{{ m.intention }}</dd>{% endif %}
+        {% if m.lector %}<dt>Lector</dt><dd>{{ m.lector }}</dd>{% endif %}
+        {% if m.sacristan %}<dt>Sacristan</dt><dd>{{ m.sacristan }}</dd>{% endif %}
+        {% if m.ministers %}<dt>Eucharistic Ministers</dt><dd>{{ m.ministers }}</dd>{% endif %}</dl></div>
+      {% endfor %}
+    {% else %}
+      {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}{% endfor %}
+    {% endif %}
+    {% if r.image and p.part == 1 %}
+      <figure><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">
+      {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
+    {% endif %}
+    {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
+    </div>
+  {% elif not loop.first %}
+    <h2>Notes</h2><p>This page is intentionally left for notes.</p>
+  {% endif %}
+  </div>
+  <div class="pg-foot">Page {{ p.number }} of {{ pages|length }}</div>
+</section>
+{% endfor %}
+<script>
+document.querySelectorAll('.sheet .pg-body').forEach(function (b) {
+  if (b.scrollHeight > b.clientHeight + 2) {
+    var w = document.createElement('p'); w.className = 'overflow-warn'; w.setAttribute('role', 'alert');
+    w.textContent = 'Warning: content is cut off on this page. Shorten it or give the section more pages.';
+    b.prepend(w);
+  }
+});
+</script>
+{% endblock %}

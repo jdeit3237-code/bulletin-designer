@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Review assistant changes{% endblock %}
+{% block content %}
+<h1>Review proposed changes</h1>
+<p>You asked: <em>{{ request_text }}</em></p>
+<ol>{% for st in steps %}<li>{{ st }}</li>{% endfor %}</ol>
+<form method="post" action="{{ url_for('assistant', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="confirm" value="1">
+  <button class="btn">Apply changes</button> <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Cancel</a>
+</form>
+{% endblock %}

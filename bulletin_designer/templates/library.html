@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block title %}Photo library{% endblock %}
+{% block content %}
+<h1>Photo library</h1>
+<p>Photos stored here can be reused in any bulletin. They are never stretched or cropped.</p>
+<form method="get"><label for="q">Search by title or tag</label><input id="q" name="q" type="text" value="{{ q }}" style="max-width:20em"> <button class="btn secondary">Search</button></form>
+{% if g.user.role != 'viewer' %}
+<h2>Add a photo</h2>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="photo">Image file (PNG, JPG, GIF, WebP)</label><input id="photo" name="photo" type="file" accept="image/*" required>
+  <label for="title">Title</label><input id="title" name="title" type="text" required>
+  <label for="alt">Alternative text (describe the photo)</label><input id="alt" name="alt" type="text">
+  <label><input type="checkbox" name="decorative" value="1"> Decorative (no alt text needed)</label>
+  <label for="tags">Tags (comma separated, e.g. church, pantry, youth)</label><input id="tags" name="tags" type="text">
+  <p><button class="btn">Add to library</button></p>
+</form>
+{% endif %}
+<h2>Photos</h2>
+{% for p in photos %}
+<figure style="display:inline-block;width:230px;vertical-align:top;margin:.5em">
+  <img src="{{ url_for('uploads', name=p.filename) }}" alt="{{ p.alt }}" style="max-width:100%;height:auto">
+  <figcaption><strong>{{ p.title }}</strong><br>{{ p.tags }}</figcaption>
+  {% if g.user.role in ('admin','editor') %}<form method="post" action="{{ url_for('library_delete', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary" onclick="return confirm('Delete this photo?')">Delete</button></form>{% endif %}
+</figure>
+{% else %}<p>No photos yet.</p>{% endfor %}
+{% endblock %}

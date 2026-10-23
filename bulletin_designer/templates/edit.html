@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% block title %}Edit bulletin{% endblock %}
+{% block content %}
+<h1>Bulletin for {{ b.sunday }} <span class="badge {{ 'ok' if b.status=='published' else 'pend' }}">{{ b.status }}</span></h1>
+<p>Printed length: <strong>{{ total }} pages</strong> (always a multiple of 4; blank pages become notes pages).
+  <a class="btn secondary" href="{{ url_for('preview', bid=b.id) }}">Preview / print</a>
+  <a class="btn secondary" href="{{ url_for('download', bid=b.id, kind='web') }}">Web PDF</a>
+  <a class="btn secondary" href="{{ url_for('download', bid=b.id, kind='print') }}">Print PDF</a></p>
+{% if g.user.role in ('admin','editor') %}
+<form method="post" action="{{ url_for('publish', bid=b.id) }}" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  {% if b.status == 'published' %}<input type="hidden" name="unpublish" value="1"><button class="btn secondary">Unpublish (reopen for edits)</button>
+  {% else %}<button class="btn">Publish</button>{% endif %}
+</form>
+{% endif %}
+<table>
+  <caption class="small">Sections in print order</caption>
+  <thead><tr><th scope="col">Section</th><th scope="col">Type</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>
+  <tbody>
+  {% for s in secs %}
+    <tr>
+      <th scope="row">{{ s.title }}<br><span class="meta">{{ s.hint }}</span></th>
+      <td>{{ 'This week only' if s.bulletin_id else ('Changes weekly' if s.weekly else 'Standing (carried forward)') }}</td>
+      <td>
+        {% if not (s.body.strip() or s.image) %}<span class="badge need">{{ 'Needs this week\'s content' if s.weekly else 'Empty' }}</span>
+        {% elif s.status == 'pending' %}<span class="badge pend">Awaiting approval ({{ s.updated_by }})</span>
+        {% elif s.carried %}<span class="badge ok">Carried from last week - review</span>
+        {% else %}<span class="badge ok">Ready</span>{% endif %}
+      </td>
+      <td>
+        {% if g.user.role in ('admin','editor') and b.status != 'published' %}
+        <form method="post" action="{{ url_for('configure', bid=b.id, sid=s.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf() }}">
+          <label for="pg{{ s.id }}">Pages</label><input id="pg{{ s.id }}" name="pages" type="number" min="1" max="8" value="{{ s.pages }}" style="width:5em">
+          <label for="cl{{ s.id }}">Columns</label><select id="cl{{ s.id }}" name="cols" style="width:6em"><option value="1">1</option><option value="2" {{ 'selected' if s.cols == 2 }}>2</option></select>
+          <button class="btn secondary">Apply</button>
+          <button class="btn secondary" name="move" value="up" aria-label="Move {{ s.title }} up">&uarr; Up</button>
+          <button class="btn secondary" name="move" value="down" aria-label="Move {{ s.title }} down">&darr; Down</button>
+          {% if s.bulletin_id %}<button class="btn secondary" name="move" value="remove" onclick="return confirm('Remove this section?')">Remove</button>{% endif %}
+        </form>
+        {% endif %}
+        <a href="{{ url_for('section', bid=b.id, sid=s.id) }}">{{ 'Edit' if editable[s.id] and b.status != 'published' else 'View' }}</a>
+        {% if s.status == 'pending' and g.user.role in ('admin','editor') %}
+        <form class="inline" method="post" action="{{ url_for('approve', bid=b.id, sid=s.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Approve</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if g.user.role in ('admin','editor') and b.status != 'published' %}
+<h2>Ask the assistant</h2>
+<form method="post" action="{{ url_for('assistant', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="ai">Describe the change you want (you will review it before it is applied)</label>
+  <input id="ai" name="request" type="text" required placeholder="e.g. Add section Bishop Message, or make Food Pantry 2 columns">
+  <p><button class="btn">Ask</button></p>
+</form>
+<h2>Add a section to this week's bulletin</h2>
+<form method="post" action="{{ url_for('add_section', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="nt">Section title (e.g. Pumpkin Patch, Bishop's Message, Special Collection)</label>
+  <input id="nt" name="title" type="text" required>
+  <p><button class="btn">Add section</button></p>
+</form>
+{% endif %}
+{% endblock %}

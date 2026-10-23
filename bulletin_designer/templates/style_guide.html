@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block title %}Style guide{% endblock %}
+{% block content %}
+<h1>Bulletin style guide</h1>
+<h2>Logo</h2><p><img src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church logo" style="width:300px;height:auto"></p><p>Use the full-color logo on white and the white logo on parish green. Keep clear space equal to the cross height; never stretch, recolor or crop it.</p>
+<h2>Typography</h2>
+<ul><li>Minimum size anywhere: <strong>12 pt</strong>. Body 12.5-13 pt, section headings 18 pt, titles 24-26 pt.</li>
+<li>Headings: Helvetica/Arial bold. Body: Georgia (serif) for easy print reading.</li></ul>
+<h2>Color (all pairs meet WCAG AA contrast 4.5:1)</h2>
+<table><caption class="small">Palette</caption><thead><tr><th scope="col">Name</th><th scope="col">Hex</th><th scope="col">Use</th></tr></thead><tbody>
+<tr><td style="background:#0b3d2e;color:#fff">Parish green</td><td>#0b3d2e</td><td>Headings, header bar, page footer</td></tr>
+<tr><td style="background:#146245;color:#fff">Green accent</td><td>#146245</td><td>Links, buttons, Mass blocks</td></tr>
+<tr><td style="background:#7a5c12;color:#fff">Gold</td><td>#7a5c12</td><td>Gold text. Logo gold #d4b873 is for rules and graphics only, never text</td></tr>
+<tr><td style="background:#fbf8f1">Cream</td><td>#fbf8f1</td><td>Callout background</td></tr></tbody></table>
+<h2>Layout</h2>
+<ul><li>Letter size (8.5 x 11 in), 0.6 in margins. Page count is always a multiple of 4; leftover pages are notes pages.</li>
+<li>Cover carries the table of contents. Every page has a running header and "Page N of M" footer.</li>
+<li>Each section gets a set number of pages (Admin &gt; Sections). Cut-off content is flagged in the preview.</li></ul>
+<h2>Images</h2>
+<ul><li>Never stretched or cropped: width and height scale together (<code>object-fit: contain</code>).</li>
+<li>Alternative text is required unless the image is marked decorative.</li></ul>
+<h2>Accessibility (Section 508 / WCAG 2.1 AA)</h2>
+<ul><li>Semantic landmarks, skip link, visible focus, labelled fields, table headers with scope, no color-only meaning.</li>
+<li>Publish the printed PDF as tagged PDF where possible, and link the web version.</li></ul>
+<h2>Content and sources</h2>
+<p>Standing sections (staff, welcome, food pantry, ministries) carry forward each week. Weekly sections (calendar, Mass intentions and ministers, readings, pastor's message, prayer list) must be submitted each week. Material from usccb.org, miamiarch.org and stpeterbpk.org must be attributed in the Source field.</p>
+{% endblock %}

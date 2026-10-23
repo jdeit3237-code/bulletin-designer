@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block title %}Users{% endblock %}
+{% block content %}
+<h1>Users and access levels</h1>
+<dl>{% for r in roles %}<dt><strong>{{ r|capitalize }}</strong></dt><dd>{{ help[r] }}</dd>{% endfor %}</dl>
+{% for u in users %}
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="role"><input type="hidden" name="uid" value="{{ u.id }}">
+  <fieldset><legend>{{ u.display_name }} ({{ u.username }})</legend>
+    <label for="role{{ u.id }}">Access level</label>
+    <select id="role{{ u.id }}" name="role" {% if u.id == g.user.id %}disabled{% endif %}>
+      {% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == u.role }}>{{ r|capitalize }}</option>{% endfor %}
+    </select>
+    <p>Sections a contributor may submit:</p>
+    {% for s in secs %}<label><input type="checkbox" name="sections" value="{{ s.id }}" {{ 'checked' if s.id in assigned[u.id] }}> {{ s.title }}</label>{% endfor %}
+    <p><button class="btn">Save</button></p>
+  </fieldset>
+</form>
+{% endfor %}
+<h2>Back up or move this site</h2>
+<p>The backup contains all bulletins, users, photos and documents. Restoring it on another server (for example a new host) recreates the site exactly; restoring replaces the current data.</p>
+<p><a class="btn secondary" href="{{ url_for('backup') }}">Download backup (.zip)</a></p>
+<form method="post" action="{{ url_for('restore') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="bk">Restore from a backup file</label><input id="bk" name="backup" type="file" accept=".zip" required>
+  <p><button class="btn secondary" onclick="return confirm('This replaces all current data. Continue?')">Restore backup</button></p>
+</form>
+<h2>Add a user</h2>
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="create">
+  <label for="nu">Username</label><input id="nu" name="username" type="text" required>
+  <label for="nd">Display name</label><input id="nd" name="display_name" type="text">
+  <label for="nr">Access level</label><select id="nr" name="role">{% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}</select>
+  <label for="np">Temporary password (10+ characters; user must change it)</label><input id="np" name="password" type="password" minlength="10" required>
+  <fieldset><legend>Sections this user may submit (for the Contributor level, e.g. youth group leaders)</legend>
+    {% for s in secs %}<label><input type="checkbox" name="sections" value="{{ s.id }}"> {{ s.title }}</label>{% endfor %}
+  </fieldset>
+  <p><button class="btn">Add user</button></p>
+</form>
+{% endblock %}
