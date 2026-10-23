@@ -4,8 +4,8 @@ Standalone Flask app for building the weekly parish bulletin (web + print, Lette
 
 ## Run
 ```
-pip install -r ../requirements.txt
-BULLETIN_ADMIN_PASSWORD=choose-one python3 app.py   # http://localhost:5050
+pip install -r requirements.txt
+BULLETIN_ADMIN_PASSWORD=choose-one python3 bulletin_designer/app.py   # http://localhost:5050
 ```
 Without `BULLETIN_ADMIN_PASSWORD` a one-time admin password is printed at first start; the admin must change it at first login.
 
