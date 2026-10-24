@@ -259,7 +259,7 @@ def test_mass_intentions_section(app):
     c = setup_admin(app)
     create_bulletin(c)
     assert "Intention for" in c.get("/bulletins/1/section/2").text
-    c.post("/bulletins/1/section/1", data={"body": "Cover", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/1", data={"extra": "Cover", "csrf": tok(c, "/bulletins/1")})
     c.post("/bulletins/1/section/2", data={"group_count": "2", "header": "Mass Intentions Week",
            "g0_date": "2026-10-26", "g0_count": "2", "g0_0_time": "8:00am", "g0_0_for_whom": "John Smith", "g0_0_by_whom": "Mary Smith",
            "g0_1_time": "6:00pm", "g0_1_for_whom": "Ann Lee", "g0_1_by_whom": "Bob Lee",
@@ -309,3 +309,33 @@ def test_copy_keep_delete(app):
     c.post("/bulletins/1/section/5/delete", data={"csrf": tok(c, "/bulletins/1/section/5")})
     assert "Welcome text" not in c.get("/bulletins/1/section/5").text
     assert "Welcome text" in c.get("/bulletins/2/section/5").text
+
+
+def test_cover_parts(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/1", data={"cover_date": "2026-10-25", "cover_title": "Thirtieth Sunday", "addr_street": "1 Main St",
+           "addr_city": "Miami, FL 33100", "addr_phone": "555-1212", "hours_count": "2", "h0_days": "Mon - Fri", "h0_time": "9-4",
+           "h1_days": "", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Sunday, October 25, 2026" in html and "Thirtieth Sunday" in html and "1 Main St" in html and "Mon - Fri" in html
+    assert 'value="2026-10-25"' in c.get("/bulletins/1/section/1").text
+
+
+def test_header_assistant(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "Design assistant" in c.get("/bulletins/1/preview").text
+    r = c.post("/bulletins/1/assistant", data={"request": "set header to Fall Festival Sunday", "csrf": tok(c, "/bulletins/1")})
+    assert "banner header tagline" in r.text
+    c.post("/bulletins/1/assistant", data={"confirm": "1", "csrf": tok(c, "/bulletins/1")})
+    assert "Fall Festival Sunday" in c.get("/bulletins/1/preview").text
+
+
+def test_footer_text_and_address(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/1", data={"addr_street": "1 Main St", "addr_city": "Miami, FL", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/footer", data={"footer": "Fall Festival Nov 1", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Fall Festival Nov 1" in html and "1 Main St" in html and "Page 1 of" in html

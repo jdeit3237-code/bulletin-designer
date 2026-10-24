@@ -5,13 +5,19 @@
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Download print PDF (300 dpi)</a>
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
+{% include "_assistant_panel.html" %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
-  <div class="pg-head"><img src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span>{{ b.sunday }}</span></div>
+  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
   {% if loop.first %}
-    <h1 class="cover-title">Parish Bulletin</h1>
-    {% if b.theme %}<p style="text-align:center"><strong>{{ b.theme }}</strong></p>{% endif %}
+    <header class="banner">
+      <img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church logo">
+      <div class="banner-text"><p class="banner-kicker">Welcome to</p>
+        <h1 class="cover-title">St. Peter the Fisherman</h1>
+        <p class="banner-sub">Catholic Church &middot; Weekly Parish Bulletin</p></div>
+      <p class="banner-date">{{ long_sunday(b.sunday) }}{% if b.theme %} &middot; {{ b.theme }}{% endif %}</p>
+    </header>
     <figure class="cover-photo"><img src="{{ url_for('static', filename='church.jpg') }}" alt="St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net"></figure>
     <h2>In this issue</h2>
     <ol class="toc" aria-label="Table of contents">
@@ -21,7 +27,17 @@
   {% if p.row %}
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
-    {% if r.slug in ('calendar', 'youth-calendar') %}
+    {% if r.slug == 'cover' %}
+      {% set cv = cover_data(r.body) %}
+      {% if cv.date or cv.title %}<h3>{{ cv.date }}{% if cv.date and cv.title %} &ndash; {% endif %}{{ cv.title }}</h3>{% endif %}
+      {% if cv.has_addr %}<address>{% if cv.addr.street %}{{ cv.addr.street }}<br>{% endif %}{% if cv.addr.city %}{{ cv.addr.city }}<br>{% endif %}
+        {% if cv.addr.phone %}Phone: {{ cv.addr.phone }}<br>{% endif %}{% if cv.addr.email %}Email: {{ cv.addr.email }}<br>{% endif %}
+        {% if cv.addr.web %}<a href="{{ cv.addr.web }}">{{ cv.addr.web }}</a>{% endif %}</address>{% endif %}
+      {% if cv.hours %}<h3>Office Hours</h3>
+      <table class="cal"><thead><tr><th scope="col">Days</th><th scope="col">Hours</th><th scope="col">Notes</th></tr></thead><tbody>
+      {% for h in cv.hours %}<tr><td>{{ h.days }}</td><td>{{ h.time }}</td><td>{{ h.notes }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+      {% if cv.extra %}<p>{{ cv.extra }}</p>{% endif %}
+    {% elif r.slug in ('calendar', 'youth-calendar') %}
       <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
       {% for d, t, e in calendar_rows(r.body) %}<tr><td>{{ d }}</td><td>{{ t }}</td><td>{{ e }}</td></tr>{% endfor %}</tbody></table>
     {% elif r.slug == 'mass-intentions' %}
@@ -53,7 +69,7 @@
       {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}{% endfor %}
     {% endif %}
     {% if r.image and p.part == 1 %}
-      <figure><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">
+      <figure>{% if r.crop_h or (r.crop_zoom or 1) > 1 %}<div class="crop" style="height:{{ r.crop_h or 3 }}in"><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}" style="object-position:{{ r.crop_x }}% {{ r.crop_y }}%;transform:scale({{ r.crop_zoom }});transform-origin:{{ r.crop_x }}% {{ r.crop_y }}%"></div>{% else %}<img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">{% endif %}
       {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
     {% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
@@ -62,7 +78,7 @@
     <h2>Notes</h2><p>This page is intentionally left for notes.</p>
   {% endif %}
   </div>
-  <div class="pg-foot">Page {{ p.number }} of {{ pages|length }}</div>
+  <footer class="pg-foot"><span class="foot-text">{{ b.footer or 'St. Peter the Fisherman Catholic Church' }}{% if foot_addr %}<br><span class="foot-addr">{{ foot_addr }}</span>{% endif %}</span><span class="foot-page">Page {{ p.number }} of {{ pages|length }}</span></footer>
 </section>
 {% endfor %}
 <script>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% block title %}{{ s.title }}{% endblock %}
 {% block content %}
+{% include "_assistant_panel.html" %}
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
 {% if where %}<p><strong>{% if where[2] %}Printed on {{ 'page ' ~ where[0] if where[0] == where[1] else 'pages ' ~ where[0] ~ '-' ~ where[1] }}.{% else %}Not printed yet; once filled in it will start on page {{ where[0] }}.{% endif %}</strong> An editor can change the order and page count on the bulletin overview.</p>{% endif %}
@@ -7,11 +8,36 @@
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
-    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar') %}
+    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
-    {% if s.slug == 'mass-schedule' %}
+    {% if s.slug == 'cover' %}
+    <fieldset><legend>Date</legend>
+      <label for="cover_date">Date (choose from the calendar)</label><input id="cover_date" name="cover_date" type="date" value="{{ iso_date(cover.date) }}">{% if cover.date and not iso_date(cover.date) %}<p>Previously entered: {{ cover.date }}. Choose a date to replace it.</p><input type="hidden" name="cover_date_old" value="{{ cover.date }}">{% endif %}
+      <label for="cover_title">Title for the date (e.g. Thirtieth Sunday in Ordinary Time)</label><input id="cover_title" name="cover_title" type="text" value="{{ cover.title }}">
+    </fieldset>
+    <fieldset><legend>Parish address</legend>
+      <label for="addr_street">Street address</label><input id="addr_street" name="addr_street" type="text" value="{{ cover.addr.street }}">
+      <label for="addr_city">City, state, ZIP</label><input id="addr_city" name="addr_city" type="text" value="{{ cover.addr.city }}">
+      <label for="addr_phone">Phone</label><input id="addr_phone" name="addr_phone" type="tel" value="{{ cover.addr.phone }}">
+      <label for="addr_email">Email</label><input id="addr_email" name="addr_email" type="email" value="{{ cover.addr.email }}">
+      <label for="addr_web">Web address (starting with https://)</label><input id="addr_web" name="addr_web" type="url" value="{{ cover.addr.web }}">
+    </fieldset>
+    <input type="hidden" name="hours_count" value="{{ cover.hours|length + 1 }}">
+    <div id="hours-list" data-prefix="h" data-count="hours_count" data-label="Office hours">
+    {% for h in cover.hours + [{}] %}{% set n = loop.index0 %}
+    <fieldset data-clone><legend>Office hours {{ loop.index }}</legend>
+      <label for="h{{ n }}_days">Days (e.g. Monday - Friday)</label><input id="h{{ n }}_days" name="h{{ n }}_days" type="text" value="{{ h.days or '' }}">
+      <label for="h{{ n }}_time">Hours (e.g. 9:00am - 4:00pm)</label><input id="h{{ n }}_time" name="h{{ n }}_time" type="text" value="{{ h.time or '' }}">
+      <label for="h{{ n }}_notes">Notes</label><input id="h{{ n }}_notes" name="h{{ n }}_notes" type="text" value="{{ h.notes or '' }}">
+    </fieldset>
+    {% endfor %}
+    </div>
+    <p><button type="button" class="add-clone" data-target="hours-list">+ Add office hours</button></p>
+    <label for="extra">Other cover text (optional)</label>
+    <textarea id="extra" name="extra">{{ cover.extra }}</textarea>
+    {% elif s.slug == 'mass-schedule' %}
     <p>Add one block per Mass or day. For lectors, sacristans and Eucharistic ministers you may list several names, separated by commas. Leave unused fields and blocks empty; they are left out of the bulletin.</p>
     <label for="header">Header (e.g. This Week in Our Parish)</label>
     <input id="header" name="header" type="text" value="{{ mass_header }}">
@@ -118,8 +144,21 @@
     <label for="image">Photo or graphic (PNG, JPG, GIF, WebP; shown without distortion)</label>
     <input id="image" name="image" type="file" accept="image/*">
     {% if item.image %}
-      <p><img src="{{ url_for('uploads', name=item.image) }}" alt="{{ item.alt }}" style="max-width:300px;height:auto">
-      <label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
+      <p><label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
+      <h3>Crop and zoom (the picture is never stretched)</h3>
+      <div id="crop-prev" class="crop" style="height:{{ item.crop_h or 3 }}in;max-width:6in;border:1px solid #888"><img src="{{ url_for('uploads', name=item.image) }}" alt="Preview of the cropped picture"></div>
+      <label for="crop_zoom">Zoom: <output id="zoom_o">{{ item.crop_zoom or 1 }}</output>x</label>
+      <input id="crop_zoom" name="crop_zoom" type="range" min="1" max="4" step="0.1" value="{{ item.crop_zoom or 1 }}">
+      <label for="crop_x">Move left / right</label><input id="crop_x" name="crop_x" type="range" min="0" max="100" step="1" value="{{ item.crop_x if item.crop_x is not none else 50 }}">
+      <label for="crop_y">Move up / down</label><input id="crop_y" name="crop_y" type="range" min="0" max="100" step="1" value="{{ item.crop_y if item.crop_y is not none else 50 }}">
+      <label for="crop_h">Frame height in inches (0 = show whole picture; zoom alone uses 3 in)</label>
+      <input id="crop_h" name="crop_h" type="number" min="0" max="9" step="0.25" value="{{ item.crop_h or 0 }}">
+      <script>
+      (function(){var z=crop_zoom,x=crop_x,y=crop_y,h=crop_h,box=document.getElementById('crop-prev'),im=box.firstElementChild;
+      function up(){im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';
+        im.style.transformOrigin=x.value+'% '+y.value+'%';zoom_o.textContent=z.value;box.style.height=((+h.value)||3)+'in';}
+      [z,x,y,h].forEach(function(e){e.addEventListener('input',up);});up();})();
+      </script>
     {% endif %}
     <label for="alt">Alternative text (describe the image for screen readers)</label>
     <input id="alt" name="alt" type="text" value="{{ item.alt }}">

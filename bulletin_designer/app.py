@@ -37,7 +37,7 @@ IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 # Sections found in the Oct 11/18/25 2026 bulletins. weekly=1 means new content is
 # needed every week; weekly=0 means "standing" content carried forward automatically.
 DEFAULT_SECTIONS = [
-    ("cover", "Parish Information & Cover", 0, 1, "Address, phone, office hours, Sunday theme"),
+    ("cover", "Parish Information & Cover", 0, 1, "Sunday date and title, parish address, office hours"),
     ("mass-intentions", "Mass Intentions", 1, 1, "Weekly form: day, date, time, who the Mass is for, who requested it (usually page 2)"),
     ("staff", "Parish Staff", 0, 1, "Standing list; edit only when staff change (carried forward)"),
     ("mass-times", "Mass & Service Times", 0, 1, "Standing list: title, days, name of Mass, time, notes, web address (blank fields are left out)"),
@@ -150,6 +150,12 @@ def create_app(config=None):
                     conn.execute("UPDATE sections SET position=position+1 WHERE position>=?", (top,))
                 conn.execute("INSERT INTO sections(slug,title,weekly,pages,position,hint) VALUES(?,?,?,?,?,?)",
                              (slug, title, weekly, pages, top, hint))
+        if "footer" not in {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}:
+            conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
+        have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
+        for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0)):
+            if col not in have:
+                conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         conn.execute("UPDATE sections SET title=?, hint=? WHERE slug='mass-schedule' AND title=?",
                      ("This Week in Our Parish: Lectors, Sacristans & Ministers",
                       "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)",
@@ -214,6 +220,7 @@ def create_app(config=None):
         return vals
 
     app.jinja_env.globals["iso_date"] = iso_date
+    app.jinja_env.globals["long_sunday"] = long_date
 
     MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
 
@@ -235,6 +242,31 @@ def create_app(config=None):
         return header, rows
 
     app.jinja_env.globals["mass_data"] = mass_data
+
+    ADDR_FIELDS = ("street", "city", "phone", "email", "web")
+
+    def cover_data(body):
+        """Parse the cover: @date | date | title, @address | ..., @hours | days | time | notes; other lines are extra text."""
+        out = {"date": "", "title": "", "addr": dict.fromkeys(ADDR_FIELDS, ""), "hours": [], "extra": ""}
+        extra = []
+        for line in (body or "").splitlines():
+            parts = [x.strip() for x in line.split("|")]
+            tag = parts[0].lower()
+            if tag == "@date":
+                out["date"], out["title"] = (parts + ["", ""])[1], (parts + ["", ""])[2]
+            elif tag == "@address":
+                out["addr"] = dict(zip(ADDR_FIELDS, (parts[1:] + [""] * 5)[:5]))
+                if not out["addr"]["web"].lower().startswith(("http://", "https://")):
+                    out["addr"]["web"] = ""
+            elif tag == "@hours":
+                out["hours"].append(dict(zip(("days", "time", "notes"), (parts[1:] + ["", "", ""])[:3])))
+            else:
+                extra.append(line)
+        out["extra"] = "\n".join(extra).strip()
+        out["has_addr"] = any(out["addr"].values())
+        return out
+
+    app.jinja_env.globals["cover_data"] = cover_data
 
     TIMES_FIELDS = ("title", "days", "name", "time", "notes", "web")
 
@@ -317,9 +349,10 @@ def create_app(config=None):
             pos, pages, cols = (old["position"], old["pages"], old["cols"]) if old else (s["position"], s["pages"], 1)
             if old and not s["weekly"]:
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
-                    position,pages,cols) VALUES(?,?,?,?,?,?,?,?,1,?,?,?)""",
+                    position,pages,cols,crop_zoom,crop_x,crop_y,crop_h) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?)""",
                              (bulletin_id, s["id"], old["body"], old["image"], old["alt"], old["decorative"],
-                              old["caption"], old["source"], pos, pages, cols))
+                              old["caption"], old["source"], pos, pages, cols,
+                              old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"]))
             else:
                 conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols) VALUES(?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols))
@@ -329,7 +362,7 @@ def create_app(config=None):
         """Return (pages, toc). Section page spans are sequential; total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, s.title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         pages, toc, cur = [], [], 1
         for r in rows:
@@ -465,6 +498,23 @@ def create_app(config=None):
                         if any(vals):
                             lines.append(" | ".join(["", gdate] + vals))
                 body = "\n".join(lines)
+            elif s["slug"] == "cover":
+                clean = lambda k: request.form.get(k, "").replace("|", "/").replace("\n", " ").strip()
+                lines = []
+                cd, ct = long_date(request.form.get("cover_date", "")) or clean("cover_date_old"), clean("cover_title")
+                if cd or ct:
+                    lines.append(f"@date | {cd} | {ct}")
+                av = [clean("addr_" + k) for k in ADDR_FIELDS]
+                if any(av):
+                    lines.append("@address | " + " | ".join(av))
+                for i in range(min(int(request.form.get("hours_count", 0)), 40)):
+                    hv = [clean(f"h{i}_{k}") for k in ("days", "time", "notes")]
+                    if any(hv):
+                        lines.append("@hours | " + " | ".join(hv))
+                extra = request.form.get("extra", "").strip()
+                if extra:
+                    lines.append(extra)
+                body = "\n".join(lines)
             elif s["slug"] in ("calendar", "youth-calendar"):
                 lines = []
                 for i in range(min(int(request.form.get("event_count", 0)), 300)):
@@ -483,7 +533,7 @@ def create_app(config=None):
             doc = request.files.get("document")
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
-                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar"):
+                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover"):
                     flash("Mass schedules use the form; paste details into the fields instead of uploading a document.", "error")
                     return redirect(request.url)
                 try:
@@ -529,10 +579,17 @@ def create_app(config=None):
                 flash("Alternative text is required for images (or mark the image decorative).", "error")
                 return redirect(request.url)
             status = "approved" if g.user["role"] in ("admin", "editor") else "pending"
+            def num(key, lo, hi, default):
+                try:
+                    return max(lo, min(hi, float(request.form.get(key, default))))
+                except ValueError:
+                    return default
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
+                          num("crop_zoom", 1, 4, 1), num("crop_x", 0, 100, 50), num("crop_y", 0, 100, 50), num("crop_h", 0, 9, 0),
                           status, g.user["username"], item["id"]))
             db().commit()
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
@@ -542,10 +599,11 @@ def create_app(config=None):
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                events=calendar_rows(item["body"]) + [("", "", "")] * 2,
+                               cover=cover_data(item["body"]),
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source")
+    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -594,6 +652,12 @@ def create_app(config=None):
         conn.commit()
         flash("Section content deleted.", "ok")
         return redirect(url_for("section", bid=bid, sid=sid))
+
+    def footer_address(bid):
+        row = db().execute("""SELECT i.body FROM items i JOIN sections s ON s.id=i.section_id
+            WHERE i.bulletin_id=? AND s.slug='cover'""", (bid,)).fetchone()
+        a = cover_data(row["body"] if row else "")["addr"]
+        return " \u00b7 ".join(x for x in (a["street"], a["city"], a["phone"]) if x)
 
     def open_bulletin(bid):
         b = get_bulletin(bid)
@@ -661,6 +725,9 @@ def create_app(config=None):
     def rule_based(bid, text):
         """Offline fallback understanding a few plain-English layout requests."""
         t = text.strip()
+        m = re.search(r"(?:set|change|make) (?:the )?(?:header|banner|tagline|theme)(?: text| line)? (?:to|as|say) [\"']?(.+?)[\"']?$", t, re.I)
+        if m:
+            return [{"action": "set_header", "text": m.group(1)}]
         m = re.search(r"add (?:a |an )?(?:new )?section (?:called |named |titled )?[\"']?(.+?)[\"']?$", t, re.I)
         if m:
             return [{"action": "add_section", "title": m.group(1)}]
@@ -686,7 +753,7 @@ def create_app(config=None):
         system = ("You edit a parish bulletin layout. Reply with ONLY a JSON array of actions. Allowed: "
                   '{"action":"add_section","title":str,"text":str?}, {"action":"move","section":str,"direction":"up|down"}, '
                   '{"action":"layout","section":str,"pages":1-8?,"cols":1|2?}, {"action":"set_text","section":str,"text":str}, '
-                  '{"action":"remove","section":str}. Never invent facts, names, dates or Mass intentions. '
+                  '{"action":"remove","section":str}, {"action":"set_header","text":str} (the tagline in the banner header). Never invent facts, names, dates or Mass intentions. '
                   "Existing sections: " + json.dumps(titles))
         payload = json.dumps({"model": os.environ.get("BULLETIN_AI_MODEL", "gpt-4o-mini"),
                               "messages": [{"role": "system", "content": system},
@@ -704,6 +771,8 @@ def create_app(config=None):
     def describe(bid, a):
         sec = find_section(bid, a.get("section")) if a.get("section") else None
         kind = a.get("action")
+        if kind == "set_header":
+            return f'Set the banner header tagline to "{str(a.get("text", ""))[:120]}"'
         if kind == "add_section":
             return f'Add section "{a.get("title", "New section")}"'
         if not sec:
@@ -721,6 +790,9 @@ def create_app(config=None):
     def apply_action(bid, a):
         conn = db()
         kind = a.get("action")
+        if kind == "set_header":
+            conn.execute("UPDATE bulletins SET theme=? WHERE id=?", (str(a.get("text", ""))[:120], bid))
+            return
         if kind == "add_section":
             title = str(a.get("title", "New section"))[:80]
             last = conn.execute("SELECT COALESCE(MAX(position),0) m FROM items WHERE bulletin_id=?", (bid,)).fetchone()["m"]
@@ -774,7 +846,7 @@ def create_app(config=None):
             actions = rule_based(bid, text)
         actions = [a for a in actions if isinstance(a, dict) and describe(bid, a)][:10]
         if not actions:
-            flash("I could not turn that into a change. Try: add section Pumpkin Patch, move Calendar down, "
+            flash("I could not turn that into a change. Try: set header to Join us for Fall Festival, add section Pumpkin Patch, move Calendar down, "
                   "make Food Pantry 2 columns, or set a section to 2 pages.", "error")
             return redirect(url_for("edit", bid=bid))
         session[f"ai{bid}"] = actions
@@ -786,6 +858,16 @@ def create_app(config=None):
     def approve(bid, sid):
         db().execute("UPDATE items SET status='approved' WHERE bulletin_id=? AND section_id=?", (bid, sid))
         db().commit()
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/footer", methods=["POST"])
+    @need("admin", "editor")
+    def set_footer(bid):
+        open_bulletin(bid)
+        text = " ".join(request.form.get("footer", "").split())[:160]
+        db().execute("UPDATE bulletins SET footer=? WHERE id=?", (text, bid))
+        db().commit()
+        flash("Footer saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/publish", methods=["POST"])
@@ -801,7 +883,7 @@ def create_app(config=None):
     def preview(bid):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        return render_template("bulletin.html", b=b, pages=pages, toc=toc)
+        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid))
 
     @app.route("/library", methods=["GET", "POST"])
     @need()
@@ -879,7 +961,7 @@ def create_app(config=None):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True)
+        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid))
         html = html.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
             'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})

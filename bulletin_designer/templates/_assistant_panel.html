@@ -1,0 +1,10 @@
+{% if g.user and g.user.role in ('admin','editor') and b.status != 'published' %}
+<section class="noprint" aria-labelledby="ai-help-h" style="border:2px solid var(--gold-bright);border-radius:6px;padding:.5em 1em;margin-bottom:1em;background:var(--cream)">
+<h2 id="ai-help-h" style="margin:.2em 0">Design assistant</h2>
+<form method="post" action="{{ url_for('assistant', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="ai-help">Ask for help or describe what you want changed. You review every change before it is applied.</label>
+  <input id="ai-help" name="request" type="text" required placeholder="e.g. Set header to Join us for the Fall Festival; make Calendar 2 columns; move Staff down">
+  <p><button class="btn">Ask the assistant</button></p>
+</form></section>
+{% endif %}
