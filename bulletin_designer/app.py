@@ -446,19 +446,17 @@ def create_app(config=None):
         for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
             side, want = area_of(r), max(2, page_wanted(r))
             idx = None
-            if page_wanted(r) and want <= len(pages) and pages[want - 1].get("duo") is not None \
-                    and pages[want - 1]["duo"][side] is None:
-                idx = want - 1
-            elif not page_wanted(r):
-                for k in range(1, len(pages)):
-                    if pages[k].get("duo") is not None and pages[k]["duo"][side] is None:
-                        idx = k
-                        break
+            for k in range(max(1, want - 1) if page_wanted(r) else 1, len(pages)):
+                if pages[k].get("duo") is not None and pages[k]["duo"][side] is None:
+                    idx = k
+                    break
             if idx is None:
                 new = {"row": None, "duo": {"left": None, "right": None}}
-                at = min(want - 1, len(pages)) if page_wanted(r) else len(pages)
-                pages.insert(max(1, at), new)
-                idx = pages.index(new)
+                at = max(1, min(want - 1, len(pages))) if page_wanted(r) else len(pages)
+                while at < len(pages) and pages[at].get("duo") is not None:
+                    at += 1
+                pages.insert(at, new)
+                idx = at
             pages[idx]["duo"][side] = r
             pages[idx]["row"] = pages[idx]["duo"]["left"] or pages[idx]["duo"]["right"]
         toc = []
