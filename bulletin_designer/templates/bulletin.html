@@ -54,7 +54,7 @@
 </div>{% endmacro %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
-  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
+  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
   {% set side_by_side = loop.first and p.row and not p.duo and p.row.slug != 'cover' %}
   {% if loop.first %}
