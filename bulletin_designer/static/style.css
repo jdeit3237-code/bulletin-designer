@@ -182,3 +182,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .staff-role { font-weight: bold; color: var(--green, #2f5d46); text-decoration: underline; }
 .staff-name { font-weight: normal; padding-left: .6em; }
 .staff-contact { padding-left: .6em; }
+.times-item { background: none; border-left: 3px solid var(--gold, #c9a84c); padding: 0 .6em; margin: 0 0 .3em; line-height: 1.2; }
+.times-item h3 { margin: 0; font-size: 12pt; }
+.times-item p { margin: 0; }

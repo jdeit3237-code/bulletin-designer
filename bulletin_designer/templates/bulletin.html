@@ -28,7 +28,7 @@
       {% endfor %}
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
-      <div class="mass">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}
+      <div class="mass times-item">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}
         {% if t.days %}<p><strong>{{ t.days }}</strong></p>{% endif %}
         {% if t.name or t.time %}<p>{{ t.name }}{% if t.name and t.time %} &ndash; {% endif %}{{ t.time }}</p>{% endif %}
         {% if t.notes %}<p>{{ t.notes }}</p>{% endif %}
