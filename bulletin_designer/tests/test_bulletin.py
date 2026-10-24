@@ -407,6 +407,17 @@ def test_full_section_moves_to_chosen_page(app):
     assert "Settings saved" in c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "csrf": t}, follow_redirects=True).text
 
 
+def test_section_on_page_one(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "right", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    pg = c.get("/bulletins/1").text
+    assert re.search(r"Readings[^<]*<br>.*?Page 1", pg, re.S)
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

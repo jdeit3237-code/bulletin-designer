@@ -429,7 +429,11 @@ def create_app(config=None):
         pages = []
         def blocks(r):
             return [{"row": r, "part": n + 1, "of": r["pages"]} for n in range(r["pages"])]
-        fulls = [r for r in printed if area_of(r) == "full"]
+        cover_printed = any(r["slug"] == "cover" for r in printed)
+        p1 = next((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover" and not cover_printed), None)
+        if p1 is not None:
+            pages.extend(blocks(p1))
+        fulls = [r for r in printed if area_of(r) == "full" and r is not p1]
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):
                 pages.extend(blocks(r))
@@ -439,7 +443,7 @@ def create_app(config=None):
             pages[at:at] = blocks(r)
         if not pages:
             pages.append({"row": None})
-        halves = [r for r in printed if area_of(r) != "full"]
+        halves = [r for r in printed if area_of(r) != "full" and r is not p1]
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
