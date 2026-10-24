@@ -273,6 +273,16 @@ def create_app(config=None):
 
     app.jinja_env.globals["cover_data"] = cover_data
 
+    def cover_prefilled(body, sunday):
+        cv = cover_data(body)
+        if not cv["date"]:
+            cv["date"] = long_date(sunday)
+        if not cv["has_addr"]:
+            cv["addr"].update(street="31300 Overseas Hwy", city="Big Pine Key, FL 33043", phone="305-872-2537")
+        if not cv["hours"]:
+            cv["hours"] = [{"days": "Monday-Friday", "time": "9:30am-3:30pm", "notes": ""}]
+        return cv
+
     TIMES_FIELDS = ("title", "days", "name", "time", "notes", "web")
 
     def times_rows(body):
@@ -347,6 +357,10 @@ def create_app(config=None):
         d = d or date.today()
         return d + timedelta(days=(6 - d.weekday()) % 7)
 
+    def week_free(body):
+        """Drop the week-specific @date line so a carried cover does not repeat last week's date and title."""
+        return "\n".join(l for l in (body or "").splitlines() if not l.strip().lower().startswith("@date"))
+
     def ensure_items(bulletin_id, sunday):
         """Create items: carry standing sections (and their layout) from the previous bulletin;
         weekly sections start empty. Custom sections belong to one bulletin only."""
@@ -367,7 +381,7 @@ def create_app(config=None):
             if old and not s["weekly"]:
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
                     position,pages,cols,crop_zoom,crop_x,crop_y,crop_h) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?)""",
-                             (bulletin_id, s["id"], old["body"], old["image"], old["alt"], old["decorative"],
+                             (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else old["body"], old["image"], old["alt"], old["decorative"],
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"]))
             else:
@@ -383,7 +397,7 @@ def create_app(config=None):
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         pages, toc, cur = [], [], 1
         for r in rows:
-            has = bool((r["body"] or "").strip() or r["image"])
+            has = bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"])
             if not has or (r["status"] == "pending" and not include_pending):
                 continue
             toc.append({"title": r["title"], "page": cur})
@@ -401,7 +415,7 @@ def create_app(config=None):
         """Map section id -> (first, last, filled) page. Empty sections show where they would start."""
         spans, cur = {}, 1
         for r in rows:
-            filled = bool((r["body"] or "").strip() or r["image"])
+            filled = bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"])
             spans[r["id"]] = (cur, cur + r["pages"] - 1, filled)
             if filled:
                 cur += r["pages"]
@@ -618,13 +632,13 @@ def create_app(config=None):
             db().commit()
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
             return redirect(url_for("edit", bid=bid))
-        rows = db().execute("""SELECT s.id, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
+        rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_rows(item["body"]) + [("", "", "")] * 2,
-                               cover=cover_data(item["body"]),
+                               cover=cover_prefilled(item["body"], b["sunday"]),
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
@@ -646,9 +660,10 @@ def create_app(config=None):
             return redirect(url_for("section", bid=bid, sid=sid))
         ensure_items(nb["id"], nxt)
         src = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid)).fetchone()
+        is_cover = conn.execute("SELECT slug FROM sections WHERE id=?", (sid,)).fetchone()["slug"] == "cover"
         conn.execute("UPDATE items SET " + ",".join(f"{c}=?" for c in COPY_COLS) +
                      ", status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
-                     [src[c] for c in COPY_COLS] + [g.user["username"], nb["id"], sid])
+                     [(week_free(src[c]) if c == "body" and is_cover else src[c]) for c in COPY_COLS] + [g.user["username"], nb["id"], sid])
         conn.commit()
         flash(f"Copied to the {nxt} bulletin.", "ok")
         return redirect(url_for("section", bid=bid, sid=sid))
@@ -683,11 +698,12 @@ def create_app(config=None):
             WHERE i.bulletin_id=? AND s.slug='cover'""", (bid,)).fetchone()
         cv = cover_data(row["body"] if row else "")
         a = cv["addr"]
-        line = " \u00b7 ".join(x for x in (a["street"], a["city"]) if x)
+        line = ", ".join(x for x in (a["street"], a["city"]) if x)
         phone = a["phone"]
         if not line and not phone:
             line, phone = "31300 Overseas Hwy, Big Pine Key, FL 33043", "305-872-2537"
         h = cv["hours"][0] if cv["hours"] else None
+        g.cover_dt = (cv["date"], cv["title"])
         hours = " ".join(x for x in (h["days"], h["time"]) if x) if h else ""
         return line, phone, hours or "Monday-Friday 9:30am-3:30pm"
 
@@ -963,7 +979,7 @@ def create_app(config=None):
     def preview(bid):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2])
+        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
 
     @app.route("/library", methods=["GET", "POST"])
     @need()
@@ -1041,7 +1057,7 @@ def create_app(config=None):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2])
+        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
         html = html.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
             'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})

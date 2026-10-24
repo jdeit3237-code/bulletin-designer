@@ -8,7 +8,7 @@
 {% include "_assistant_panel.html" %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
-  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ long_sunday(b.hdr_date or b.sunday) }}</span></header>
+  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
   {% if loop.first %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
@@ -17,7 +17,7 @@
       <div class="banner-text"><p class="banner-kicker">Welcome to</p>
         <h1 class="cover-title">St. Peter the Fisherman</h1>
         <p class="banner-sub">Catholic Parish Weekly Bulletin</p></div>
-      <p class="banner-date">{{ long_sunday(b.hdr_date or b.sunday) }}{% if b.theme %} &middot; {{ b.theme }}{% endif %}</p>
+      <p class="banner-date">{% set hd = cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) %}{% set ht = cover_dt[1] or b.theme %}{{ hd }}{% if ht %} &middot; {{ ht }}{% endif %}</p>
     </header>
     <div class="wave-top"></div>
     {% set himg = b.hdr_image %}
@@ -34,13 +34,6 @@
     {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
-      {% if cv.date or cv.title %}<h3>{{ cv.date }}{% if cv.date and cv.title %} &ndash; {% endif %}{{ cv.title }}</h3>{% endif %}
-      {% if cv.has_addr %}<address>{% if cv.addr.street %}{{ cv.addr.street }}<br>{% endif %}{% if cv.addr.city %}{{ cv.addr.city }}<br>{% endif %}
-        {% if cv.addr.phone %}Phone: {{ cv.addr.phone }}<br>{% endif %}{% if cv.addr.email %}Email: {{ cv.addr.email }}<br>{% endif %}
-        {% if cv.addr.web %}<a href="{{ cv.addr.web }}">{{ cv.addr.web }}</a>{% endif %}</address>{% endif %}
-      {% if cv.hours %}<h3>Office Hours</h3>
-      <table class="cal"><thead><tr><th scope="col">Days</th><th scope="col">Hours</th><th scope="col">Notes</th></tr></thead><tbody>
-      {% for h in cv.hours %}<tr><td>{{ h.days }}</td><td>{{ h.time }}</td><td>{{ h.notes }}</td></tr>{% endfor %}</tbody></table>{% endif %}
       {% if cv.extra %}<p>{{ cv.extra }}</p>{% endif %}
     {% elif r.slug in ('calendar', 'youth-calendar') %}
       <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
