@@ -44,7 +44,7 @@ DEFAULT_SECTIONS = [
     ("welcome", "Welcome Message", 0, 1, "Standing invitation and welcome"),
     ("youth-calendar", "Youth Group Calendar", 1, 1, "One event per line: Date | Time | Event (assign to the youth group leaders)"),
     ("calendar", "This Week in Our Parish (Calendar of Events)", 1, 1, "One event per line: Date | Time | Event (shown as a table)"),
-    ("mass-schedule", "Mass Schedule, Intentions & Ministers", 1, 1, "Submission form: each Mass with lector, sacristan, Eucharistic ministers and intention"),
+    ("mass-schedule", "This Week in Our Parish: Lectors, Sacristans & Ministers", 1, 1, "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)"),
     ("readings", "Readings & Gospel", 1, 1, "usccb.org daily readings link or text"),
     ("pastor", "Pastor's Message", 1, 1, "Weekly reflection from the pastor"),
     ("sick", "Pray for Those Who Are Sick", 1, 1, "Prayer list; review weekly"),
@@ -150,6 +150,10 @@ def create_app(config=None):
                     conn.execute("UPDATE sections SET position=position+1 WHERE position>=?", (top,))
                 conn.execute("INSERT INTO sections(slug,title,weekly,pages,position,hint) VALUES(?,?,?,?,?,?)",
                              (slug, title, weekly, pages, top, hint))
+        conn.execute("UPDATE sections SET title=?, hint=? WHERE slug='mass-schedule' AND title=?",
+                     ("This Week in Our Parish: Lectors, Sacristans & Ministers",
+                      "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)",
+                      "Mass Schedule, Intentions & Ministers"))
         if not conn.execute("SELECT 1 FROM users").fetchone():
             pw = os.environ.get("BULLETIN_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
             conn.execute("INSERT INTO users(username,display_name,pw_hash,role,must_reset) VALUES(?,?,?,?,1)",
@@ -189,17 +193,26 @@ def create_app(config=None):
 
     app.jinja_env.globals["calendar_rows"] = calendar_rows
 
-    MASS_FIELDS = ("date", "time", "lector", "sacristan", "ministers", "intention")
+    MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
 
-    def mass_rows(body):
-        rows = []
+    def split_names(text):
+        return [n.strip() for n in re.split(r"[;,\n]", text or "") if n.strip()]
+
+    def mass_data(body):
+        """Return (header, rows); each row has its name fields split into lists."""
+        header, rows = "", []
         for line in (body or "").splitlines():
-            if line.strip():
+            if line.startswith("#"):
+                header = line[1:].strip()
+            elif line.strip():
                 parts = [p.strip() for p in line.split("|")]
-                rows.append(dict(zip(MASS_FIELDS, (parts + [""] * 6)[:6])))
-        return rows
+                row = dict(zip(MASS_FIELDS, (parts + [""] * 6)[:6]))
+                for k in ("lectors", "sacristans", "ministers"):
+                    row[k + "_list"] = split_names(row[k])
+                rows.append(row)
+        return header, rows
 
-    app.jinja_env.globals["mass_rows"] = mass_rows
+    app.jinja_env.globals["mass_data"] = mass_data
 
     TIMES_FIELDS = ("title", "days", "name", "time", "notes", "web")
 
@@ -410,7 +423,10 @@ def create_app(config=None):
             body = request.form.get("body", "")
             if s["slug"] == "mass-schedule":
                 lines = []
-                for i in range(int(request.form.get("mass_count", 0))):
+                head = request.form.get("header", "").replace("|", "/").replace("\n", " ").strip()
+                if head:
+                    lines.append("# " + head)
+                for i in range(min(int(request.form.get("mass_count", 0)), 40)):
                     vals = [request.form.get(f"m{i}_{k}", "").replace("|", "/").strip() for k in MASS_FIELDS]
                     if any(vals):
                         lines.append(" | ".join(vals))
@@ -491,7 +507,7 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass=mass_rows(item["body"]) + [{}] * 8,
+        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}] * 4,
                                times=times_rows(item["body"]) + [{}] * 4,
                                intent_header=intention_data(item["body"])[0],
                                intents=[r for d in intention_data(item["body"])[1] for r in d["items"]] + [{}] * 6)

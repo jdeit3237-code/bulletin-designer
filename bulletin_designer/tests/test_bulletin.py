@@ -269,3 +269,19 @@ def test_mass_intentions_section(app):
     assert html.count("Monday, Oct 26") == 1 and "Tuesday, Oct 27" in html
     assert "John Smith" in html and "Bob Lee" in html and "Mass Intentions Week" in html
     assert "Printed on page 2" in c.get("/bulletins/1/section/2").text
+
+
+def test_this_week_ministers(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    form = c.get(f"/bulletins/1/section/{sid}").text
+    assert "Lector(s)" in form and "Eucharistic Ministers" in form
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "Ministers This Week",
+           "m0_day": "Sunday", "m0_date": "Oct 25", "m0_lectors": "Ann Kay, Bo Roe", "m0_sacristans": "Cy Ng",
+           "m0_ministers": "Di Fox; Ed Poe; Flo Qui", "m1_day": "", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Ministers This Week" in html and "Sunday, Oct 25" in html
+    assert "Lectors" in html and "Ann Kay, Bo Roe" in html and "Sacristan<" in html
+    assert "Di Fox, Ed Poe, Flo Qui" in html

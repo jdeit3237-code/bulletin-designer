@@ -41,12 +41,13 @@
         {% if t.web %}<p><a href="{{ t.web }}">{{ t.web }}</a></p>{% endif %}</div>
       {% endfor %}
     {% elif r.slug == 'mass-schedule' %}
-      {% for m in mass_rows(r.body) %}
-      <div class="mass"><h3>{{ m.date }}{% if m.time %} &ndash; {{ m.time }} Mass{% endif %}</h3>
-        <dl>{% if m.intention %}<dt>Intention</dt><dd>{{ m.intention }}</dd>{% endif %}
-        {% if m.lector %}<dt>Lector</dt><dd>{{ m.lector }}</dd>{% endif %}
-        {% if m.sacristan %}<dt>Sacristan</dt><dd>{{ m.sacristan }}</dd>{% endif %}
-        {% if m.ministers %}<dt>Eucharistic Ministers</dt><dd>{{ m.ministers }}</dd>{% endif %}</dl></div>
+      {% set hd, rows = mass_data(r.body) %}
+      {% if hd %}<h3>{{ hd }}</h3>{% endif %}
+      {% for m in rows %}
+      <div class="mass"><h3>{{ m.day }}{% if m.day and m.date %}, {% endif %}{{ m.date }}{% if m.time %} &ndash; {{ m.time }}{% endif %}</h3>
+        <dl>{% if m.lectors_list %}<dt>{{ 'Lectors' if m.lectors_list|length > 1 else 'Lector' }}</dt><dd>{{ m.lectors_list|join(', ') }}</dd>{% endif %}
+        {% if m.sacristans_list %}<dt>{{ 'Sacristans' if m.sacristans_list|length > 1 else 'Sacristan' }}</dt><dd>{{ m.sacristans_list|join(', ') }}</dd>{% endif %}
+        {% if m.ministers_list %}<dt>Eucharistic Ministers</dt><dd>{{ m.ministers_list|join(', ') }}</dd>{% endif %}</dl></div>
       {% endfor %}
     {% else %}
       {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}{% endfor %}

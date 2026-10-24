@@ -13,16 +13,18 @@
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
     {% if s.slug == 'mass-schedule' %}
-    <p>Add one block per Mass (Saturday vigil, Sunday Masses, weekday Masses). Leave unused blocks empty.</p>
+    <p>Add one block per Mass or day. For lectors, sacristans and Eucharistic ministers you may list several names, separated by commas. Leave unused fields and blocks empty; they are left out of the bulletin.</p>
+    <label for="header">Header (e.g. This Week in Our Parish)</label>
+    <input id="header" name="header" type="text" value="{{ mass_header }}">
     <input type="hidden" name="mass_count" value="{{ mass|length }}">
-    {% for m in mass %}
+    {% for m in mass %}{% set n = loop.index0 %}
     <fieldset><legend>Mass {{ loop.index }}</legend>
-      <label for="m{{ loop.index0 }}_date">Date (e.g. Sunday, October 18, 2026)</label><input id="m{{ loop.index0 }}_date" name="m{{ loop.index0 }}_date" type="text" value="{{ m.date or '' }}">
-      <label for="m{{ loop.index0 }}_time">Time</label><input id="m{{ loop.index0 }}_time" name="m{{ loop.index0 }}_time" type="text" value="{{ m.time or '' }}">
-      <label for="m{{ loop.index0 }}_lector">Lector</label><input id="m{{ loop.index0 }}_lector" name="m{{ loop.index0 }}_lector" type="text" value="{{ m.lector or '' }}">
-      <label for="m{{ loop.index0 }}_sacristan">Sacristan</label><input id="m{{ loop.index0 }}_sacristan" name="m{{ loop.index0 }}_sacristan" type="text" value="{{ m.sacristan or '' }}">
-      <label for="m{{ loop.index0 }}_ministers">Eucharistic Ministers</label><input id="m{{ loop.index0 }}_ministers" name="m{{ loop.index0 }}_ministers" type="text" value="{{ m.ministers or '' }}">
-      <label for="m{{ loop.index0 }}_intention">Mass intention</label><input id="m{{ loop.index0 }}_intention" name="m{{ loop.index0 }}_intention" type="text" value="{{ m.intention or '' }}">
+      <label for="m{{ n }}_day">Day (e.g. Sunday)</label><input id="m{{ n }}_day" name="m{{ n }}_day" type="text" value="{{ m.day or '' }}">
+      <label for="m{{ n }}_date">Date (e.g. October 25)</label><input id="m{{ n }}_date" name="m{{ n }}_date" type="text" value="{{ m.date or '' }}">
+      <label for="m{{ n }}_time">Time (optional)</label><input id="m{{ n }}_time" name="m{{ n }}_time" type="text" value="{{ m.time or '' }}">
+      <label for="m{{ n }}_lectors">Lector(s) - names separated by commas</label><input id="m{{ n }}_lectors" name="m{{ n }}_lectors" type="text" value="{{ m.lectors or '' }}">
+      <label for="m{{ n }}_sacristans">Sacristan(s) - names separated by commas</label><input id="m{{ n }}_sacristans" name="m{{ n }}_sacristans" type="text" value="{{ m.sacristans or '' }}">
+      <label for="m{{ n }}_ministers">Eucharistic Ministers - names separated by commas</label><input id="m{{ n }}_ministers" name="m{{ n }}_ministers" type="text" value="{{ m.ministers or '' }}">
     </fieldset>
     {% endfor %}
     {% elif s.slug == 'mass-intentions' %}
