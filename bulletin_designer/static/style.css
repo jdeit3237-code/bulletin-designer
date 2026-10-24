@@ -41,7 +41,7 @@ fieldset { border: 2px solid var(--line); margin: 1em 0; }
 legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 /* ---------- Bulletin pages (screen preview + print) ---------- */
-.sheet { width: 8.5in; height: 11in; margin: 1em auto; padding: .6in; background: #fff; position: relative;
+.sheet { width: 8.5in; height: 11in; margin: 1em auto; padding: .25in; background: #fff; position: relative;
   border: 1px solid #999; overflow: hidden; display: flex; flex-direction: column; }
 .sheet .pg-head { display: flex; align-items: center; justify-content: space-between; gap: .2in; color: #fff;
   background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 4px solid var(--gold-bright);
