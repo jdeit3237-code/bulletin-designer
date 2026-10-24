@@ -73,7 +73,7 @@
     <div class="wave-bot"></div>
     </div>
   {% set toc_html %}{% if b.toc_show is none or b.toc_show %}<div class="toc-box {{ 'custom-size' if b.toc_pt }} {{ 'fs-' ~ b.toc_style if b.toc_style }}"{% if b.toc_pt %} style="--fs: {{ b.toc_pt }}pt;"{% endif %}><h2>{{ b.toc_title or 'In this issue' }}</h2>
-    <ol class="toc" aria-label="Table of contents">
+    <ol class="toc" aria-label="Table of contents"{% if (b.toc_cols or 1) > 1 %} style="column-count:{{ b.toc_cols }};column-gap:.25in"{% endif %}>
     {% for t in toc if t.page >= (b.toc_start or 2) %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
     </ol></div>{% endif %}{% endset %}
   {% if loop.first and not side_by_side %}<div class="half">{{ toc_html }}</div>{% endif %}

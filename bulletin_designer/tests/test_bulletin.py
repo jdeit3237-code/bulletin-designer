@@ -547,6 +547,17 @@ def test_contents_position(app):
     assert 'name="toc_place"' in c.get("/bulletins/1").text
 
 
+def test_contents_columns(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/toc-settings", data={"toc_show": "1", "toc_start": "2", "toc_cols": "3", "csrf": t})
+    assert "column-count:3" in c.get("/bulletins/1/preview").text
+    c.post("/bulletins/1/toc-settings", data={"toc_show": "1", "toc_start": "2", "toc_cols": "9", "csrf": t})
+    assert "column-count:9" not in c.get("/bulletins/1/preview").text
+    assert 'name="toc_cols"' in c.get("/bulletins/1").text
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
