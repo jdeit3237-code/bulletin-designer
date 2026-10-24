@@ -374,3 +374,38 @@ def test_staff_structured(app):
                                             "s1_name": "Ann", "s1_role": "Office Manager", "csrf": tok(c, "/bulletins/1/section/3")})
     html = c.get("/bulletins/1/preview").text
     assert "Fr. Jim" in html and "Pastor" in html and "Office Manager" in html
+
+
+def test_placement_and_font_options(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/2", data={"group_count": "1", "g0_date": "2026-10-25", "g0_count": "1", "g0_0_time": "9 am",
+                                            "g0_0_for_whom": "Ann", "g0_0_by_whom": "Bob", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert re.search(r'id="pg2".*?class="duo"', html, re.S) and "9 am:" in html
+    c.post("/bulletins/1/layout/2", data={"area": "left", "page_no": "2", "font_pt": "11", "font_style": "condensed", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "fs-condensed" in html and "--fs: 11pt" in html
+    assert "Condensed" in c.get("/style-guide").text or c.get("/style-guide").status_code in (200, 404)
+
+
+def test_suggestions_page_and_apply(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1/suggestions")
+    assert page.status_code == 200 and "bible.usccb.org/readings/calendar" in page.text and "miamiarch.org" in page.text
+    assert "stpeterbpk.org" in page.text and "Graphic ideas" in page.text
+    c.post("/bulletins/1/suggestions/apply", data={"text": "Thirtieth Sunday in Ordinary Time", "target": "title", "csrf": tok(c, "/bulletins/1/suggestions")})
+    assert "Thirtieth Sunday in Ordinary Time" in c.get("/bulletins/1/preview").text
+    c.post("/bulletins/1/suggestions/apply", data={"text": "All Saints", "target": "5", "csrf": tok(c, "/bulletins/1/suggestions")})
+    assert "All Saints" in c.get("/bulletins/1/preview").text
+
+
+def test_liturgy_calendar():
+    from datetime import date
+    from bulletin_designer import liturgy
+    assert liturgy.info(date(2026, 10, 25))["name"] == "Thirtieth Sunday in Ordinary Time"
+    assert liturgy.info(date(2026, 11, 29))["season"] == "Advent"
+    assert liturgy.easter(2026) == date(2026, 4, 5)

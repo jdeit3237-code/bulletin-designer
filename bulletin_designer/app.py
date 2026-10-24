@@ -25,6 +25,11 @@ def generate_password_hash(pw):
     return _gen(pw, method="pbkdf2:sha256:600000")
 from werkzeug.utils import secure_filename
 
+try:
+    from . import liturgy
+except ImportError:  # run as a script
+    import liturgy
+
 ROLES = ("admin", "editor", "contributor", "viewer")
 ROLE_HELP = {
     "admin": "Manage users, sections and layout; everything an editor can do.",
@@ -36,6 +41,14 @@ IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 
 # Sections found in the Oct 11/18/25 2026 bulletins. weekly=1 means new content is
 # needed every week; weekly=0 means "standing" content carried forward automatically.
+FONT_STYLES = {
+    "condensed": "Condensed (fits more text)",
+    "serif": "Classic serif",
+    "sans": "Clean sans-serif",
+    "humanist": "Humanist (easy to read)",
+    "rounded": "Friendly rounded",
+}
+
 DEFAULT_SECTIONS = [
     ("cover", "Parish Information & Cover", 0, 1, "Sunday date and title, parish address, office hours"),
     ("mass-intentions", "Mass Intentions", 1, 1, "Weekly form: day, date, time, who the Mass is for, who requested it (usually page 2)"),
@@ -161,6 +174,14 @@ def create_app(config=None):
         for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0)):
             if col not in have:
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
+        if "area" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN area TEXT DEFAULT ''")
+        if "font_pt" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN font_pt INTEGER DEFAULT 0")
+        if "font_style" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN font_style TEXT DEFAULT ''")
+        if "page_no" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN page_no INTEGER DEFAULT 0")
         conn.execute("UPDATE sections SET title=?, hint=? WHERE slug='mass-schedule' AND title=?",
                      ("This Week in Our Parish: Lectors, Sacristans & Ministers",
                       "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)",
@@ -385,53 +406,88 @@ def create_app(config=None):
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"]))
             else:
-                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols) VALUES(?,?,?,?,?)",
-                             (bulletin_id, s["id"], pos, pages, cols))
+                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style) VALUES(?,?,?,?,?,?,?,?,?)",
+                             (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
+                              old["font_pt"] if old else 0, old["font_style"] if old else ""))
         conn.commit()
 
+    def area_of(r):
+        """Where a section sits: full page width, or the left/right half. Mass Intentions defaults to a left half."""
+        a = r["area"] or ("left" if r["slug"] == "mass-intentions" else "full")
+        return a if a in ("left", "right") and r["slug"] != "cover" and r["pages"] == 1 else "full"
+
     def layout(bulletin_id, include_pending=False):
-        """Return (pages, toc). Section page spans are sequential; total padded to a multiple of 4."""
+        """Return (pages, toc). Full-width sections take whole pages; left/right half sections share a page
+        (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, s.title, s.weekly, s.hint, s.bulletin_id,
-            i.position, i.pages, i.cols, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
+            i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
             i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
-        pages, toc, cur, skip = [], [], 1, set()
-        for idx, r in enumerate(rows):
-            if r["id"] in skip:
-                continue
-            has = bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"])
-            if not has or (r["status"] == "pending" and not include_pending):
-                continue
-            if r["slug"] == "mass-intentions" and r["pages"] == 1 and idx + 1 < len(rows):
-                nxt = rows[idx + 1]
-                nhas = bool((nxt["body"] or "").strip() or nxt["image"]) and nxt["slug"] != "cover"
-                if nhas and nxt["pages"] == 1 and not (nxt["status"] == "pending" and not include_pending):
-                    toc.append({"title": r["title"], "page": cur})
-                    toc.append({"title": nxt["title"], "page": cur})
-                    pages.append({"row": r, "part": 1, "of": 1, "number": cur, "side": nxt})
-                    cur += 1
-                    skip.add(nxt["id"])
-                    continue
-            toc.append({"title": r["title"], "page": cur})
-            for n in range(r["pages"]):
-                pages.append({"row": r, "part": n + 1, "of": r["pages"], "number": cur})
-                cur += 1
-        total = len(pages)
-        pad = (-total) % 4 if total else 4
-        for _ in range(pad):
+        printed = [r for r in rows
+                   if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
+                   and not (r["status"] == "pending" and not include_pending)]
+        pages = []
+        for r in printed:
+            if area_of(r) == "full":
+                for n in range(r["pages"]):
+                    pages.append({"row": r, "part": n + 1, "of": r["pages"]})
+        if not pages:
+            pages.append({"row": None})
+        halves = [r for r in printed if area_of(r) != "full"]
+        def page_wanted(r):
+            return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
+
+        for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
+            side, want = area_of(r), max(2, page_wanted(r))
+            idx = None
+            if page_wanted(r) and want <= len(pages) and pages[want - 1].get("duo") is not None \
+                    and pages[want - 1]["duo"][side] is None:
+                idx = want - 1
+            elif not page_wanted(r):
+                for k in range(1, len(pages)):
+                    if pages[k].get("duo") is not None and pages[k]["duo"][side] is None:
+                        idx = k
+                        break
+            if idx is None:
+                new = {"row": None, "duo": {"left": None, "right": None}}
+                at = min(want - 1, len(pages)) if page_wanted(r) else len(pages)
+                pages.insert(max(1, at), new)
+                idx = pages.index(new)
+            pages[idx]["duo"][side] = r
+            pages[idx]["row"] = pages[idx]["duo"]["left"] or pages[idx]["duo"]["right"]
+        toc = []
+        for n, p in enumerate(pages, 1):
+            p["number"] = n
+        seen = set()
+        for p in pages:
+            for r in ([p["duo"]["left"], p["duo"]["right"]] if p.get("duo") else [p["row"]]):
+                if r is not None and r["id"] not in seen:
+                    seen.add(r["id"])
+                    toc.append({"title": r["title"], "page": p["number"], "pos": r["position"]})
+        toc.sort(key=lambda t: (t["page"], t["pos"]))
+        cur = len(pages) + 1
+        for _ in range((-len(pages)) % 4 if pages else 4):
             pages.append({"row": None, "number": cur})
             cur += 1
         return pages, toc
 
-    def page_spans(rows):
-        """Map section id -> (first, last, filled) page. Empty sections show where they would start."""
+    def page_spans(rows, bid=None):
+        """Map section id -> (first, last, filled) page, from the real layout. Empty sections show where they would start."""
+        placed = {}
+        for p in layout(bid, include_pending=True)[0]:
+            for r in ([p["duo"]["left"], p["duo"]["right"]] if p.get("duo") else [p.get("row")]):
+                if r is not None:
+                    lo, hi = placed.get(r["id"], (p["number"], p["number"]))
+                    placed[r["id"]] = (min(lo, p["number"]), max(hi, p["number"]))
         spans, cur = {}, 1
         for r in rows:
-            filled = bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"])
-            spans[r["id"]] = (cur, cur + r["pages"] - 1, filled)
-            if filled:
-                cur += r["pages"]
+            if r["id"] in placed:
+                spans[r["id"]] = (*placed[r["id"]], True)
+            else:
+                spans[r["id"]] = (cur, cur + r["pages"] - 1, False)
         return spans
+
+    PLAIN_SLUGS_EXCLUDED = ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff")
 
     # ---------- routes ----------
     @app.route("/login", methods=["GET", "POST"])
@@ -500,13 +556,13 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, s.title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, secs=secs, total=len(pages), editable=editable,
-                               where=page_spans(secs))
+        return render_template("edit.html", font_styles=FONT_STYLES, photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, secs=secs, total=len(pages), editable=editable,
+                               where=page_spans(secs, bid))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
     @need()
@@ -646,7 +702,7 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_rows(item["body"]) + [("", "", "")] * 2,
@@ -762,6 +818,19 @@ def create_app(config=None):
             conn.execute("UPDATE items SET pages=?, cols=? WHERE bulletin_id=? AND section_id=?",
                          (max(1, min(8, int(request.form["pages"]))),
                           2 if request.form.get("cols") == "2" else 1, bid, sid))
+        if "area" in request.form:
+            area = request.form["area"] if request.form["area"] in ("full", "left", "right") else ""
+            try:
+                page_no = max(0, min(12, int(request.form.get("page_no") or 0)))
+            except ValueError:
+                page_no = 0
+            try:
+                font_pt = int(request.form.get("font_pt") or 0)
+            except ValueError:
+                font_pt = 0
+            font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
+            conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=? WHERE bulletin_id=? AND section_id=?",
+                         (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "", bid, sid))
         if move == "remove":
             sec = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
             if sec["bulletin_id"] == bid:
@@ -930,6 +999,43 @@ def create_app(config=None):
         flash("Footer saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
+    @app.route("/bulletins/<int:bid>/suggestions")
+    @need()
+    def suggestions(bid):
+        b = get_bulletin(bid)
+        days = liturgy.week(date.fromisoformat(b["sunday"]))
+        targets = db().execute("""SELECT s.id, s.title FROM sections s JOIN items i ON i.section_id=s.id
+            WHERE i.bulletin_id=? AND s.slug NOT IN (%s) ORDER BY i.position""" % ",".join("?" * len(PLAIN_SLUGS_EXCLUDED)),
+                               (bid,) + PLAIN_SLUGS_EXCLUDED).fetchall()
+        return render_template("suggestions.html", b=b, days=days, targets=targets,
+                               can=g.user["role"] in ("admin", "editor") and b["status"] != "published")
+
+    @app.route("/bulletins/<int:bid>/suggestions/apply", methods=["POST"])
+    @need("admin", "editor")
+    def apply_suggestion(bid):
+        open_bulletin(bid)
+        text = " ".join(request.form.get("text", "").split())[:400]
+        target = request.form.get("target", "")
+        if not text:
+            flash("Nothing to add.", "error")
+        elif target == "title":
+            db().execute("UPDATE bulletins SET theme=? WHERE id=?", (text[:120], bid))
+            db().commit()
+            flash("Added as the header title.", "ok")
+        else:
+            sec = db().execute("SELECT s.id, s.slug, s.title FROM sections s JOIN items i ON i.section_id=s.id "
+                               "WHERE i.bulletin_id=? AND s.id=?", (bid, target if target.isdigit() else 0)).fetchone()
+            if not sec or sec["slug"] in PLAIN_SLUGS_EXCLUDED:
+                flash("Choose a text section to add to.", "error")
+            else:
+                ensure_items(bid, get_bulletin(bid)["sunday"])
+                db().execute("UPDATE items SET body=CASE WHEN TRIM(body)='' THEN ? ELSE body || char(10) || char(10) || ? END, "
+                             "carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
+                             (text, text, g.user["username"], bid, sec["id"]))
+                db().commit()
+                flash(f"Added to {sec['title']}. Review and edit it there.", "ok")
+        return redirect(url_for("suggestions", bid=bid))
+
     @app.route("/bulletins/<int:bid>/header-text", methods=["POST"])
     @need("admin", "editor")
     def set_header_text(bid):
@@ -1086,7 +1192,7 @@ def create_app(config=None):
 
     @app.route("/style-guide")
     def style_guide():
-        return render_template("style_guide.html")
+        return render_template("style_guide.html", font_styles=FONT_STYLES)
 
     # ---------- admin ----------
     @app.route("/admin/users", methods=["GET", "POST"])

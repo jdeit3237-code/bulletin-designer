@@ -6,7 +6,7 @@
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
-{% macro render_row(r, p) %}
+{% macro render_row(r, p) %}<div class="{{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}"{% if r.font_pt %} style="--fs: {{ r.font_pt }}pt;"{% endif %}>
     {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
@@ -51,12 +51,12 @@
       {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
     {% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
-{% endmacro %}
+</div>{% endmacro %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
   <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
-  {% set side_by_side = loop.first and p.row and p.row.slug != 'cover' %}
+  {% set side_by_side = loop.first and p.row and not p.duo and p.row.slug != 'cover' %}
   {% if loop.first %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
     <header class="banner">
@@ -73,7 +73,7 @@
     </div>
   {% set toc_html %}<h2>In this issue</h2>
     <ol class="toc" aria-label="Table of contents">
-    {% for t in toc %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
+    {% for t in toc if t.page >= 2 %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
     </ol>{% endset %}
   {% if loop.first and not side_by_side %}<div class="half">{{ toc_html }}</div>{% endif %}
   {% endif %}
@@ -81,8 +81,8 @@
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if side_by_side %}
     <div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}</div></div>
-    {% elif r.slug == 'mass-intentions' %}
-    <div class="duo"><div class="half">{{ render_row(r, p) }}</div>{% if p.side %}<div class="half">{{ render_row(p.side, {'part': 1}) }}</div>{% endif %}</div>
+    {% elif p.duo %}
+    <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}</div></div>
     {% else %}
     {{ render_row(r, p) }}
     {% endif %}

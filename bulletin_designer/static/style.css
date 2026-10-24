@@ -169,3 +169,10 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .btn.danger { background: #fff; color: #9b1c1c; border: 2px solid #9b1c1c; }
 .btn.danger:hover, .btn.danger:focus { background: #9b1c1c; color: #fff; }
+
+.custom-size p, .custom-size td, .custom-size th, .custom-size li, .custom-size dd, .custom-size dt, .custom-size h3, .custom-size h4, .custom-size caption { font-size: var(--fs); }
+.fs-condensed, .fs-condensed * { font-family: "Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif; font-stretch: condensed; }
+.fs-serif, .fs-serif * { font-family: Georgia, "Liberation Serif", "Times New Roman", serif; }
+.fs-sans, .fs-sans * { font-family: Arial, "Liberation Sans", Helvetica, sans-serif; }
+.fs-humanist, .fs-humanist * { font-family: Verdana, "DejaVu Sans", Tahoma, sans-serif; }
+.fs-rounded, .fs-rounded * { font-family: "Trebuchet MS", "Ubuntu", "DejaVu Sans", sans-serif; }

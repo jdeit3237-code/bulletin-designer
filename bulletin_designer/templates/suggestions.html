@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Suggestions for {{ b.sunday }}{% endblock %}
+{% block content %}
+<h1>Liturgical suggestions for the week of {{ b.sunday }}</h1>
+<p><a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a></p>
+<p>These are optional ideas based on the Catholic calendar for the dates of this bulletin. Use them at your discretion: copy what helps, or add it to a section or the header title and then edit it. Nothing here is printed unless you add it. Please confirm feast days against the sources below, since local celebrations and dioceses can differ.</p>
+<h2>Sources to check</h2>
+<ul>
+  <li><a href="https://bible.usccb.org/readings/calendar" rel="noopener">USCCB Daily Readings Calendar (bible.usccb.org/readings/calendar)</a></li>
+  <li><a href="https://www.usccb.org/newsroom?f%5B0%5D=type%3A9043" rel="noopener">USCCB Newsroom (usccb.org/newsroom)</a></li>
+  <li><a href="https://www.usccb.org/resources" rel="noopener">USCCB Resources (usccb.org/resources)</a></li>
+  <li><a href="https://www.usccb.org/events" rel="noopener">USCCB Events (usccb.org/events)</a></li>
+  <li><a href="https://www.miamiarch.org" rel="noopener">Archdiocese of Miami (miamiarch.org)</a></li>
+  <li><a href="https://stpeterbpk.org" rel="noopener">St. Peter the Fisherman parish (stpeterbpk.org)</a></li>
+</ul>
+{% for d in days %}
+<section class="card" aria-labelledby="d{{ loop.index }}">
+  <h2 id="d{{ loop.index }}">{{ d.date.strftime('%A, %B ') }}{{ d.date.day }}{% if d.name %} &ndash; {{ d.name }}{% endif %}</h2>
+  <p><strong>Season:</strong> {{ d.season }} &middot; <strong>Liturgical color:</strong> {{ d.color }}
+    &middot; <a href="{{ d.readings_url }}" rel="noopener">Readings for this day (USCCB)</a></p>
+  {% if d.name %}<form method="post" action="{{ url_for('apply_suggestion', bid=b.id) }}" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="text" value="{{ d.name }}">
+    <label for="t{{ loop.index }}">Add &ldquo;{{ d.name }}&rdquo; to</label>
+    {% if can %}<select id="t{{ loop.index }}" name="target"><option value="title">Header title (next to the date)</option>{% for t in targets %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}</select>
+    <button class="btn-add">Add</button>{% else %}<span class="meta">(editors can add this to a section)</span>{% endif %}</form>{% endif %}
+  <h3>Graphic ideas</h3>
+  <ul>{% for i in d.ideas %}<li>{{ i }}</li>{% endfor %}</ul>
+</section>
+{% endfor %}
+{% endblock %}
