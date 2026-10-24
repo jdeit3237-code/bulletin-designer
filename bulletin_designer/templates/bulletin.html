@@ -71,10 +71,10 @@
     <figure class="hdr-photo"><div class="crop" style="height:{{ b.hdr_h or (1.8 if side_by_side else 2.4) }}in"><img src="{{ url_for('uploads', name=himg) if himg else url_for('static', filename='church.jpg') }}" alt="{{ b.hdr_alt if himg else 'St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net' }}" style="object-position:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%;transform:scale({{ b.hdr_zoom or 1 }});transform-origin:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%"></div></figure>
     <div class="wave-bot"></div>
     </div>
-  {% set toc_html %}<h2>In this issue</h2>
+  {% set toc_html %}{% if b.toc_show is none or b.toc_show %}<div class="toc-box {{ 'custom-size' if b.toc_pt }} {{ 'fs-' ~ b.toc_style if b.toc_style }}"{% if b.toc_pt %} style="--fs: {{ b.toc_pt }}pt;"{% endif %}><h2>{{ b.toc_title or 'In this issue' }}</h2>
     <ol class="toc" aria-label="Table of contents">
-    {% for t in toc if t.page >= 2 %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
-    </ol>{% endset %}
+    {% for t in toc if t.page >= (b.toc_start or 2) %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
+    </ol></div>{% endif %}{% endset %}
   {% if loop.first and not side_by_side %}<div class="half">{{ toc_html }}</div>{% endif %}
   {% endif %}
   {% if p.row %}
@@ -82,7 +82,8 @@
     {% if side_by_side %}
     <div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
     {% elif p.duo and p.duo.third %}
-    <div class="duo thirds">{% for k in ('left3','mid3','right3') %}<div class="third">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
+    {% set cols = [('left23',2),('right3',1)] if p.duo.left23 else ([('left3',1),('right23',2)] if p.duo.right23 else [('left3',1),('mid3',1),('right3',1)]) %}
+    <div class="duo thirds">{% for k, w in cols %}<div class="third" style="flex-grow:{{ w }}">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
     {% elif p.duo %}
     <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}{% for m in p.duo.left_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}{% for m in p.duo.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
     {% else %}

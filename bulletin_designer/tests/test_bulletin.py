@@ -484,6 +484,25 @@ def test_third_widths(app):
     assert 'value="left3" selected' in c.get("/bulletins/1").text
 
 
+def test_two_thirds_and_toc_settings(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    c.post("/bulletins/1/layout/5", data={"area": "left23", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "right3", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert html.count('class="third"') == 2 and "flex-grow:2" in html
+    c.post("/bulletins/1/toc-settings", data={"toc_show": "1", "toc_title": "Inside This Week", "toc_start": "3", "toc_pt": "11", "toc_style": "condensed", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "Inside This Week" in html and "--fs: 11pt" in html
+    pg = c.get("/bulletins/1").text
+    assert 'value="Inside This Week"' in pg and 'name="toc_start"' in pg
+    c.post("/bulletins/1/toc-settings", data={"toc_title": "", "toc_start": "2", "csrf": t})
+    assert "Inside This Week" not in c.get("/bulletins/1/preview").text
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

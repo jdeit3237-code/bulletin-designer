@@ -167,7 +167,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -432,13 +432,13 @@ def create_app(config=None):
     def area_of(r):
         """Where a section sits: full page width, or the left/right half. Mass Intentions defaults to a left half."""
         a = r["area"] or ("left" if r["slug"] == "mass-intentions" else "full")
-        return a if a in ("left", "right", "below", "left3", "mid3", "right3") and r["slug"] != "cover" and r["pages"] == 1 else "full"
+        return a if a in ("left", "right", "below", "left3", "mid3", "right3", "left23", "right23") and r["slug"] != "cover" and r["pages"] == 1 else "full"
 
     def rows_on(p):
         d = p.get("duo")
         rows = []
         if d:
-            for k in (("left3", "mid3", "right3") if d.get("third") else ("left", "right")):
+            for k in (("left3", "mid3", "right3", "left23", "right23") if d.get("third") else ("left", "right")):
                 rows += [d[k], *d[k + "_more"]]
         else:
             rows = [p.get("row")]
@@ -483,26 +483,34 @@ def create_app(config=None):
                 target.setdefault("more", []).append(r)
         if not pages:
             pages.append({"row": None})
-        halves = [r for r in printed if area_of(r) in ("left", "right", "left3", "mid3", "right3") and r not in p1_all]
+        halves = [r for r in printed if area_of(r) in ("left", "right", "left3", "mid3", "right3", "left23", "right23") and r not in p1_all]
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
         for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
             side, want = area_of(r), max(2, page_wanted(r))
             third = side.endswith("3")
+            def fits(d):
+                if bool(d.get("third")) != third or d[side] is not None:
+                    return False
+                if not third:
+                    return True
+                wide_l, wide_r = d["left23"] is not None, d["right23"] is not None
+                clash = {"left23": wide_r or d["left3"] or d["mid3"], "right23": wide_l or d["right3"] or d["mid3"],
+                         "left3": wide_l or wide_r and False, "right3": wide_r, "mid3": wide_l or wide_r}[side]
+                return not clash
             idx = None
             if page_wanted(r) and 1 <= want - 1 < len(pages) and pages[want - 1].get("duo") is not None \
                     and bool(pages[want - 1]["duo"].get("third")) == third and pages[want - 1]["duo"][side] is not None:
                 pages[want - 1]["duo"][side + "_more"].append(r)
                 continue
             for k in range(max(1, want - 1) if page_wanted(r) else 1, len(pages)):
-                if pages[k].get("duo") is not None and bool(pages[k]["duo"].get("third")) == third \
-                        and pages[k]["duo"][side] is None:
+                if pages[k].get("duo") is not None and fits(pages[k]["duo"]):
                     idx = k
                     break
             if idx is None:
-                new = {"row": None, "duo": {"third": third, **{k: None for k in ("left", "right", "left3", "mid3", "right3")},
-                                                   **{k + "_more": [] for k in ("left", "right", "left3", "mid3", "right3")}}}
+                new = {"row": None, "duo": {"third": third, **{k: None for k in ("left", "right", "left3", "mid3", "right3", "left23", "right23")},
+                                                   **{k + "_more": [] for k in ("left", "right", "left3", "mid3", "right3", "left23", "right23")}}}
                 at = max(1, min(want - 1, len(pages))) if page_wanted(r) else len(pages)
                 while at < len(pages) and pages[at].get("duo") is not None:
                     at += 1
@@ -510,7 +518,7 @@ def create_app(config=None):
                 idx = at
             pages[idx]["duo"][side] = r
             d = pages[idx]["duo"]
-            pages[idx]["row"] = next(d[k] for k in ("left", "right", "left3", "mid3", "right3") if d[k])
+            pages[idx]["row"] = next(d[k] for k in ("left", "right", "left3", "mid3", "right3", "left23", "right23") if d[k])
         toc = []
         for n, p in enumerate(pages, 1):
             p["number"] = n
@@ -884,7 +892,7 @@ def create_app(config=None):
                          (max(1, min(8, int(request.form["pages"]))),
                           2 if request.form.get("cols") == "2" else 1, bid, sid))
         if "area" in request.form:
-            area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below", "left3", "mid3", "right3") else ""
+            area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below", "left3", "mid3", "right3", "left23", "right23") else ""
             try:
                 page_no = max(0, min(12, int(request.form.get("page_no") or 0)))
             except ValueError:
@@ -1122,6 +1130,24 @@ def create_app(config=None):
                 db().commit()
                 flash(f"Added to {sec['title']}. Review and edit it there.", "ok")
         return redirect(url_for("suggestions", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/toc-settings", methods=["POST"])
+    @need("admin", "editor")
+    def toc_settings(bid):
+        open_bulletin(bid)
+        try:
+            start = max(1, min(12, int(request.form.get("toc_start") or 2)))
+            pt = int(request.form.get("toc_pt") or 0)
+        except ValueError:
+            start, pt = 2, 0
+        pt = pt if pt == 0 or 8 <= pt <= 16 else 0
+        style = request.form.get("toc_style")
+        db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=? WHERE id=?",
+                     (request.form.get("toc_title", "").strip()[:60], start, 1 if request.form.get("toc_show") else 0,
+                      pt, style if style in FONT_STYLES else "", bid))
+        db().commit()
+        flash("Contents settings saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/extra-pages", methods=["POST"])
     @need("admin", "editor")

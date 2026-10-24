@@ -192,3 +192,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .duo.thirds { gap: .2in; }
 .duo .third { flex: 1 1 0; width: 33.3%; box-sizing: border-box; min-width: 0; }
 .duo .third h2 { margin-top: 0; }
+.toc-box h2 { margin-top: 0; }
+.toc-box.custom-size .toc li { font-size: var(--fs); }
+.toc-box.fs-condensed .toc li, .toc-box.fs-serif .toc li, .toc-box.fs-sans .toc li, .toc-box.fs-humanist .toc li, .toc-box.fs-rounded .toc li { font-family: inherit; }
