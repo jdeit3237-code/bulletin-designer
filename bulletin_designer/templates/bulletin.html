@@ -16,7 +16,7 @@
       {% for d, t, e in calendar_rows(r.body) %}<tr><td>{{ d }}</td><td>{{ t }}</td><td>{{ e }}</td></tr>{% endfor %}</tbody></table>
     {% elif r.slug == 'mass-intentions' %}
       {% set hd, days = intention_data(r.body) %}
-      {% if hd %}<h3>{{ hd }}</h3>{% endif %}
+      {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3>{{ hd }}</h3>{% endif %}
       {% for d in days %}
       <div class="intent"><h4>{{ d.day }}{% if d.day and d.date %}, {% endif %}{{ d.date }}</h4>
         {% for it in d['items'] %}<p><strong>{{ it.time }}{% if it.time %}:{% endif %}</strong> {{ it.for_whom }}{% if it.for_whom and it.by_whom %} {% if not it.by_whom.lower().startswith('by ') %}by {% endif %}{% endif %}{{ it.by_whom }}</p>{% endfor %}</div>
@@ -36,7 +36,7 @@
       {% endfor %}
     {% elif r.slug == 'mass-schedule' %}
       {% set hd, rows = mass_data(r.body) %}
-      {% if hd %}<h3>{{ hd }}</h3>{% endif %}
+      {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3>{{ hd }}</h3>{% endif %}
       {% for m in rows %}
       <div class="mass"><h3>{{ m.day }}{% if m.day and m.date %}, {% endif %}{{ m.date }}{% if m.time %} &ndash; {{ m.time }}{% endif %}</h3>
         <dl>{% if m.lectors_list %}<dt>{{ 'Lectors' if m.lectors_list|length > 1 else 'Lector' }}</dt><dd>{{ m.lectors_list|join(', ') }}</dd>{% endif %}
