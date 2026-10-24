@@ -843,6 +843,13 @@ def create_app(config=None):
             order[i - 1], order[i] = order[i], order[i - 1]
         elif move == "down" and i < len(order) - 1:
             order[i + 1], order[i] = order[i], order[i + 1]
+        try:
+            want = int(request.form.get("order") or 0)
+        except ValueError:
+            want = 0
+        if want and not move:
+            order.remove(sid)
+            order.insert(max(0, min(len(order), want - 1)), sid)
         for n, section_id in enumerate(order):
             conn.execute("UPDATE items SET position=? WHERE bulletin_id=? AND section_id=?", (n, bid, section_id))
         if request.form.get("pages"):

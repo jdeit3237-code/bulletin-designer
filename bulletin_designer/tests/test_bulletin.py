@@ -448,6 +448,16 @@ def test_several_sections_on_page_one(app):
     assert len(re.findall(r"Page 1</td>", pg)) >= 2
 
 
+def test_order_field(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/layout/9", data={"order": "1", "area": "", "page_no": "0", "pages": "1", "cols": "1", "csrf": t})
+    pg = c.get("/bulletins/1").text
+    assert pg.index("Readings") < pg.index("Parish Staff")
+    assert re.search(r'id="od9"[^>]*value="1"', pg)
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
