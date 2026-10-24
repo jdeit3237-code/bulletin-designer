@@ -295,3 +295,17 @@ def test_youth_calendar_events(app):
            "e1_date": "2026-11-01", "e1_event": "Pizza Night", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert "Monday, October 26, 2026" in html and "Pizza Night" in html and "Sunday, November 1, 2026" in html
+
+
+def test_copy_keep_delete(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": tok(c, "/bulletins/1")})
+    r = c.post("/bulletins/1/section/5/copy-next", data={"csrf": tok(c, "/bulletins/1/section/5")})
+    assert r.status_code == 302
+    assert "Welcome text" in c.get("/bulletins/2/section/5").text
+    c.post("/bulletins/1/section/5/keep", data={"csrf": tok(c, "/bulletins/1/section/5")})
+    assert "Keep for all bulletin editions" in c.get("/bulletins/1/section/5").text
+    c.post("/bulletins/1/section/5/delete", data={"csrf": tok(c, "/bulletins/1/section/5")})
+    assert "Welcome text" not in c.get("/bulletins/1/section/5").text
+    assert "Welcome text" in c.get("/bulletins/2/section/5").text

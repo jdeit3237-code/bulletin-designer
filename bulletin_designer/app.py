@@ -539,11 +539,61 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}] * 4,
-                               times=times_rows(item["body"]) + [{}] * 4,
+        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+                               times=times_rows(item["body"]) + [{}],
                                events=calendar_rows(item["body"]) + [("", "", "")] * 2,
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
+
+    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source")
+
+    @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
+    @need()
+    def copy_next(bid, sid):
+        b = get_bulletin(bid)
+        if not can_edit_section(sid):
+            abort(403)
+        conn = db()
+        nxt = (date.fromisoformat(b["sunday"]) + timedelta(days=7)).isoformat()
+        conn.execute("INSERT OR IGNORE INTO bulletins(sunday) VALUES(?)", (nxt,))
+        conn.commit()
+        nb = conn.execute("SELECT * FROM bulletins WHERE sunday=?", (nxt,)).fetchone()
+        if nb["status"] == "published":
+            flash(f"The {nxt} bulletin is already published.", "error")
+            return redirect(url_for("section", bid=bid, sid=sid))
+        ensure_items(nb["id"], nxt)
+        src = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid)).fetchone()
+        conn.execute("UPDATE items SET " + ",".join(f"{c}=?" for c in COPY_COLS) +
+                     ", status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
+                     [src[c] for c in COPY_COLS] + [g.user["username"], nb["id"], sid])
+        conn.commit()
+        flash(f"Copied to the {nxt} bulletin.", "ok")
+        return redirect(url_for("section", bid=bid, sid=sid))
+
+    @app.route("/bulletins/<int:bid>/section/<int:sid>/keep", methods=["POST"])
+    @need("admin", "editor")
+    def keep_section(bid, sid):
+        get_bulletin(bid)
+        conn = db()
+        s = conn.execute("SELECT * FROM sections WHERE id=?", (sid,)).fetchone() or abort(404)
+        conn.execute("UPDATE sections SET weekly=? WHERE id=?", (0 if s["weekly"] else 1, sid))
+        conn.commit()
+        flash("This section will now be kept for all bulletin editions." if s["weekly"]
+              else "This section will now start blank each week.", "ok")
+        return redirect(url_for("section", bid=bid, sid=sid))
+
+    @app.route("/bulletins/<int:bid>/section/<int:sid>/delete", methods=["POST"])
+    @need()
+    def delete_content(bid, sid):
+        b = get_bulletin(bid)
+        if not can_edit_section(sid) or b["status"] == "published":
+            abort(403)
+        conn = db()
+        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', carried=0, updated_by=? "
+                     "WHERE bulletin_id=? AND section_id=?", (g.user["username"], bid, sid))
+        conn.commit()
+        flash("Section content deleted.", "ok")
+        return redirect(url_for("section", bid=bid, sid=sid))
 
     def open_bulletin(bid):
         b = get_bulletin(bid)

@@ -16,8 +16,9 @@
     <label for="header">Header (e.g. This Week in Our Parish)</label>
     <input id="header" name="header" type="text" value="{{ mass_header }}">
     <input type="hidden" name="mass_count" value="{{ mass|length }}">
+    <div id="mass-list" data-prefix="m" data-count="mass_count" data-label="Mass">
     {% for m in mass %}{% set n = loop.index0 %}
-    <fieldset><legend>Mass {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Mass {{ loop.index }}</legend>
       <label for="m{{ n }}_date">Date (choose from the calendar)</label><input id="m{{ n }}_date" name="m{{ n }}_date" type="date" value="{{ iso_date(m.date) }}">{% if m.date and not iso_date(m.date) %}<p>Previously entered: {{ m.day }} {{ m.date }}. Choose a date to replace it.</p>{% endif %}
       <label for="m{{ n }}_time">Time (optional)</label><input id="m{{ n }}_time" name="m{{ n }}_time" type="text" value="{{ m.time or '' }}">
       <label for="m{{ n }}_lectors">Lector(s) - names separated by commas</label><input id="m{{ n }}_lectors" name="m{{ n }}_lectors" type="text" value="{{ m.lectors or '' }}">
@@ -25,6 +26,8 @@
       <label for="m{{ n }}_ministers">Eucharistic Ministers - names separated by commas</label><input id="m{{ n }}_ministers" name="m{{ n }}_ministers" type="text" value="{{ m.ministers or '' }}">
     </fieldset>
     {% endfor %}
+    </div>
+    <p><button type="button" class="add-clone" data-target="mass-list">+ Add another Mass</button></p>
     {% elif s.slug == 'mass-intentions' %}
     <p>Choose a date, then use the + button under it to add each intention (for whom, requested by) for that date. Use "+ Add another date" for a new day. Empty rows are left out.</p>
     <label for="header">Header (e.g. Mass Intentions for the Week of October 25)</label>
@@ -89,8 +92,9 @@
     {% elif s.slug == 'mass-times' %}
     <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>
     <input type="hidden" name="times_count" value="{{ times|length }}">
+    <div id="times-list" data-prefix="t" data-count="times_count" data-label="Entry">
     {% for t in times %}{% set n = loop.index0 %}
-    <fieldset><legend>Entry {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Entry {{ loop.index }}</legend>
       <label for="t{{ n }}_title">Title (e.g. Weekend Masses)</label><input id="t{{ n }}_title" name="t{{ n }}_title" type="text" value="{{ t.title or '' }}">
       <label for="t{{ n }}_days">Days of the week (e.g. Saturday, Sunday)</label><input id="t{{ n }}_days" name="t{{ n }}_days" type="text" value="{{ t.days or '' }}">
       <label for="t{{ n }}_name">Name of Mass (e.g. Vigil Mass, Spanish Mass)</label><input id="t{{ n }}_name" name="t{{ n }}_name" type="text" value="{{ t.name or '' }}">
@@ -99,6 +103,8 @@
       <label for="t{{ n }}_web">Web address (starting with https://)</label><input id="t{{ n }}_web" name="t{{ n }}_web" type="url" value="{{ t.web or '' }}">
     </fieldset>
     {% endfor %}
+    </div>
+    <p><button type="button" class="add-clone" data-target="times-list">+ Add another entry</button></p>
     {% else %}
     <label for="body">Text (blank line starts a new paragraph)</label>
     <textarea id="body" name="body">{{ item.body }}</textarea>
@@ -124,4 +130,29 @@
   {% if can and b.status != 'published' %}<button class="btn">Save section</button>{% else %}<p>You have read-only access to this section.</p>{% endif %}
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back</a>
 </form>
+<script>
+document.addEventListener('click',function(e){
+  if(!e.target.classList.contains('add-clone'))return;
+  var box=document.getElementById(e.target.getAttribute('data-target')),p=box.getAttribute('data-prefix'),
+  f=box.querySelectorAll('fieldset[data-clone]'),last=f[f.length-1],n=f.length;
+  var d=document.createElement('div');
+  d.innerHTML=last.outerHTML.replace(new RegExp('"'+p+'\\d+_','g'),'"'+p+n+'_').replace(/(<legend>)[^<]*\d+/,'$1'+box.getAttribute('data-label')+' '+(n+1));
+  var nf=d.firstElementChild;nf.querySelectorAll('input').forEach(function(x){x.value='';});
+  last.after(nf);document.querySelector('input[name='+box.getAttribute('data-count')+']').value=n+1;nf.querySelector('input').focus();});
+</script>
+<section aria-labelledby="actions-h"><h2 id="actions-h">Keep, copy or delete this section</h2>
+{% if can %}
+<form method="post" action="{{ url_for('copy_next', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">Copy to next bulletin</button> <span class="meta">Copies this section's content to the next Sunday's bulletin (created if needed; replaces that bulletin's version).</span></form>
+{% if g.user.role in ('admin', 'editor') %}
+<form method="post" action="{{ url_for('keep_section', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">{{ 'Stop keeping for all editions (blank each week)' if not s.weekly else 'Keep for all bulletin editions' }}</button>
+  <span class="meta">{{ 'Now kept: new bulletins start with this content.' if not s.weekly else 'Now weekly: new bulletins start blank.' }}</span></form>
+{% endif %}
+{% if b.status != 'published' %}
+<form method="post" action="{{ url_for('delete_content', bid=b.id, sid=s.id) }}" class="inline" onsubmit="return confirm('Delete all content in this section for this bulletin?');"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">Delete content</button></form>
+{% endif %}
+{% endif %}
+</section>
 {% endblock %}
