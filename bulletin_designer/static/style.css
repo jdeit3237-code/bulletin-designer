@@ -44,14 +44,14 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet { width: 8.5in; height: 11in; margin: 1em auto; padding: .6in; background: #fff; position: relative;
   border: 1px solid #999; overflow: hidden; display: flex; flex-direction: column; }
 .sheet .pg-head { display: flex; align-items: center; justify-content: space-between; gap: .2in; color: #fff;
-  background: linear-gradient(135deg, var(--navy) 0%, #1d4f8c 100%); border-bottom: 4px solid var(--gold-bright);
+  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 4px solid var(--gold-bright);
   border-radius: 4px; padding: .06in .2in; margin-bottom: .1in; font: bold 13pt Arial, sans-serif; -webkit-print-color-adjust: exact; }
 .sheet .pg-head .head-title { flex: 1; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
 .sheet .pg-head .head-date { white-space: nowrap; color: var(--gold-bright); }
 .sheet .pg-body { flex: 1; overflow: hidden; padding-top: .5em; font-size: 12.5pt; line-height: 1.4; }
 .sheet h2 { margin: .2em 0 .3em; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
 .sheet .pg-foot { display: flex; justify-content: space-between; align-items: center; gap: .2in; color: #fff;
-  background: linear-gradient(135deg, var(--navy) 0%, #1d4f8c 100%); border-top: 4px solid var(--gold-bright);
+  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 4px solid var(--gold-bright);
   border-radius: 4px; padding: .1in .25in; font: bold 12pt Arial, sans-serif; -webkit-print-color-adjust: exact; }
 .sheet .pg-foot .foot-page { white-space: nowrap; color: var(--gold-bright); }
 .sheet figure { margin: .6em 0; text-align: center; }
@@ -61,7 +61,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .overflow-warn { background: #fff3cd; color: #5c3b00; padding: .3em; font: bold 12pt Arial; }
 .sheet.cover h1 { font-size: 26pt; text-align: center; margin: .2em; }
 .banner { display: flex; flex-wrap: wrap; align-items: center; color: #fff;
-  background: linear-gradient(135deg, var(--navy) 0%, #1d4f8c 100%); border-bottom: 6px solid var(--gold-bright);
+  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 6px solid var(--gold-bright);
   border-radius: 6px; padding: .2in .3in .12in; margin-bottom: .15in; -webkit-print-color-adjust: exact; }
 .banner .banner-text { flex: 1; padding-left: .25in; }
 .banner img { height: .9in; width: auto; max-height: none; }
@@ -103,3 +103,21 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-body { min-height: 0; }
 .sheet.cover .pg-head { display: none; }
 .banner img.logo-badge { flex: 0 0 auto; }
+
+.masthead { margin-bottom: .15in; border-radius: 6px; overflow: hidden; border-bottom: 6px solid var(--gold-bright); }
+.masthead .hdr-photo { margin: 0; }
+.masthead .crop { border-radius: 0; }
+.masthead .banner { margin: 0; border-radius: 0; border-bottom: 0; padding: .14in .3in .1in; position: relative; }
+.masthead .banner img.logo-badge { margin-top: -.45in; box-shadow: 0 2px 6px rgba(0,0,0,.35); border: 2px solid var(--gold-bright); }
+.banner .banner-kicker { color: #f3e6bd; }
+.sheet .pg-head .head-date, .sheet .pg-foot .foot-page { color: #f3e6bd; }
+
+/* overlay masthead: photo full width, translucent cream panel on top */
+.masthead { position: relative; border-bottom: 5px solid var(--gold-bright); }
+.masthead .banner { position: absolute; left: .25in; right: .25in; bottom: .18in; width: auto; margin: 0; padding: .1in .2in;
+  background: rgba(255,252,244,.93); color: var(--navy); border-radius: 6px; border: 0; border-left: 6px solid var(--gold-bright); }
+.masthead .banner img.logo-badge { margin: 0; border: 0; box-shadow: none; padding: 0 .1in 0 0; height: .8in; background: transparent; }
+.masthead .banner .banner-kicker { color: var(--gold); }
+.masthead .banner h1.cover-title { color: var(--navy); font-size: 24pt; }
+.masthead .banner .banner-sub { color: #333; }
+.masthead .banner .banner-date { border-top: 1px solid #c9b77a; color: var(--navy); margin-top: .06in; padding-top: .05in; }

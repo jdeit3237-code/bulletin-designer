@@ -339,3 +339,12 @@ def test_footer_text_and_address(app):
     c.post("/bulletins/1/footer", data={"footer": "Fall Festival Nov 1", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert "Fall Festival Nov 1" in html and "1 Main St" in html and "Page 1 of" in html
+
+
+def test_header_photo_settings(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "Header photo" in c.get("/bulletins/1").text
+    c.post("/bulletins/1/header-photo", data={"hdr_h": "3.5", "hdr_zoom": "1.5", "hdr_x": "30", "hdr_y": "60", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "height:3.5in" in html and "scale(1.5)" in html and "church.jpg" in html

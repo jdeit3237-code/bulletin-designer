@@ -152,6 +152,11 @@ def create_app(config=None):
                              (slug, title, weekly, pages, top, hint))
         if "footer" not in {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}:
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
+        bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
+        for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50")):
+            if col not in bcols:
+                conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
         for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0)):
             if col not in have:
@@ -462,7 +467,7 @@ def create_app(config=None):
                             (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", b=b, secs=secs, total=len(pages), editable=editable,
+        return render_template("edit.html", photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, secs=secs, total=len(pages), editable=editable,
                                where=page_spans(secs))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
@@ -868,6 +873,41 @@ def create_app(config=None):
         db().execute("UPDATE bulletins SET footer=? WHERE id=?", (text, bid))
         db().commit()
         flash("Footer saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/header-photo", methods=["POST"])
+    @need("admin", "editor")
+    def set_header_photo(bid):
+        b = open_bulletin(bid)
+        image, alt = b["hdr_image"], request.form.get("hdr_alt", "").strip()[:300] or b["hdr_alt"]
+        f = request.files.get("image")
+        lib = request.form.get("library_id")
+        if request.form.get("reset"):
+            image, alt = "", ""
+        elif f and f.filename:
+            ext = f.filename.rsplit(".", 1)[-1].lower()
+            if ext not in IMAGE_EXT:
+                flash("Images must be PNG, JPG, GIF or WebP.", "error")
+                return redirect(url_for("edit", bid=bid))
+            if not request.form.get("hdr_alt", "").strip():
+                flash("Alternative text is required for the header photo.", "error")
+                return redirect(url_for("edit", bid=bid))
+            image = f"{uuid.uuid4().hex}_{secure_filename(f.filename)}"
+            f.save(os.path.join(app.config["UPLOAD_DIR"], image))
+        elif lib:
+            photo = db().execute("SELECT * FROM photos WHERE id=?", (lib,)).fetchone()
+            if photo:
+                image, alt = photo["filename"], request.form.get("hdr_alt", "").strip()[:300] or photo["alt"] or "Parish photo"
+        def num(key, lo, hi, default):
+            try:
+                return max(lo, min(hi, float(request.form.get(key, default))))
+            except ValueError:
+                return default
+        db().execute("UPDATE bulletins SET hdr_image=?, hdr_alt=?, hdr_h=?, hdr_zoom=?, hdr_x=?, hdr_y=? WHERE id=?",
+                     (image, alt, num("hdr_h", 0.5, 5, 2.4), num("hdr_zoom", 1, 4, 1), num("hdr_x", 0, 100, 50),
+                      num("hdr_y", 0, 100, 50), bid))
+        db().commit()
+        flash("Header photo saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/publish", methods=["POST"])

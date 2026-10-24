@@ -50,6 +50,25 @@
   </tbody>
 </table>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
+<h2>Header photo</h2>
+<form method="post" action="{{ url_for('set_header_photo', bid=b.id) }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <p class="meta">Shown in the cover header. Choose from the photo library or upload a new one.</p>
+  <label for="hp_lib">Photo from library</label>
+  <select id="hp_lib" name="library_id"><option value="">- keep current -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select>
+  <label for="hp_up">Or upload a new photo (PNG, JPG, GIF, WebP)</label><input id="hp_up" name="image" type="file" accept="image/*">
+  <label for="hdr_alt">Alternative text (required for a new upload)</label><input id="hdr_alt" name="hdr_alt" type="text" value="{{ b.hdr_alt }}">
+  <label for="hdr_h">Header photo height: <output id="hh_o">{{ b.hdr_h or 2.4 }}</output> in (make the header taller or shorter)</label>
+  <input id="hdr_h" name="hdr_h" type="range" min="0.5" max="5" step="0.1" value="{{ b.hdr_h or 2.4 }}">
+  <label for="hdr_zoom">Zoom: <output id="hz_o">{{ b.hdr_zoom or 1 }}</output>x</label><input id="hdr_zoom" name="hdr_zoom" type="range" min="1" max="4" step="0.1" value="{{ b.hdr_zoom or 1 }}">
+  <label for="hdr_x">Move left / right</label><input id="hdr_x" name="hdr_x" type="range" min="0" max="100" value="{{ b.hdr_x if b.hdr_x is not none else 50 }}">
+  <label for="hdr_y">Move up / down</label><input id="hdr_y" name="hdr_y" type="range" min="0" max="100" value="{{ b.hdr_y if b.hdr_y is not none else 50 }}">
+  <label><input type="checkbox" name="reset" value="1"> Go back to the default church photo</label>
+  <p><button class="btn">Save header photo</button></p>
+  <script>
+  hdr_h.oninput=function(){hh_o.textContent=hdr_h.value;};hdr_zoom.oninput=function(){hz_o.textContent=hdr_zoom.value;};
+  </script>
+</form>
 <h2>Footer text</h2>
 <form method="post" action="{{ url_for('set_footer', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
