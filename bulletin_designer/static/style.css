@@ -183,7 +183,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .staff-name { font-weight: normal; padding-left: .6em; }
 .staff-contact { padding-left: .6em; }
 .times-item { background: none; border-left: 0; padding: 0; margin: 0 0 .1em; line-height: 1.1; }
-.times-item h3 { margin: .1em 0 0; font-size: 12pt; line-height: 1.1; }
+.times-item h3 { margin: .5em 0 .05em; font-size: 12pt; line-height: 1.1; }
 .times-item p { margin: 0; }
 .sec + .sec { margin-top: .125in; }
 .sec + .sec > h2 { margin-top: 0; }
@@ -200,3 +200,4 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 @media print { .resize-handle { display: none; } }
 
 .toc li { break-inside: avoid; }
+.times-item:first-of-type h3 { margin-top: .15em; }
