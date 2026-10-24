@@ -293,6 +293,16 @@ def create_app(config=None):
             cur += 1
         return pages, toc
 
+    def page_spans(rows):
+        """Map section id -> (first, last, filled) page. Empty sections show where they would start."""
+        spans, cur = {}, 1
+        for r in rows:
+            filled = bool((r["body"] or "").strip() or r["image"])
+            spans[r["id"]] = (cur, cur + r["pages"] - 1, filled)
+            if filled:
+                cur += r["pages"]
+        return spans
+
     # ---------- routes ----------
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -365,7 +375,8 @@ def create_app(config=None):
                             (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", b=b, secs=secs, total=len(pages), editable=editable)
+        return render_template("edit.html", b=b, secs=secs, total=len(pages), editable=editable,
+                               where=page_spans(secs))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
     @need()
@@ -449,7 +460,9 @@ def create_app(config=None):
             db().commit()
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
             return redirect(url_for("edit", bid=bid))
-        return render_template("section.html", photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass=mass_rows(item["body"]) + [{}] * 8,
+        rows = db().execute("""SELECT s.id, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
+            WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
+        return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass=mass_rows(item["body"]) + [{}] * 8,
                                times=times_rows(item["body"]) + [{}] * 4)
 
     def open_bulletin(bid):

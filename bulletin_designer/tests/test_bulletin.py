@@ -244,3 +244,12 @@ def test_mass_times_section(app):
     assert "Weekend Masses" in html and "5:00pm" in html and 'href="https://example.org/live"' in html
     assert "javascript:" not in html
     assert html.index("Mass &amp; Service Times") < html.index("Welcome Message") if "Welcome Message" in html else True
+
+
+def test_page_numbers_shown(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/8", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
+    page = c.get("/bulletins/1").text
+    assert "Printed on" in page and "Page 1" in page and "would start on page" in page
+    assert "Printed on page 1" in c.get("/bulletins/1/section/8").text

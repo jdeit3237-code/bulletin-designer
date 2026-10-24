@@ -2,6 +2,7 @@
 {% block content %}
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
+{% if where %}<p><strong>{% if where[2] %}Printed on {{ 'page ' ~ where[0] if where[0] == where[1] else 'pages ' ~ where[0] ~ '-' ~ where[1] }}.{% else %}Not printed yet; once filled in it will start on page {{ where[0] }}.{% endif %}</strong> An editor can change the order and page count on the bulletin overview.</p>{% endif %}
 {% if s.slug in ('calendar', 'youth-calendar') %}<p>Enter one event per line as <code>Date | Time | Event</code>, e.g. <code>Mon Oct 19 | 6:00pm | Bible Study</code>.</p>{% endif %}
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
