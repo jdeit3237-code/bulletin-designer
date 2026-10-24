@@ -77,10 +77,11 @@
     <div id="groups">
     {% for g in groups %}{% set gi = loop.index0 %}
     <fieldset data-group="{{ gi }}"><legend>Date {{ loop.index }}</legend>
+      <p><button type="button" class="btn danger del-group" aria-label="Delete this date and all its intentions">Delete this date</button></p>
       <label for="g{{ gi }}_date">Date (choose from the calendar)</label><input id="g{{ gi }}_date" name="g{{ gi }}_date" type="date" value="{{ iso_date(g.date) }}">{% if g.date and not iso_date(g.date) %}<p>Previously entered: {{ g.day }} {{ g.date }}. Choose a date to replace it.</p>{% endif %}
       <input type="hidden" name="g{{ gi }}_count" value="{{ g['items']|length }}">
       {% for t in g['items'] %}{% set n = loop.index0 %}
-      <div data-row><strong>Intention {{ loop.index }}</strong>
+      <div data-row><strong>Intention {{ loop.index }}</strong> <button type="button" class="btn danger del-row" aria-label="Delete this intention">Delete this intention</button>
         <label for="g{{ gi }}_{{ n }}_time">Time</label><select id="g{{ gi }}_{{ n }}_time" name="g{{ gi }}_{{ n }}_time"><option value="">Choose a time</option>{% for tm in ['5:30 pm','8:30 am','11 am','9 am'] %}<option{{ ' selected' if t.time == tm }}>{{ tm }}</option>{% endfor %}{% if t.time and t.time not in ['5:30 pm','8:30 am','11 am','9 am'] %}<option selected>{{ t.time }}</option>{% endif %}</select>
         <label for="g{{ gi }}_{{ n }}_for_whom">Intention for (name of the person)</label><input id="g{{ gi }}_{{ n }}_for_whom" name="g{{ gi }}_{{ n }}_for_whom" type="text" value="{{ t.for_whom or '' }}">
         <label for="g{{ gi }}_{{ n }}_by_whom">Requested by (name of the person)</label><input id="g{{ gi }}_{{ n }}_by_whom" name="g{{ gi }}_{{ n }}_by_whom" type="text" value="{{ t.by_whom or '' }}">
@@ -96,15 +97,17 @@
       function addRow(fs){
         var g=fs.getAttribute('data-group'),cnt=fs.querySelector('input[name$="_count"]'),n=+cnt.value,
         d=document.createElement('div');d.setAttribute('data-row','');
-        d.innerHTML='<strong>Intention '+(n+1)+'</strong>'+
+        d.innerHTML='<strong>Intention '+(n+1)+'</strong> <button type="button" class="btn danger del-row" aria-label="Delete this intention">Delete this intention</button>'+
         [['time','Time'],['for_whom','Intention for (name of the person)'],['by_whom','Requested by (name of the person)']].map(function(f){
           var id='g'+g+'_'+n+'_'+f[0];return '<label for="'+id+'">'+f[1]+'</label>'+(f[0]=='time'?'<select id="'+id+'" name="'+id+'"><option value="">Choose a time</option><option>5:30 pm</option><option>8:30 am</option><option>11 am</option><option>9 am</option></select>':'<input id="'+id+'" name="'+id+'" type="text">');}).join('');
         fs.querySelector('.add-row').parentNode.before(d);cnt.value=n+1;d.querySelector('select').focus();}
-      box.addEventListener('click',function(e){if(e.target.classList.contains('add-row'))addRow(e.target.closest('fieldset'));});
+      box.addEventListener('click',function(e){if(e.target.classList.contains('add-row'))addRow(e.target.closest('fieldset'));
+        if(e.target.classList.contains('del-row')){var row=e.target.closest('[data-row]'),fs=row.closest('fieldset');row.remove();fs.querySelector('.add-row').focus();}
+        if(e.target.classList.contains('del-group')){var f=e.target.closest('fieldset');f.remove();document.getElementById('add-group').focus();}});
       document.getElementById('add-group').onclick=function(){
-        var all=box.querySelectorAll('fieldset[data-group]'),g=all.length,c=document.querySelector('input[name=group_count]'),
+        var c=document.querySelector('input[name=group_count]'),g=+c.value,
         fs=document.createElement('fieldset');fs.setAttribute('data-group',g);
-        fs.innerHTML='<legend>Date '+(g+1)+'</legend><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="btn-add add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
+        fs.innerHTML='<legend>Date '+(g+1)+'</legend><p><button type="button" class="btn danger del-group" aria-label="Delete this date and all its intentions">Delete this date</button></p><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="btn-add add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
         box.appendChild(fs);c.value=g+1;addRow(fs);fs.querySelector('input[type=date]').focus();};
     })();
     </script>

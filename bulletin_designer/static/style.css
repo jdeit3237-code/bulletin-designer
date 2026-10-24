@@ -157,3 +157,15 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .duo { display: flex; gap: .3in; align-items: flex-start; }
 .duo .half, .half { width: 50%; flex: 0 0 auto; box-sizing: border-box; }
 .duo .half { flex: 1 1 0; }
+
+.intent { margin: 0 0 .1in; font-family: "Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif; font-stretch: condensed; font-size: 12pt; line-height: 1.2; }
+.intent h4 { margin: 0 0 .02in; font-size: 12pt; text-decoration: underline; color: #000; }
+.intent p { margin: 0 0 .02in; font-size: 12pt; }
+
+.intent { margin: 0 0 .06in; line-height: 1.12; }
+.intent h4 { margin: 0 0 .01in; padding-bottom: .01in; border-bottom: 1px solid #c9a84c; text-decoration: none; color: #14573d; }
+.intent p { margin: 0; }
+.duo .half h2 { margin-top: 0; }
+
+.btn.danger { background: #fff; color: #9b1c1c; border: 2px solid #9b1c1c; }
+.btn.danger:hover, .btn.danger:focus { background: #9b1c1c; color: #fff; }

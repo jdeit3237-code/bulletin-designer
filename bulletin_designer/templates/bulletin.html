@@ -18,9 +18,8 @@
       {% set hd, days = intention_data(r.body) %}
       {% if hd %}<h3>{{ hd }}</h3>{% endif %}
       {% for d in days %}
-      <table class="cal"><caption>{{ d.day }}{% if d.day and d.date %}, {% endif %}{{ d.date }}</caption>
-        <thead><tr><th scope="col">Time</th><th scope="col">Intention for</th><th scope="col">Requested by</th></tr></thead><tbody>
-        {% for it in d['items'] %}<tr><td>{{ it.time }}</td><td>{{ it.for_whom }}</td><td>{{ it.by_whom }}</td></tr>{% endfor %}</tbody></table>
+      <div class="intent"><h4>{{ d.day }}{% if d.day and d.date %}, {% endif %}{{ d.date }}</h4>
+        {% for it in d['items'] %}<p><strong>{{ it.time }}{% if it.time %}:{% endif %}</strong> {{ it.for_whom }}{% if it.for_whom and it.by_whom %} {% if not it.by_whom.lower().startswith('by ') %}by {% endif %}{% endif %}{{ it.by_whom }}</p>{% endfor %}</div>
       {% endfor %}
     {% elif r.slug == 'staff' %}
       {% for t in staff_rows(r.body) %}
@@ -57,6 +56,7 @@
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
   <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
+  {% set side_by_side = loop.first and p.row and p.row.slug != 'cover' %}
   {% if loop.first %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
     <header class="banner">
@@ -68,14 +68,13 @@
     </header>
     <div class="wave-top"></div>
     {% set himg = b.hdr_image %}
-    <figure class="hdr-photo"><div class="crop" style="height:{{ b.hdr_h or 2.4 }}in"><img src="{{ url_for('uploads', name=himg) if himg else url_for('static', filename='church.jpg') }}" alt="{{ b.hdr_alt if himg else 'St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net' }}" style="object-position:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%;transform:scale({{ b.hdr_zoom or 1 }});transform-origin:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%"></div></figure>
+    <figure class="hdr-photo"><div class="crop" style="height:{{ b.hdr_h or (1.8 if side_by_side else 2.4) }}in"><img src="{{ url_for('uploads', name=himg) if himg else url_for('static', filename='church.jpg') }}" alt="{{ b.hdr_alt if himg else 'St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net' }}" style="object-position:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%;transform:scale({{ b.hdr_zoom or 1 }});transform-origin:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%"></div></figure>
     <div class="wave-bot"></div>
     </div>
   {% set toc_html %}<h2>In this issue</h2>
     <ol class="toc" aria-label="Table of contents">
     {% for t in toc %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
     </ol>{% endset %}
-  {% set side_by_side = loop.first and p.row and p.row.slug != 'cover' %}
   {% if loop.first and not side_by_side %}<div class="half">{{ toc_html }}</div>{% endif %}
   {% endif %}
   {% if p.row %}
