@@ -67,7 +67,7 @@ def test_pages_multiple_of_four_and_toc(app):
 def test_standing_carries_weekly_does_not(app):
     c = setup_admin(app)
     create_bulletin(c, "2026-10-18")
-    c.post("/bulletins/1/section/3", data={"body": "Fr. Medina", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/3", data={"staff_count": "1", "s0_name": "Fr. Medina", "csrf": tok(c, "/bulletins/1")})
     c.post("/bulletins/1/section/7", data={"body": "Mon | 6pm | Zumba", "csrf": tok(c, "/bulletins/1")})
     create_bulletin(c, "2026-10-25")
     page = c.get("/bulletins/2/section/3").text
@@ -365,3 +365,12 @@ def test_header_date_and_title(app):
     c.post("/bulletins/1/header-text", data={"hdr_date": "2026-11-01", "theme": "All Saints", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert "Sunday, November 1, 2026" in html and "All Saints" in html
+
+
+def test_staff_structured(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/3", data={"staff_count": "2", "s0_name": "Fr. Jim", "s0_role": "Pastor", "s0_phone": "305-872-2537",
+                                            "s1_name": "Ann", "s1_role": "Office Manager", "csrf": tok(c, "/bulletins/1/section/3")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Fr. Jim" in html and "Pastor" in html and "Office Manager" in html

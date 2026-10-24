@@ -53,6 +53,11 @@
         <thead><tr><th scope="col">Time</th><th scope="col">Intention for</th><th scope="col">Requested by</th></tr></thead><tbody>
         {% for it in d['items'] %}<tr><td>{{ it.time }}</td><td>{{ it.for_whom }}</td><td>{{ it.by_whom }}</td></tr>{% endfor %}</tbody></table>
       {% endfor %}
+    {% elif r.slug == 'staff' %}
+      {% for t in staff_rows(r.body) %}
+      <div class="mass"><h3>{{ t.name }}{% if t.name and t.role %} &ndash; {% endif %}{{ t.role }}</h3>
+        {% if t.phone or t.email %}<p>{{ t.phone }}{% if t.phone and t.email %} &middot; {% endif %}{{ t.email }}</p>{% endif %}</div>
+      {% endfor %}
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
       <div class="mass">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}

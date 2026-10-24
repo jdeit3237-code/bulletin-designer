@@ -8,7 +8,7 @@
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
-    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover') %}
+    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover', 'staff') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
@@ -115,6 +115,20 @@
         var id='e'+n+'_'+f[0];return '<label for="'+id+'">'+f[1]+'</label><input id="'+id+'" name="'+id+'" type="'+f[2]+'">';}).join('');
       box.appendChild(fs);c.value=n+1;fs.querySelector('input').focus();};
     </script>
+    {% elif s.slug == 'staff' %}
+    <p>Add one entry per staff member. Fill in only what you need; empty fields are left out of the bulletin.</p>
+    <input type="hidden" name="staff_count" value="{{ staff|length }}">
+    <div id="staff-list" data-prefix="s" data-count="staff_count" data-label="Staff member">
+    {% for t in staff %}{% set n = loop.index0 %}
+    <fieldset data-clone><legend>Staff member {{ loop.index }}</legend>
+      <label for="s{{ n }}_name">Name</label><input id="s{{ n }}_name" name="s{{ n }}_name" type="text" value="{{ t.name or '' }}">
+      <label for="s{{ n }}_role">Title / role (e.g. Pastor, Deacon, Office Manager)</label><input id="s{{ n }}_role" name="s{{ n }}_role" type="text" value="{{ t.role or '' }}">
+      <label for="s{{ n }}_phone">Phone</label><input id="s{{ n }}_phone" name="s{{ n }}_phone" type="text" value="{{ t.phone or '' }}">
+      <label for="s{{ n }}_email">Email</label><input id="s{{ n }}_email" name="s{{ n }}_email" type="email" value="{{ t.email or '' }}">
+    </fieldset>
+    {% endfor %}
+    </div>
+    <p><button type="button" class="add-clone" data-target="staff-list">+ Add another staff member</button></p>
     {% elif s.slug == 'mass-times' %}
     <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>
     <input type="hidden" name="times_count" value="{{ times|length }}">

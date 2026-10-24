@@ -288,6 +288,18 @@ def create_app(config=None):
 
     app.jinja_env.globals["times_rows"] = times_rows
 
+    STAFF_FIELDS = ("name", "role", "phone", "email")
+
+    def staff_rows(body):
+        rows = []
+        for line in (body or "").splitlines():
+            if line.strip():
+                parts = [p.strip() for p in line.split("|")]
+                rows.append(dict(zip(STAFF_FIELDS, (parts + [""] * 4)[:4])))
+        return rows
+
+    app.jinja_env.globals["staff_rows"] = staff_rows
+
     INTENT_FIELDS = ("day", "date", "time", "for_whom", "by_whom")
 
     def intention_data(body):
@@ -528,6 +540,13 @@ def create_app(config=None):
                     if any(vals):
                         lines.append(" | ".join(vals))
                 body = "\n".join(lines)
+            elif s["slug"] == "staff":
+                lines = []
+                for i in range(min(int(request.form.get("staff_count", 0)), 80)):
+                    vals = [request.form.get(f"s{i}_{k}", "").replace("|", "/").strip() for k in STAFF_FIELDS]
+                    if any(vals):
+                        lines.append(" | ".join(vals))
+                body = "\n".join(lines)
             elif s["slug"] == "mass-times":
                 lines = []
                 for i in range(min(int(request.form.get("times_count", 0)), 40)):
@@ -538,7 +557,7 @@ def create_app(config=None):
             doc = request.files.get("document")
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
-                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover"):
+                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff"):
                     flash("Mass schedules use the form; paste details into the fields instead of uploading a document.", "error")
                     return redirect(request.url)
                 try:
@@ -603,6 +622,7 @@ def create_app(config=None):
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
+                               staff=staff_rows(item["body"]) + [{}],
                                events=calendar_rows(item["body"]) + [("", "", "")] * 2,
                                cover=cover_data(item["body"]),
                                intent_header=intention_data(item["body"])[0],
