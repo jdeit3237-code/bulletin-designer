@@ -414,7 +414,12 @@ def create_app(config=None):
     def area_of(r):
         """Where a section sits: full page width, or the left/right half. Mass Intentions defaults to a left half."""
         a = r["area"] or ("left" if r["slug"] == "mass-intentions" else "full")
-        return a if a in ("left", "right") and r["slug"] != "cover" and r["pages"] == 1 else "full"
+        return a if a in ("left", "right", "below") and r["slug"] != "cover" and r["pages"] == 1 else "full"
+
+    def rows_on(p):
+        d = p.get("duo")
+        rows = [d["left"], *d["left_more"], d["right"], *d["right_more"]] if d else [p.get("row")]
+        return rows + list(p.get("more", []))
 
     def layout(bulletin_id, include_pending=False):
         """Return (pages, toc). Full-width sections take whole pages; left/right half sections share a page
@@ -441,21 +446,34 @@ def create_app(config=None):
                         key=lambda r: (r["page_no"], r["position"])):
             at = max(1, min(r["page_no"] - 1, len(pages)))
             pages[at:at] = blocks(r)
+        for r in sorted((r for r in printed if area_of(r) == "below" and r is not p1), key=lambda r: r["position"]):
+            target = None
+            for pg in pages:
+                if pg.get("row") is not None and pg["row"]["position"] < r["position"]:
+                    target = pg
+            if target is None:
+                pages.append({"row": r, "part": 1, "of": 1})
+            else:
+                target.setdefault("more", []).append(r)
         if not pages:
             pages.append({"row": None})
-        halves = [r for r in printed if area_of(r) != "full" and r is not p1]
+        halves = [r for r in printed if area_of(r) in ("left", "right") and r is not p1]
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
         for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
             side, want = area_of(r), max(2, page_wanted(r))
             idx = None
+            if page_wanted(r) and 1 <= want - 1 < len(pages) and pages[want - 1].get("duo") is not None \
+                    and pages[want - 1]["duo"][side] is not None:
+                pages[want - 1]["duo"][side + "_more"].append(r)
+                continue
             for k in range(max(1, want - 1) if page_wanted(r) else 1, len(pages)):
                 if pages[k].get("duo") is not None and pages[k]["duo"][side] is None:
                     idx = k
                     break
             if idx is None:
-                new = {"row": None, "duo": {"left": None, "right": None}}
+                new = {"row": None, "duo": {"left": None, "right": None, "left_more": [], "right_more": []}}
                 at = max(1, min(want - 1, len(pages))) if page_wanted(r) else len(pages)
                 while at < len(pages) and pages[at].get("duo") is not None:
                     at += 1
@@ -468,7 +486,7 @@ def create_app(config=None):
             p["number"] = n
         seen = set()
         for p in pages:
-            for r in ([p["duo"]["left"], p["duo"]["right"]] if p.get("duo") else [p["row"]]):
+            for r in rows_on(p):
                 if r is not None and r["id"] not in seen:
                     seen.add(r["id"])
                     toc.append({"title": r["title"], "page": p["number"], "pos": r["position"]})
@@ -485,7 +503,7 @@ def create_app(config=None):
         """Map section id -> (first, last, filled) page, from the real layout. Empty sections show where they would start."""
         placed = {}
         for p in layout(bid, include_pending=True)[0]:
-            for r in ([p["duo"]["left"], p["duo"]["right"]] if p.get("duo") else [p.get("row")]):
+            for r in rows_on(p):
                 if r is not None:
                     lo, hi = placed.get(r["id"], (p["number"], p["number"]))
                     placed[r["id"]] = (min(lo, p["number"]), max(hi, p["number"]))
@@ -829,7 +847,7 @@ def create_app(config=None):
                          (max(1, min(8, int(request.form["pages"]))),
                           2 if request.form.get("cols") == "2" else 1, bid, sid))
         if "area" in request.form:
-            area = request.form["area"] if request.form["area"] in ("full", "left", "right") else ""
+            area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below") else ""
             try:
                 page_no = max(0, min(12, int(request.form.get("page_no") or 0)))
             except ValueError:

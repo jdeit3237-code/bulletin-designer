@@ -418,6 +418,22 @@ def test_section_on_page_one(app):
     assert re.search(r"Readings[^<]*<br>.*?Page 1", pg, re.S)
 
 
+def test_stack_below_and_same_column(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "below", "page_no": "0", "pages": "1", "cols": "1", "csrf": t})
+    pg = c.get("/bulletins/1").text
+    assert re.search(r"Welcome Message[^<]*<br>.*?(Page 1|Page 2)", pg, re.S)
+    w = re.search(r"Readings[^<]*<br>.*?<td>(.*?)</td>", pg, re.S).group(1)
+    w2 = re.search(r"Welcome Message[^<]*<br>.*?<td>(.*?)</td>", pg, re.S).group(1)
+    assert w == w2
+    html = c.get("/bulletins/1/preview").text
+    assert html.index("Welcome text") < html.index("Gospel")
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
