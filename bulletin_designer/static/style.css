@@ -176,3 +176,9 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .fs-sans, .fs-sans * { font-family: Arial, "Liberation Sans", Helvetica, sans-serif; }
 .fs-humanist, .fs-humanist * { font-family: Verdana, "DejaVu Sans", Tahoma, sans-serif; }
 .fs-rounded, .fs-rounded * { font-family: "Trebuchet MS", "Ubuntu", "DejaVu Sans", sans-serif; }
+
+.staff-item { margin: 0 0 .35em; break-inside: avoid; line-height: 1.2; }
+.staff-item p { margin: 0; }
+.staff-role { font-weight: bold; color: var(--green, #2f5d46); text-decoration: underline; }
+.staff-name { font-weight: normal; padding-left: .6em; }
+.staff-contact { padding-left: .6em; }

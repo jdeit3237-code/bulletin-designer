@@ -23,8 +23,8 @@
       {% endfor %}
     {% elif r.slug == 'staff' %}
       {% for t in staff_rows(r.body) %}
-      <div class="mass"><h3>{{ t.name }}{% if t.name and t.role %} &ndash; {% endif %}{{ t.role }}</h3>
-        {% if t.phone or t.email %}<p>{{ t.phone }}{% if t.phone and t.email %} &middot; {% endif %}{{ t.email }}</p>{% endif %}</div>
+      <div class="staff-item">{% if t.role %}<p class="staff-role">{{ t.role }}</p>{% endif %}<p class="staff-name">{{ t.name }}</p>
+        {% if t.phone or t.email %}<p class="staff-contact">{{ t.phone }}{% if t.phone and t.email %} &middot; {% endif %}{{ t.email }}</p>{% endif %}</div>
       {% endfor %}
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
