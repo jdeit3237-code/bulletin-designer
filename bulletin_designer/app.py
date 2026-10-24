@@ -442,7 +442,7 @@ def create_app(config=None):
                 rows += [d[k], *d[k + "_more"]]
         else:
             rows = [p.get("row")]
-        return rows + list(p.get("right_more", [])) + list(p.get("more", []))
+        return rows + list(p.get("right_more", [])) + list(p.get("p1_below", [])) + list(p.get("more", []))
 
     def layout(bulletin_id, include_pending=False):
         """Return (pages, toc). Full-width sections take whole pages; left/right half sections share a page
@@ -460,10 +460,15 @@ def create_app(config=None):
         cover_printed = any(r["slug"] == "cover" for r in printed)
         p1_all = [] if cover_printed else sorted((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover"),
                                                  key=lambda r: r["position"])
-        p1 = p1_all[0] if p1_all else None
+        p1_side = [r for r in p1_all if area_of(r) != "below"]
+        p1_under = [r for r in p1_all if area_of(r) == "below"]
+        if not p1_side and p1_under:
+            p1_side, p1_under = p1_under[:1], p1_under[1:]
+        p1 = p1_side[0] if p1_side else None
         if p1 is not None:
             pages.extend(blocks(p1))
-            pages[0]["right_more"] = p1_all[1:]
+            pages[0]["right_more"] = p1_side[1:]
+            pages[0]["p1_below"] = p1_under
         fulls = [r for r in printed if area_of(r) == "full" and r not in p1_all]
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):

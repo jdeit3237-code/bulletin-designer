@@ -503,6 +503,19 @@ def test_two_thirds_and_toc_settings(app):
     assert "Inside This Week" not in c.get("/bulletins/1/preview").text
 
 
+def test_section_below_contents_on_page_one(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "UnderContents", "csrf": t})
+    c.post("/bulletins/1/layout/5", data={"area": "right", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "below", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert html.rindex("UnderContents") > html.rindex("Welcome text")
+    assert html.count("UnderContents") >= 1
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
