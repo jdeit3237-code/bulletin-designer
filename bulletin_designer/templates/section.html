@@ -7,7 +7,7 @@
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
-    {% if s.slug != 'mass-schedule' %}
+    {% if s.slug not in ('mass-schedule', 'mass-times') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
@@ -22,6 +22,19 @@
       <label for="m{{ loop.index0 }}_sacristan">Sacristan</label><input id="m{{ loop.index0 }}_sacristan" name="m{{ loop.index0 }}_sacristan" type="text" value="{{ m.sacristan or '' }}">
       <label for="m{{ loop.index0 }}_ministers">Eucharistic Ministers</label><input id="m{{ loop.index0 }}_ministers" name="m{{ loop.index0 }}_ministers" type="text" value="{{ m.ministers or '' }}">
       <label for="m{{ loop.index0 }}_intention">Mass intention</label><input id="m{{ loop.index0 }}_intention" name="m{{ loop.index0 }}_intention" type="text" value="{{ m.intention or '' }}">
+    </fieldset>
+    {% endfor %}
+    {% elif s.slug == 'mass-times' %}
+    <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>
+    <input type="hidden" name="times_count" value="{{ times|length }}">
+    {% for t in times %}{% set n = loop.index0 %}
+    <fieldset><legend>Entry {{ loop.index }}</legend>
+      <label for="t{{ n }}_title">Title (e.g. Weekend Masses)</label><input id="t{{ n }}_title" name="t{{ n }}_title" type="text" value="{{ t.title or '' }}">
+      <label for="t{{ n }}_days">Days of the week (e.g. Saturday, Sunday)</label><input id="t{{ n }}_days" name="t{{ n }}_days" type="text" value="{{ t.days or '' }}">
+      <label for="t{{ n }}_name">Name of Mass (e.g. Vigil Mass, Spanish Mass)</label><input id="t{{ n }}_name" name="t{{ n }}_name" type="text" value="{{ t.name or '' }}">
+      <label for="t{{ n }}_time">Time of Mass</label><input id="t{{ n }}_time" name="t{{ n }}_time" type="text" value="{{ t.time or '' }}">
+      <label for="t{{ n }}_notes">Notes</label><input id="t{{ n }}_notes" name="t{{ n }}_notes" type="text" value="{{ t.notes or '' }}">
+      <label for="t{{ n }}_web">Web address (starting with https://)</label><input id="t{{ n }}_web" name="t{{ n }}_web" type="url" value="{{ t.web or '' }}">
     </fieldset>
     {% endfor %}
     {% else %}
