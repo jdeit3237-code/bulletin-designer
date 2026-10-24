@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 from xml.etree import ElementTree
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
@@ -192,6 +192,28 @@ def create_app(config=None):
         return rows
 
     app.jinja_env.globals["calendar_rows"] = calendar_rows
+
+    def long_date(iso):
+        try:
+            d = date.fromisoformat((iso or "").strip())
+        except ValueError:
+            return ""
+        return f"{d:%A, %B} {d.day}, {d.year}"
+
+    def iso_date(text):
+        try:
+            return datetime.strptime((text or "").strip(), "%A, %B %d, %Y").date().isoformat()
+        except ValueError:
+            return ""
+
+    def form_vals(prefix, i, fields):
+        vals = []
+        for k in fields:
+            v = request.form.get(f"{prefix}{i}_{k}", "").replace("|", "/").strip()
+            vals.append("" if k == "day" else long_date(v) if k == "date" else v)
+        return vals
+
+    app.jinja_env.globals["iso_date"] = iso_date
 
     MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
 
@@ -427,7 +449,7 @@ def create_app(config=None):
                 if head:
                     lines.append("# " + head)
                 for i in range(min(int(request.form.get("mass_count", 0)), 40)):
-                    vals = [request.form.get(f"m{i}_{k}", "").replace("|", "/").strip() for k in MASS_FIELDS]
+                    vals = form_vals("m", i, MASS_FIELDS)
                     if any(vals):
                         lines.append(" | ".join(vals))
                 body = "\n".join(lines)
@@ -436,10 +458,12 @@ def create_app(config=None):
                 head = request.form.get("header", "").replace("|", "/").replace("\n", " ").strip()
                 if head:
                     lines.append("# " + head)
-                for i in range(min(int(request.form.get("intent_count", 0)), 60)):
-                    vals = [request.form.get(f"n{i}_{k}", "").replace("|", "/").strip() for k in INTENT_FIELDS]
-                    if any(vals):
-                        lines.append(" | ".join(vals))
+                for gi in range(min(int(request.form.get("group_count", 0)), 100)):
+                    gdate = long_date(request.form.get(f"g{gi}_date", ""))
+                    for r in range(min(int(request.form.get(f"g{gi}_count", 0)), 100)):
+                        vals = [request.form.get(f"g{gi}_{r}_{k}", "").replace("|", "/").strip() for k in ("time", "for_whom", "by_whom")]
+                        if any(vals):
+                            lines.append(" | ".join(["", gdate] + vals))
                 body = "\n".join(lines)
             elif s["slug"] == "mass-times":
                 lines = []
@@ -510,7 +534,7 @@ def create_app(config=None):
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}] * 4,
                                times=times_rows(item["body"]) + [{}] * 4,
                                intent_header=intention_data(item["body"])[0],
-                               intents=[r for d in intention_data(item["body"])[1] for r in d["items"]] + [{}] * 6)
+                               groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
     def open_bulletin(bid):
         b = get_bulletin(bid)

@@ -260,13 +260,13 @@ def test_mass_intentions_section(app):
     create_bulletin(c)
     assert "Intention for" in c.get("/bulletins/1/section/2").text
     c.post("/bulletins/1/section/1", data={"body": "Cover", "csrf": tok(c, "/bulletins/1")})
-    c.post("/bulletins/1/section/2", data={"intent_count": "3", "header": "Mass Intentions Week",
-           "n0_day": "Monday", "n0_date": "Oct 26", "n0_time": "8:00am", "n0_for_whom": "John Smith", "n0_by_whom": "Mary Smith",
-           "n1_day": "Monday", "n1_date": "Oct 26", "n1_time": "6:00pm", "n1_for_whom": "Ann Lee", "n1_by_whom": "Bob Lee",
-           "n2_day": "Tuesday", "n2_date": "Oct 27", "n2_time": "8:00am", "n2_for_whom": "Rosa Diaz",
+    c.post("/bulletins/1/section/2", data={"group_count": "2", "header": "Mass Intentions Week",
+           "g0_date": "2026-10-26", "g0_count": "2", "g0_0_time": "8:00am", "g0_0_for_whom": "John Smith", "g0_0_by_whom": "Mary Smith",
+           "g0_1_time": "6:00pm", "g0_1_for_whom": "Ann Lee", "g0_1_by_whom": "Bob Lee",
+           "g1_date": "2026-10-27", "g1_count": "1", "g1_0_time": "8:00am", "g1_0_for_whom": "Rosa Diaz",
            "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
-    assert html.count("Monday, Oct 26") == 1 and "Tuesday, Oct 27" in html
+    assert html.count("Monday, October 26, 2026") == 1 and "Tuesday, October 27, 2026" in html
     assert "John Smith" in html and "Bob Lee" in html and "Mass Intentions Week" in html
     assert "Printed on page 2" in c.get("/bulletins/1/section/2").text
 
@@ -279,9 +279,9 @@ def test_this_week_ministers(app):
     form = c.get(f"/bulletins/1/section/{sid}").text
     assert "Lector(s)" in form and "Eucharistic Ministers" in form
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "Ministers This Week",
-           "m0_day": "Sunday", "m0_date": "Oct 25", "m0_lectors": "Ann Kay, Bo Roe", "m0_sacristans": "Cy Ng",
+           "m0_date": "2026-10-25", "m0_lectors": "Ann Kay, Bo Roe", "m0_sacristans": "Cy Ng",
            "m0_ministers": "Di Fox; Ed Poe; Flo Qui", "m1_day": "", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
-    assert "Ministers This Week" in html and "Sunday, Oct 25" in html
+    assert "Ministers This Week" in html and "Sunday, October 25, 2026" in html
     assert "Lectors" in html and "Ann Kay, Bo Roe" in html and "Sacristan<" in html
     assert "Di Fox, Ed Poe, Flo Qui" in html

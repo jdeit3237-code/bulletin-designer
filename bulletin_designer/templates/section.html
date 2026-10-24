@@ -3,7 +3,14 @@
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
 {% if where %}<p><strong>{% if where[2] %}Printed on {{ 'page ' ~ where[0] if where[0] == where[1] else 'pages ' ~ where[0] ~ '-' ~ where[1] }}.{% else %}Not printed yet; once filled in it will start on page {{ where[0] }}.{% endif %}</strong> An editor can change the order and page count on the bulletin overview.</p>{% endif %}
-{% if s.slug in ('calendar', 'youth-calendar') %}<p>Enter one event per line as <code>Date | Time | Event</code>, e.g. <code>Mon Oct 19 | 6:00pm | Bible Study</code>.</p>{% endif %}
+{% if s.slug in ('calendar', 'youth-calendar') %}<p>Enter one event per line as <code>Date | Time | Event</code>, e.g. <code>Monday, October 19, 2026 | 6:00pm | Bible Study</code>.</p>
+<p><label for="datepick">Pick a date to insert into the box below</label>
+<input id="datepick" type="date"> <button type="button" id="dateins">Insert date</button></p>
+<script>
+document.getElementById('dateins').onclick=function(){var v=document.getElementById('datepick').value;if(!v)return;
+var d=new Date(v+'T12:00:00'),t=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
+b=document.querySelector('textarea[name=body]'),a=b.selectionStart||0;b.value=b.value.slice(0,a)+t+' | '+b.value.slice(b.selectionEnd||a);b.focus();};
+</script>{% endif %}
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
@@ -19,8 +26,7 @@
     <input type="hidden" name="mass_count" value="{{ mass|length }}">
     {% for m in mass %}{% set n = loop.index0 %}
     <fieldset><legend>Mass {{ loop.index }}</legend>
-      <label for="m{{ n }}_day">Day (e.g. Sunday)</label><input id="m{{ n }}_day" name="m{{ n }}_day" type="text" value="{{ m.day or '' }}">
-      <label for="m{{ n }}_date">Date (e.g. October 25)</label><input id="m{{ n }}_date" name="m{{ n }}_date" type="text" value="{{ m.date or '' }}">
+      <label for="m{{ n }}_date">Date (choose from the calendar)</label><input id="m{{ n }}_date" name="m{{ n }}_date" type="date" value="{{ iso_date(m.date) }}">{% if m.date and not iso_date(m.date) %}<p>Previously entered: {{ m.day }} {{ m.date }}. Choose a date to replace it.</p>{% endif %}
       <label for="m{{ n }}_time">Time (optional)</label><input id="m{{ n }}_time" name="m{{ n }}_time" type="text" value="{{ m.time or '' }}">
       <label for="m{{ n }}_lectors">Lector(s) - names separated by commas</label><input id="m{{ n }}_lectors" name="m{{ n }}_lectors" type="text" value="{{ m.lectors or '' }}">
       <label for="m{{ n }}_sacristans">Sacristan(s) - names separated by commas</label><input id="m{{ n }}_sacristans" name="m{{ n }}_sacristans" type="text" value="{{ m.sacristans or '' }}">
@@ -28,19 +34,45 @@
     </fieldset>
     {% endfor %}
     {% elif s.slug == 'mass-intentions' %}
-    <p>Enter one row per intention. Several intentions on the same day: repeat the same day and date. Leave unused rows empty.</p>
+    <p>Choose a date, then use the + button under it to add each intention (for whom, requested by) for that date. Use "+ Add another date" for a new day. Empty rows are left out.</p>
     <label for="header">Header (e.g. Mass Intentions for the Week of October 25)</label>
     <input id="header" name="header" type="text" value="{{ intent_header }}">
-    <input type="hidden" name="intent_count" value="{{ intents|length }}">
-    {% for t in intents %}{% set n = loop.index0 %}
-    <fieldset><legend>Intention {{ loop.index }}</legend>
-      <label for="n{{ n }}_day">Day (e.g. Monday)</label><input id="n{{ n }}_day" name="n{{ n }}_day" type="text" value="{{ t.day or '' }}">
-      <label for="n{{ n }}_date">Date (e.g. October 26)</label><input id="n{{ n }}_date" name="n{{ n }}_date" type="text" value="{{ t.date or '' }}">
-      <label for="n{{ n }}_time">Time</label><input id="n{{ n }}_time" name="n{{ n }}_time" type="text" value="{{ t.time or '' }}">
-      <label for="n{{ n }}_for_whom">Intention for (name of the person)</label><input id="n{{ n }}_for_whom" name="n{{ n }}_for_whom" type="text" value="{{ t.for_whom or '' }}">
-      <label for="n{{ n }}_by_whom">Requested by (name of the person)</label><input id="n{{ n }}_by_whom" name="n{{ n }}_by_whom" type="text" value="{{ t.by_whom or '' }}">
+    <input type="hidden" name="group_count" value="{{ groups|length }}">
+    <div id="groups">
+    {% for g in groups %}{% set gi = loop.index0 %}
+    <fieldset data-group="{{ gi }}"><legend>Date {{ loop.index }}</legend>
+      <label for="g{{ gi }}_date">Date (choose from the calendar)</label><input id="g{{ gi }}_date" name="g{{ gi }}_date" type="date" value="{{ iso_date(g.date) }}">{% if g.date and not iso_date(g.date) %}<p>Previously entered: {{ g.day }} {{ g.date }}. Choose a date to replace it.</p>{% endif %}
+      <input type="hidden" name="g{{ gi }}_count" value="{{ g['items']|length }}">
+      {% for t in g['items'] %}{% set n = loop.index0 %}
+      <div data-row><strong>Intention {{ loop.index }}</strong>
+        <label for="g{{ gi }}_{{ n }}_time">Time</label><input id="g{{ gi }}_{{ n }}_time" name="g{{ gi }}_{{ n }}_time" type="text" value="{{ t.time or '' }}">
+        <label for="g{{ gi }}_{{ n }}_for_whom">Intention for (name of the person)</label><input id="g{{ gi }}_{{ n }}_for_whom" name="g{{ gi }}_{{ n }}_for_whom" type="text" value="{{ t.for_whom or '' }}">
+        <label for="g{{ gi }}_{{ n }}_by_whom">Requested by (name of the person)</label><input id="g{{ gi }}_{{ n }}_by_whom" name="g{{ gi }}_{{ n }}_by_whom" type="text" value="{{ t.by_whom or '' }}">
+      </div>
+      {% endfor %}
+      <p><button type="button" class="add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>
     </fieldset>
     {% endfor %}
+    </div>
+    <p><button type="button" id="add-group">+ Add another date</button></p>
+    <script>
+    (function(){
+      var box=document.getElementById('groups');
+      function addRow(fs){
+        var g=fs.getAttribute('data-group'),cnt=fs.querySelector('input[name$="_count"]'),n=+cnt.value,
+        d=document.createElement('div');d.setAttribute('data-row','');
+        d.innerHTML='<strong>Intention '+(n+1)+'</strong>'+
+        [['time','Time'],['for_whom','Intention for (name of the person)'],['by_whom','Requested by (name of the person)']].map(function(f){
+          var id='g'+g+'_'+n+'_'+f[0];return '<label for="'+id+'">'+f[1]+'</label><input id="'+id+'" name="'+id+'" type="text">';}).join('');
+        fs.querySelector('.add-row').parentNode.before(d);cnt.value=n+1;d.querySelector('input').focus();}
+      box.addEventListener('click',function(e){if(e.target.classList.contains('add-row'))addRow(e.target.closest('fieldset'));});
+      document.getElementById('add-group').onclick=function(){
+        var all=box.querySelectorAll('fieldset[data-group]'),g=all.length,c=document.querySelector('input[name=group_count]'),
+        fs=document.createElement('fieldset');fs.setAttribute('data-group',g);
+        fs.innerHTML='<legend>Date '+(g+1)+'</legend><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
+        box.appendChild(fs);c.value=g+1;addRow(fs);fs.querySelector('input[type=date]').focus();};
+    })();
+    </script>
     {% elif s.slug == 'mass-times' %}
     <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>
     <input type="hidden" name="times_count" value="{{ times|length }}">
