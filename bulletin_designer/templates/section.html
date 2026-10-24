@@ -4,7 +4,23 @@
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
 {% if where %}<p><strong>{% if where[2] %}Printed on {{ 'page ' ~ where[0] if where[0] == where[1] else 'pages ' ~ where[0] ~ '-' ~ where[1] }}.{% else %}Not printed yet; once filled in it will start on page {{ where[0] }}.{% endif %}</strong> An editor can change the order and page count on the bulletin overview.</p>{% endif %}
-<form method="post" enctype="multipart/form-data">
+<section class="toolbar" aria-label="Section actions">
+{% if can and b.status != 'published' %}<p class="addbar"><button form="secform" class="btn">Save section</button> {% if s.slug == 'cover' %}<button type="button" class="btn-add add-clone" data-target="hours-list">+ Add office hours</button>{% endif %}{% if s.slug == 'mass-schedule' %}<button type="button" class="btn-add add-clone" data-target="mass-list">+ Add another Mass</button>{% endif %}{% if s.slug == 'staff' %}<button type="button" class="btn-add add-clone" data-target="staff-list">+ Add another staff member</button>{% endif %}{% if s.slug == 'mass-times' %}<button type="button" class="btn-add add-clone" data-target="times-list">+ Add another entry</button>{% endif %}{% if s.slug == 'mass-intentions' %}<button type="button" class="btn-add" id="add-group">+ Add another date</button>{% endif %}{% if s.slug in ('calendar', 'youth-calendar') %}<button type="button" class="btn-add" id="add-event">+ Add another event</button>{% endif %}</p>{% endif %}
+{% if can %}
+<form method="post" action="{{ url_for('copy_next', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">Copy to next bulletin</button> <span class="meta">Copies this section's content to the next Sunday's bulletin (created if needed; replaces that bulletin's version).</span></form>
+{% if g.user.role in ('admin', 'editor') %}
+<form method="post" action="{{ url_for('keep_section', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">{{ 'Stop keeping for all editions (blank each week)' if not s.weekly else 'Keep for all bulletin editions' }}</button>
+  <span class="meta">{{ 'Now kept: new bulletins start with this content.' if not s.weekly else 'Now weekly: new bulletins start blank.' }}</span></form>
+{% endif %}
+{% if b.status != 'published' %}
+<form method="post" action="{{ url_for('delete_content', bid=b.id, sid=s.id) }}" class="inline" onsubmit="return confirm('Delete all content in this section for this bulletin?');"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <button class="btn secondary">Delete content</button></form>
+{% endif %}
+{% endif %}
+</section>
+<form method="post" enctype="multipart/form-data" id="secform">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
@@ -34,7 +50,6 @@
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" class="add-clone" data-target="hours-list">+ Add office hours</button></p>
     <label for="extra">Other cover text (optional)</label>
     <textarea id="extra" name="extra">{{ cover.extra }}</textarea>
     {% elif s.slug == 'mass-schedule' %}
@@ -53,7 +68,6 @@
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" class="add-clone" data-target="mass-list">+ Add another Mass</button></p>
     {% elif s.slug == 'mass-intentions' %}
     <p>Choose a date, then use the + button under it to add each intention (for whom, requested by) for that date. Use "+ Add another date" for a new day. Empty rows are left out.</p>
     <label for="header">Header (e.g. Mass Intentions for the Week of October 25)</label>
@@ -71,11 +85,10 @@
         <label for="g{{ gi }}_{{ n }}_by_whom">Requested by (name of the person)</label><input id="g{{ gi }}_{{ n }}_by_whom" name="g{{ gi }}_{{ n }}_by_whom" type="text" value="{{ t.by_whom or '' }}">
       </div>
       {% endfor %}
-      <p><button type="button" class="add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>
+      <p><button type="button" class="btn-add add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" id="add-group">+ Add another date</button></p>
     <script>
     (function(){
       var box=document.getElementById('groups');
@@ -90,7 +103,7 @@
       document.getElementById('add-group').onclick=function(){
         var all=box.querySelectorAll('fieldset[data-group]'),g=all.length,c=document.querySelector('input[name=group_count]'),
         fs=document.createElement('fieldset');fs.setAttribute('data-group',g);
-        fs.innerHTML='<legend>Date '+(g+1)+'</legend><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
+        fs.innerHTML='<legend>Date '+(g+1)+'</legend><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="btn-add add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
         box.appendChild(fs);c.value=g+1;addRow(fs);fs.querySelector('input[type=date]').focus();};
     })();
     </script>
@@ -106,7 +119,6 @@
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" id="add-event">+ Add another event</button></p>
     <script>
     document.getElementById('add-event').onclick=function(){
       var box=document.getElementById('events'),n=box.querySelectorAll('fieldset').length,c=document.querySelector('input[name=event_count]'),
@@ -128,7 +140,6 @@
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" class="add-clone" data-target="staff-list">+ Add another staff member</button></p>
     {% elif s.slug == 'mass-times' %}
     <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>
     <input type="hidden" name="times_count" value="{{ times|length }}">
@@ -144,7 +155,6 @@
     </fieldset>
     {% endfor %}
     </div>
-    <p><button type="button" class="add-clone" data-target="times-list">+ Add another entry</button></p>
     {% else %}
     <label for="body">Text (blank line starts a new paragraph)</label>
     <textarea id="body" name="body">{{ item.body }}</textarea>
@@ -193,19 +203,5 @@ document.addEventListener('click',function(e){
   var nf=d.firstElementChild;nf.querySelectorAll('input').forEach(function(x){x.value='';});
   last.after(nf);document.querySelector('input[name='+box.getAttribute('data-count')+']').value=n+1;nf.querySelector('input').focus();});
 </script>
-<section aria-labelledby="actions-h"><h2 id="actions-h">Keep, copy or delete this section</h2>
-{% if can %}
-<form method="post" action="{{ url_for('copy_next', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
-  <button class="btn secondary">Copy to next bulletin</button> <span class="meta">Copies this section's content to the next Sunday's bulletin (created if needed; replaces that bulletin's version).</span></form>
-{% if g.user.role in ('admin', 'editor') %}
-<form method="post" action="{{ url_for('keep_section', bid=b.id, sid=s.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">
-  <button class="btn secondary">{{ 'Stop keeping for all editions (blank each week)' if not s.weekly else 'Keep for all bulletin editions' }}</button>
-  <span class="meta">{{ 'Now kept: new bulletins start with this content.' if not s.weekly else 'Now weekly: new bulletins start blank.' }}</span></form>
-{% endif %}
-{% if b.status != 'published' %}
-<form method="post" action="{{ url_for('delete_content', bid=b.id, sid=s.id) }}" class="inline" onsubmit="return confirm('Delete all content in this section for this bulletin?');"><input type="hidden" name="csrf" value="{{ csrf() }}">
-  <button class="btn secondary">Delete content</button></form>
-{% endif %}
-{% endif %}
-</section>
+
 {% endblock %}

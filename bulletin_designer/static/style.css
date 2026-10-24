@@ -147,3 +147,9 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-foot { padding-left: .15in; padding-right: .15in; }
 .sheet .pg-foot .foot-row { gap: .1in; white-space: nowrap; }
 .sheet .pg-foot .foot-phone { font-weight: normal; color: #fff; }
+.btn-add, button.btn-add { background: #1f7a3a; color: #fff; border: 2px solid #14562a; border-radius: 6px; font: bold 13pt Arial, sans-serif; padding: .5em 1.1em; cursor: pointer; margin: .2em .4em .2em 0; }
+.btn-add:hover, .btn-add:focus { background: #14562a; }
+.toolbar { background: #eef6f0; border: 1px solid #b7d6c0; border-radius: 6px; padding: .5em .8em; margin: .6em 0 1em; }
+.toolbar form.inline { display: inline-block; margin: .2em .6em .2em 0; vertical-align: top; }
+.toolbar .meta { display: block; max-width: 22em; }
+.toolbar .addbar { margin: 0 0 .3em; }
