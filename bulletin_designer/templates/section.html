@@ -3,19 +3,11 @@
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
 {% if where %}<p><strong>{% if where[2] %}Printed on {{ 'page ' ~ where[0] if where[0] == where[1] else 'pages ' ~ where[0] ~ '-' ~ where[1] }}.{% else %}Not printed yet; once filled in it will start on page {{ where[0] }}.{% endif %}</strong> An editor can change the order and page count on the bulletin overview.</p>{% endif %}
-{% if s.slug in ('calendar', 'youth-calendar') %}<p>Enter one event per line as <code>Date | Time | Event</code>, e.g. <code>Monday, October 19, 2026 | 6:00pm | Bible Study</code>.</p>
-<p><label for="datepick">Pick a date to insert into the box below</label>
-<input id="datepick" type="date"> <button type="button" id="dateins">Insert date</button></p>
-<script>
-document.getElementById('dateins').onclick=function(){var v=document.getElementById('datepick').value;if(!v)return;
-var d=new Date(v+'T12:00:00'),t=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),
-b=document.querySelector('textarea[name=body]'),a=b.selectionStart||0;b.value=b.value.slice(0,a)+t+' | '+b.value.slice(b.selectionEnd||a);b.focus();};
-</script>{% endif %}
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
-    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions') %}
+    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
@@ -72,6 +64,27 @@ b=document.querySelector('textarea[name=body]'),a=b.selectionStart||0;b.value=b.
         fs.innerHTML='<legend>Date '+(g+1)+'</legend><label for="g'+g+'_date">Date (choose from the calendar)</label><input id="g'+g+'_date" name="g'+g+'_date" type="date"><input type="hidden" name="g'+g+'_count" value="0"><p><button type="button" class="add-row" aria-label="Add another intention for this date">+ Add intention for this date</button></p>';
         box.appendChild(fs);c.value=g+1;addRow(fs);fs.querySelector('input[type=date]').focus();};
     })();
+    </script>
+    {% elif s.slug in ('calendar', 'youth-calendar') %}
+    <p>Choose a date, then add the time and event. Use the + button to add more events. Empty events are left out.</p>
+    <input type="hidden" name="event_count" value="{{ events|length }}">
+    <div id="events">
+    {% for d, t, e in events %}{% set n = loop.index0 %}
+    <fieldset data-event><legend>Event {{ loop.index }}</legend>
+      <label for="e{{ n }}_date">Date (choose from the calendar)</label><input id="e{{ n }}_date" name="e{{ n }}_date" type="date" value="{{ iso_date(d) }}">{% if d and not iso_date(d) %}<p>Previously entered: {{ d }}. Choose a date to replace it.</p><input type="hidden" name="e{{ n }}_old" value="{{ d }}">{% endif %}
+      <label for="e{{ n }}_time">Time</label><input id="e{{ n }}_time" name="e{{ n }}_time" type="text" value="{{ t }}">
+      <label for="e{{ n }}_event">Event</label><input id="e{{ n }}_event" name="e{{ n }}_event" type="text" value="{{ e }}">
+    </fieldset>
+    {% endfor %}
+    </div>
+    <p><button type="button" id="add-event">+ Add another event</button></p>
+    <script>
+    document.getElementById('add-event').onclick=function(){
+      var box=document.getElementById('events'),n=box.querySelectorAll('fieldset').length,c=document.querySelector('input[name=event_count]'),
+      fs=document.createElement('fieldset');fs.setAttribute('data-event','');
+      fs.innerHTML='<legend>Event '+(n+1)+'</legend>'+[['date','Date (choose from the calendar)','date'],['time','Time','text'],['event','Event','text']].map(function(f){
+        var id='e'+n+'_'+f[0];return '<label for="'+id+'">'+f[1]+'</label><input id="'+id+'" name="'+id+'" type="'+f[2]+'">';}).join('');
+      box.appendChild(fs);c.value=n+1;fs.querySelector('input').focus();};
     </script>
     {% elif s.slug == 'mass-times' %}
     <p>Add one block per group of Masses or services. Fill in only what you need; empty fields are left out of the bulletin.</p>

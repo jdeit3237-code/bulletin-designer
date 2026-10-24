@@ -226,7 +226,7 @@ def test_group_user_for_section(app):
     y = app.test_client()
     login(y, "youth", "password-12345")
     y.post("/password", data={"current": "password-12345", "new": "another-password", "csrf": tok(y, "/password")})
-    ok = y.post(f"/bulletins/1/section/{sid}", data={"body": "Fri | 6pm | Game night", "csrf": tok(y, "/bulletins/1")})
+    ok = y.post(f"/bulletins/1/section/{sid}", data={"event_count": "1", "e0_date": "2026-10-30", "e0_time": "6pm", "e0_event": "Game night", "csrf": tok(y, "/bulletins/1")})
     assert ok.status_code == 302
     assert y.post("/bulletins/1/section/1", data={"body": "x", "csrf": tok(y, "/bulletins/1")}).status_code == 403
     assert "Game night" in c.get("/bulletins/1/preview").text or "Awaiting" in c.get("/bulletins/1").text
@@ -285,3 +285,13 @@ def test_this_week_ministers(app):
     assert "Ministers This Week" in html and "Sunday, October 25, 2026" in html
     assert "Lectors" in html and "Ann Kay, Bo Roe" in html and "Sacristan<" in html
     assert "Di Fox, Ed Poe, Flo Qui" in html
+
+
+def test_youth_calendar_events(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
+    c.post(f"/bulletins/1/section/{sid}", data={"event_count": "2", "e0_date": "2026-10-26", "e0_time": "6pm", "e0_event": "Bible Study",
+           "e1_date": "2026-11-01", "e1_event": "Pizza Night", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Monday, October 26, 2026" in html and "Pizza Night" in html and "Sunday, November 1, 2026" in html

@@ -465,6 +465,14 @@ def create_app(config=None):
                         if any(vals):
                             lines.append(" | ".join(["", gdate] + vals))
                 body = "\n".join(lines)
+            elif s["slug"] in ("calendar", "youth-calendar"):
+                lines = []
+                for i in range(min(int(request.form.get("event_count", 0)), 300)):
+                    vals = [request.form.get(f"e{i}_{k}", "").replace("|", "/").strip() for k in ("date", "time", "event")]
+                    vals[0] = long_date(vals[0]) or request.form.get(f"e{i}_old", "").replace("|", "/").strip()
+                    if any(vals):
+                        lines.append(" | ".join(vals))
+                body = "\n".join(lines)
             elif s["slug"] == "mass-times":
                 lines = []
                 for i in range(min(int(request.form.get("times_count", 0)), 40)):
@@ -475,7 +483,7 @@ def create_app(config=None):
             doc = request.files.get("document")
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
-                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions"):
+                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar"):
                     flash("Mass schedules use the form; paste details into the fields instead of uploading a document.", "error")
                     return redirect(request.url)
                 try:
@@ -533,6 +541,7 @@ def create_app(config=None):
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}] * 4,
                                times=times_rows(item["body"]) + [{}] * 4,
+                               events=calendar_rows(item["body"]) + [("", "", "")] * 2,
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
