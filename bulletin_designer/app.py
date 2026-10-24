@@ -432,11 +432,16 @@ def create_app(config=None):
     def area_of(r):
         """Where a section sits: full page width, or the left/right half. Mass Intentions defaults to a left half."""
         a = r["area"] or ("left" if r["slug"] == "mass-intentions" else "full")
-        return a if a in ("left", "right", "below") and r["slug"] != "cover" and r["pages"] == 1 else "full"
+        return a if a in ("left", "right", "below", "left3", "mid3", "right3") and r["slug"] != "cover" and r["pages"] == 1 else "full"
 
     def rows_on(p):
         d = p.get("duo")
-        rows = [d["left"], *d["left_more"], d["right"], *d["right_more"]] if d else [p.get("row")]
+        rows = []
+        if d:
+            for k in (("left3", "mid3", "right3") if d.get("third") else ("left", "right")):
+                rows += [d[k], *d[k + "_more"]]
+        else:
+            rows = [p.get("row")]
         return rows + list(p.get("right_more", [])) + list(p.get("more", []))
 
     def layout(bulletin_id, include_pending=False):
@@ -478,30 +483,34 @@ def create_app(config=None):
                 target.setdefault("more", []).append(r)
         if not pages:
             pages.append({"row": None})
-        halves = [r for r in printed if area_of(r) in ("left", "right") and r not in p1_all]
+        halves = [r for r in printed if area_of(r) in ("left", "right", "left3", "mid3", "right3") and r not in p1_all]
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
         for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
             side, want = area_of(r), max(2, page_wanted(r))
+            third = side.endswith("3")
             idx = None
             if page_wanted(r) and 1 <= want - 1 < len(pages) and pages[want - 1].get("duo") is not None \
-                    and pages[want - 1]["duo"][side] is not None:
+                    and bool(pages[want - 1]["duo"].get("third")) == third and pages[want - 1]["duo"][side] is not None:
                 pages[want - 1]["duo"][side + "_more"].append(r)
                 continue
             for k in range(max(1, want - 1) if page_wanted(r) else 1, len(pages)):
-                if pages[k].get("duo") is not None and pages[k]["duo"][side] is None:
+                if pages[k].get("duo") is not None and bool(pages[k]["duo"].get("third")) == third \
+                        and pages[k]["duo"][side] is None:
                     idx = k
                     break
             if idx is None:
-                new = {"row": None, "duo": {"left": None, "right": None, "left_more": [], "right_more": []}}
+                new = {"row": None, "duo": {"third": third, **{k: None for k in ("left", "right", "left3", "mid3", "right3")},
+                                                   **{k + "_more": [] for k in ("left", "right", "left3", "mid3", "right3")}}}
                 at = max(1, min(want - 1, len(pages))) if page_wanted(r) else len(pages)
                 while at < len(pages) and pages[at].get("duo") is not None:
                     at += 1
                 pages.insert(at, new)
                 idx = at
             pages[idx]["duo"][side] = r
-            pages[idx]["row"] = pages[idx]["duo"]["left"] or pages[idx]["duo"]["right"]
+            d = pages[idx]["duo"]
+            pages[idx]["row"] = next(d[k] for k in ("left", "right", "left3", "mid3", "right3") if d[k])
         toc = []
         for n, p in enumerate(pages, 1):
             p["number"] = n
@@ -875,7 +884,7 @@ def create_app(config=None):
                          (max(1, min(8, int(request.form["pages"]))),
                           2 if request.form.get("cols") == "2" else 1, bid, sid))
         if "area" in request.form:
-            area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below") else ""
+            area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below", "left3", "mid3", "right3") else ""
             try:
                 page_no = max(0, min(12, int(request.form.get("page_no") or 0)))
             except ValueError:

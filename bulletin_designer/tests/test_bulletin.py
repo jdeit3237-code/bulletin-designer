@@ -470,6 +470,20 @@ def test_weekend_ministers_in_calendar(app):
     assert 'value="Ann, Bob"' in form and 'name="e0_ministers"' in form
 
 
+def test_third_widths(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    c.post("/bulletins/1/layout/5", data={"area": "left3", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "right3", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert 'class="duo thirds"' in html and html.count('class="third"') == 3
+    assert html.index("Welcome text") < html.rindex("Gospel")
+    assert 'value="left3" selected' in c.get("/bulletins/1").text
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

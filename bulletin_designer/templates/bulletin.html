@@ -81,6 +81,8 @@
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if side_by_side %}
     <div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
+    {% elif p.duo and p.duo.third %}
+    <div class="duo thirds">{% for k in ('left3','mid3','right3') %}<div class="third">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
     {% elif p.duo %}
     <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}{% for m in p.duo.left_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}{% for m in p.duo.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
     {% else %}

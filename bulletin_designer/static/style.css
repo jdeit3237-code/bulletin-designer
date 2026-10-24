@@ -189,3 +189,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec + .sec > h2 { margin-top: 0; }
 .ministers { display: block; line-height: 1.2; }
 .ministers span { display: block; }
+.duo.thirds { gap: .2in; }
+.duo .third { flex: 1 1 0; width: 33.3%; box-sizing: border-box; min-width: 0; }
+.duo .third h2 { margin-top: 0; }
