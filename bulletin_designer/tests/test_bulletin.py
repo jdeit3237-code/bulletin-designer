@@ -531,6 +531,22 @@ def test_drag_resize(app):
     assert "resize-handle'" not in c.get("/bulletins/1/preview").text
 
 
+def test_contents_position(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/layout/5", data={"area": "right", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    base = {"toc_show": "1", "toc_start": "2", "csrf": t}
+    for place in ("left", "right", "full"):
+        c.post("/bulletins/1/toc-settings", data={**base, "toc_place": place}, follow_redirects=True)
+        html = c.get("/bulletins/1/preview").text
+        toc, sec = html.index('class="toc-box'), html.rindex("Welcome text")
+        assert (toc < sec) == (place != "right")
+        assert ('<div class="duo"><div class="half"><div class="toc-box' in html) == (place == "left")
+    assert 'name="toc_place"' in c.get("/bulletins/1").text
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

@@ -167,7 +167,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -1179,9 +1179,10 @@ def create_app(config=None):
             start, pt = 2, 0
         pt = pt if pt == 0 or 8 <= pt <= 16 else 0
         style = request.form.get("toc_style")
-        db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=? WHERE id=?",
+        db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=?, toc_place=? WHERE id=?",
                      (request.form.get("toc_title", "").strip()[:60], start, 1 if request.form.get("toc_show") else 0,
-                      pt, style if style in FONT_STYLES else "", bid))
+                      pt, style if style in FONT_STYLES else "",
+                      request.form.get("toc_place") if request.form.get("toc_place") in ("left", "right", "full") else "left", bid))
         db().commit()
         flash("Contents settings saved.", "ok")
         return redirect(url_for("edit", bid=bid))

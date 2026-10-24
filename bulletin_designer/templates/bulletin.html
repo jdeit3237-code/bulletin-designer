@@ -81,7 +81,10 @@
   {% if p.row %}
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if side_by_side %}
-    <div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
+    {% set place = b.toc_place or 'left' %}
+    {% if place == 'full' or not (b.toc_show is none or b.toc_show) %}{{ toc_html }}{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}
+    {% elif place == 'right' %}<div class="duo"><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{{ toc_html }}</div></div>
+    {% else %}<div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>{% endif %}
     {% for m in p.p1_below %}{{ render_row(m, {'part': 1}) }}{% endfor %}
     {% elif p.duo and p.duo.third %}
     {% set cols = [('left23',2),('right3',1)] if p.duo.left23 else ([('left3',1),('right23',2)] if p.duo.right23 else [('left3',1),('mid3',1),('right3',1)]) %}
