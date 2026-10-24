@@ -141,3 +141,9 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
   background: url(banner-waves.svg) 0 0 / 100% 100% no-repeat, linear-gradient(120deg, #14573d 0%, #2a8463 60%, #3c9a78 100%); }
 .sheet .pg-foot .foot-name { font-weight: bold; }
 .sheet .pg-foot .foot-addr { font-weight: normal; }
+.sheet .pg-foot { display: block; }
+.sheet .pg-foot .foot-row { display: flex; justify-content: space-between; align-items: center; gap: .2in; }
+.sheet .pg-foot .foot-right { text-align: right; }
+.sheet .pg-foot { padding-left: .15in; padding-right: .15in; }
+.sheet .pg-foot .foot-row { gap: .1in; white-space: nowrap; }
+.sheet .pg-foot .foot-phone { font-weight: normal; color: #fff; }

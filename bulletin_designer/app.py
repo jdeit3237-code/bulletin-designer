@@ -663,12 +663,13 @@ def create_app(config=None):
             WHERE i.bulletin_id=? AND s.slug='cover'""", (bid,)).fetchone()
         cv = cover_data(row["body"] if row else "")
         a = cv["addr"]
-        line = " \u00b7 ".join(x for x in (a["street"], a["city"], ("Phone " + a["phone"]) if a["phone"] else "") if x)
-        if not line:
-            line = "31300 Overseas Hwy, Big Pine Key, FL 33043 \u00b7 Phone 305-872-2537"
+        line = " \u00b7 ".join(x for x in (a["street"], a["city"]) if x)
+        phone = a["phone"]
+        if not line and not phone:
+            line, phone = "31300 Overseas Hwy, Big Pine Key, FL 33043", "305-872-2537"
         h = cv["hours"][0] if cv["hours"] else None
         hours = " ".join(x for x in (h["days"], h["time"]) if x) if h else ""
-        return line, hours or "Monday-Friday 9:30am-3:30pm"
+        return line, phone, hours or "Monday-Friday 9:30am-3:30pm"
 
     def open_bulletin(bid):
         b = get_bulletin(bid)
@@ -930,7 +931,7 @@ def create_app(config=None):
     def preview(bid):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_hours=footer_address(bid)[1])
+        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2])
 
     @app.route("/library", methods=["GET", "POST"])
     @need()
@@ -1008,7 +1009,7 @@ def create_app(config=None):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_hours=footer_address(bid)[1])
+        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2])
         html = html.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
             'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
