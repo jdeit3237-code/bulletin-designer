@@ -12,6 +12,20 @@
   <li><a href="https://www.miamiarch.org" rel="noopener">Archdiocese of Miami (miamiarch.org)</a></li>
   <li><a href="https://stpeterbpk.org" rel="noopener">St. Peter the Fisherman parish (stpeterbpk.org)</a></li>
 </ul>
+<h2>Paste from USCCB Events (or any source)</h2>
+<p>Open the site, copy the text you want, paste it here and choose <em>Split into lines</em>. Then tick the lines to use and choose where they go. You can edit everything afterwards in the section.</p>
+<form method="post" action="{{ url_for('suggestions', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="pasted">Pasted text</label><textarea id="pasted" name="pasted" rows="5">{{ request.form.get('pasted', '') }}</textarea>
+  <button class="btn secondary">Split into lines</button></form>
+{% if pasted %}
+<form method="post" action="{{ url_for('apply_suggestion', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <fieldset><legend>Choose the lines to use</legend>
+  {% for l in pasted %}<p><label><input type="checkbox" name="text" value="{{ l }}"> {{ l }}</label></p>{% endfor %}</fieldset>
+  {% if can %}<label for="ptarget">Add to</label><select id="ptarget" name="target"><option value="title">Header title (next to the date)</option>{% for t in targets %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}{% for t in cals %}<option value="cal:{{ t.id }}">{{ t.title }} (as events)</option>{% endfor %}</select>
+  <label for="when">Event date (calendar only)</label><input id="when" name="when" type="date" value="{{ b.sunday }}">
+  <label for="when_time">Event time (calendar only)</label><input id="when_time" name="when_time" type="text">
+  <button class="btn-add">Add selected lines</button>{% endif %}</form>
+{% endif %}
 {% for d in days %}
 <section class="card" aria-labelledby="d{{ loop.index }}">
   <h2 id="d{{ loop.index }}">{{ d.date.strftime('%A, %B ') }}{{ d.date.day }}{% if d.name %} &ndash; {{ d.name }}{% endif %}</h2>

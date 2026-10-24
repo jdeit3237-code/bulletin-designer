@@ -999,7 +999,7 @@ def create_app(config=None):
         flash("Footer saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
-    @app.route("/bulletins/<int:bid>/suggestions")
+    @app.route("/bulletins/<int:bid>/suggestions", methods=["GET", "POST"])
     @need()
     def suggestions(bid):
         b = get_bulletin(bid)
@@ -1007,19 +1007,39 @@ def create_app(config=None):
         targets = db().execute("""SELECT s.id, s.title FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? AND s.slug NOT IN (%s) ORDER BY i.position""" % ",".join("?" * len(PLAIN_SLUGS_EXCLUDED)),
                                (bid,) + PLAIN_SLUGS_EXCLUDED).fetchall()
-        return render_template("suggestions.html", b=b, days=days, targets=targets,
+        cals = db().execute("""SELECT s.id, s.title FROM sections s JOIN items i ON i.section_id=s.id
+            WHERE i.bulletin_id=? AND s.slug IN ('calendar','youth-calendar') ORDER BY i.position""", (bid,)).fetchall()
+        pasted = [" ".join(l.split()) for l in request.form.get("pasted", "").splitlines() if l.strip()][:200]
+        return render_template("suggestions.html", b=b, days=days, targets=targets, cals=cals, pasted=pasted,
                                can=g.user["role"] in ("admin", "editor") and b["status"] != "published")
 
     @app.route("/bulletins/<int:bid>/suggestions/apply", methods=["POST"])
     @need("admin", "editor")
     def apply_suggestion(bid):
         open_bulletin(bid)
-        text = " ".join(request.form.get("text", "").split())[:400]
+        lines = [" ".join(t.split())[:400] for t in request.form.getlist("text") if t.strip()]
+        text = "\n".join(lines)
         target = request.form.get("target", "")
+        if target.startswith("cal:") and lines:
+            sid = target[4:]
+            sec = db().execute("SELECT s.id, s.title FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? "
+                               "AND s.id=? AND s.slug IN ('calendar','youth-calendar')", (bid, sid if sid.isdigit() else 0)).fetchone()
+            if not sec:
+                flash("Choose a calendar section.", "error")
+                return redirect(url_for("suggestions", bid=bid))
+            when = long_date(request.form.get("when", ""))
+            tm = request.form.get("when_time", "").replace("|", "/").strip()[:30]
+            add = "\n".join(f"{when} | {tm} | {l.replace('|', '/')}" for l in lines)
+            ensure_items(bid, get_bulletin(bid)["sunday"])
+            db().execute("UPDATE items SET body=CASE WHEN TRIM(body)='' THEN ? ELSE body || char(10) || ? END, carried=0, updated_by=? "
+                         "WHERE bulletin_id=? AND section_id=?", (add, add, g.user["username"], bid, sec["id"]))
+            db().commit()
+            flash(f"Added {len(lines)} event(s) to {sec['title']}. Review them there.", "ok")
+            return redirect(url_for("suggestions", bid=bid))
         if not text:
             flash("Nothing to add.", "error")
         elif target == "title":
-            db().execute("UPDATE bulletins SET theme=? WHERE id=?", (text[:120], bid))
+            db().execute("UPDATE bulletins SET theme=? WHERE id=?", (" \u00b7 ".join(lines)[:120], bid))
             db().commit()
             flash("Added as the header title.", "ok")
         else:

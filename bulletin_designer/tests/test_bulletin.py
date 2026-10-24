@@ -409,3 +409,15 @@ def test_liturgy_calendar():
     assert liturgy.info(date(2026, 10, 25))["name"] == "Thirtieth Sunday in Ordinary Time"
     assert liturgy.info(date(2026, 11, 29))["season"] == "Advent"
     assert liturgy.easter(2026) == date(2026, 4, 5)
+
+
+def test_paste_events_into_calendar(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/suggestions")
+    page = c.post("/bulletins/1/suggestions", data={"pasted": "Rosary Rally\nFood Drive", "csrf": t})
+    assert "Rosary Rally" in page.text and "Food Drive" in page.text
+    c.post("/bulletins/1/suggestions/apply", data={"text": ["Rosary Rally", "Food Drive"], "target": "cal:7", "when": "2026-10-28",
+                                                   "when_time": "6 pm", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "Rosary Rally" in html and "Food Drive" in html and "6 pm" in html
