@@ -187,3 +187,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .times-item p { margin: 0; }
 .sec + .sec { margin-top: .125in; }
 .sec + .sec > h2 { margin-top: 0; }
+.ministers { display: block; line-height: 1.2; }
+.ministers span { display: block; }

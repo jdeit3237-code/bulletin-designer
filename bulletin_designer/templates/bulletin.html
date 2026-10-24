@@ -13,7 +13,8 @@
       {% if cv.extra %}<p>{{ cv.extra }}</p>{% endif %}
     {% elif r.slug in ('calendar', 'youth-calendar') %}
       <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
-      {% for d, t, e in calendar_rows(r.body) %}<tr><td>{{ d }}</td><td>{{ t }}</td><td>{{ e }}</td></tr>{% endfor %}</tbody></table>
+      {% for ev in calendar_entries(r.body) %}<tr><td>{{ ev.date }}</td><td>{{ ev.time }}</td><td>{{ ev.event }}{% if ev.lectors or ev.sacristans or ev.ministers %}
+        <span class="ministers">{% if ev.lectors %}<span><strong>{{ 'Lectors' if ',' in ev.lectors else 'Lector' }}:</strong> {{ ev.lectors }}</span>{% endif %}{% if ev.sacristans %}<span><strong>{{ 'Sacristans' if ',' in ev.sacristans else 'Sacristan' }}:</strong> {{ ev.sacristans }}</span>{% endif %}{% if ev.ministers %}<span><strong>Eucharistic {{ 'Ministers' if ',' in ev.ministers else 'Minister' }}:</strong> {{ ev.ministers }}</span>{% endif %}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
     {% elif r.slug == 'mass-intentions' %}
       {% set hd, days = intention_data(r.body) %}
       {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3>{{ hd }}</h3>{% endif %}

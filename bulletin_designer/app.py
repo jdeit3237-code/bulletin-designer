@@ -225,6 +225,24 @@ def create_app(config=None):
 
     app.jinja_env.globals["calendar_rows"] = calendar_rows
 
+    CAL_MIN = ("lectors", "sacristans", "ministers")
+
+    def calendar_entries(body):
+        """Calendar rows as dicts, with optional weekend Mass ministers (lectors, sacristans, Eucharistic ministers)."""
+        out = []
+        for line in (body or "").splitlines():
+            if not line.strip():
+                continue
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) >= 3:
+                parts = (parts + [""] * 6)[:6]
+                out.append(dict(zip(("date", "time", "event") + CAL_MIN, parts)))
+            else:
+                out.append(dict(zip(("date", "time", "event") + CAL_MIN, [parts[0], "", " ".join(parts[1:]), "", "", ""])))
+        return out
+
+    app.jinja_env.globals["calendar_entries"] = calendar_entries
+
     def long_date(iso):
         try:
             d = date.fromisoformat((iso or "").strip())
@@ -648,10 +666,10 @@ def create_app(config=None):
             elif s["slug"] in ("calendar", "youth-calendar"):
                 lines = []
                 for i in range(min(int(request.form.get("event_count", 0)), 300)):
-                    vals = [request.form.get(f"e{i}_{k}", "").replace("|", "/").strip() for k in ("date", "time", "event")]
+                    vals = [request.form.get(f"e{i}_{k}", "").replace("|", "/").strip() for k in ("date", "time", "event") + CAL_MIN]
                     vals[0] = long_date(vals[0]) or request.form.get(f"e{i}_old", "").replace("|", "/").strip()
                     if any(vals):
-                        lines.append(" | ".join(vals))
+                        lines.append(" | ".join(vals).rstrip(" |"))
                 body = "\n".join(lines)
             elif s["slug"] == "staff":
                 lines = []
@@ -736,7 +754,7 @@ def create_app(config=None):
         return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
-                               events=calendar_rows(item["body"]) + [("", "", "")] * 2,
+                               events=calendar_entries(item["body"]) + [dict(date="", time="", event="", lectors="", sacristans="", ministers="")] * 2,
                                cover=cover_prefilled(item["body"], b["sunday"]),
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])

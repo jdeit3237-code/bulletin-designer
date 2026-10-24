@@ -114,22 +114,38 @@
     {% elif s.slug in ('calendar', 'youth-calendar') %}
     <p>Choose a date, then add the time and event. Use the + button to add more events. Empty events are left out.</p>
     <input type="hidden" name="event_count" value="{{ events|length }}">
+    <datalist id="mass-times-list"><option value="5:30 pm"><option value="8:30 am"><option value="11 am"><option value="9 am"></datalist>
     <div id="events">
-    {% for d, t, e in events %}{% set n = loop.index0 %}
+    {% for ev in events %}{% set n = loop.index0 %}{% set d = ev.date %}
     <fieldset data-event><legend>Event {{ loop.index }}</legend>
       <label for="e{{ n }}_date">Date (choose from the calendar)</label><input id="e{{ n }}_date" name="e{{ n }}_date" type="date" value="{{ iso_date(d) }}">{% if d and not iso_date(d) %}<p>Previously entered: {{ d }}. Choose a date to replace it.</p><input type="hidden" name="e{{ n }}_old" value="{{ d }}">{% endif %}
-      <label for="e{{ n }}_time">Time</label><input id="e{{ n }}_time" name="e{{ n }}_time" type="text" value="{{ t }}">
-      <label for="e{{ n }}_event">Event</label><input id="e{{ n }}_event" name="e{{ n }}_event" type="text" value="{{ e }}">
+      <label for="e{{ n }}_time">Time (for Mass, choose or type)</label><input id="e{{ n }}_time" name="e{{ n }}_time" type="text" list="mass-times-list" value="{{ ev.time }}">
+      <label for="e{{ n }}_event">Event</label><input id="e{{ n }}_event" name="e{{ n }}_event" type="text" value="{{ ev.event }}">
+      <div class="weekend-only"><p class="meta">Saturday and Sunday: add the Mass ministers if wanted (several names allowed, separated by commas).</p>
+      <label for="e{{ n }}_lectors">Lectors</label><input id="e{{ n }}_lectors" name="e{{ n }}_lectors" type="text" value="{{ ev.lectors }}">
+      <label for="e{{ n }}_sacristans">Sacristans</label><input id="e{{ n }}_sacristans" name="e{{ n }}_sacristans" type="text" value="{{ ev.sacristans }}">
+      <label for="e{{ n }}_ministers">Eucharistic Ministers</label><input id="e{{ n }}_ministers" name="e{{ n }}_ministers" type="text" value="{{ ev.ministers }}"></div>
     </fieldset>
     {% endfor %}
     </div>
     <script>
+    function weekendToggle(fs){
+      var d=fs.querySelector('input[type=date]'),w=fs.querySelector('.weekend-only');
+      if(!w||!d)return;
+      var has=w.querySelector('input[value]:not([value=""])')!==null;
+      if(!d.value){w.hidden=false;return;}
+      var day=new Date(d.value+'T12:00:00').getDay();w.hidden=!(day===0||day===6||has);}
+    document.querySelectorAll('#events fieldset').forEach(function(fs){
+      weekendToggle(fs);fs.querySelector('input[type=date]').addEventListener('change',function(){weekendToggle(fs);});});
     document.getElementById('add-event').onclick=function(){
       var box=document.getElementById('events'),n=box.querySelectorAll('fieldset').length,c=document.querySelector('input[name=event_count]'),
       fs=document.createElement('fieldset');fs.setAttribute('data-event','');
-      fs.innerHTML='<legend>Event '+(n+1)+'</legend>'+[['date','Date (choose from the calendar)','date'],['time','Time','text'],['event','Event','text']].map(function(f){
-        var id='e'+n+'_'+f[0];return '<label for="'+id+'">'+f[1]+'</label><input id="'+id+'" name="'+id+'" type="'+f[2]+'">';}).join('');
-      box.appendChild(fs);c.value=n+1;fs.querySelector('input').focus();};
+      function f(k,label,type,extra){var id='e'+n+'_'+k;return '<label for="'+id+'">'+label+'</label><input id="'+id+'" name="'+id+'" type="'+(type||'text')+'"'+(extra||'')+'>';}
+      fs.innerHTML='<legend>Event '+(n+1)+'</legend>'+f('date','Date (choose from the calendar)','date')+f('time','Time (for Mass, choose or type)','text',' list="mass-times-list"')+f('event','Event')
+        +'<div class="weekend-only"><p class="meta">Saturday and Sunday: add the Mass ministers if wanted (several names allowed, separated by commas).</p>'+f('lectors','Lectors')+f('sacristans','Sacristans')+f('ministers','Eucharistic Ministers')+'</div>';
+      box.appendChild(fs);c.value=n+1;weekendToggle(fs);
+      fs.querySelector('input[type=date]').addEventListener('change',function(){weekendToggle(fs);});
+      fs.querySelector('input').focus();};
     </script>
     {% elif s.slug == 'staff' %}
     <p>Add one entry per staff member. Fill in only what you need; empty fields are left out of the bulletin.</p>

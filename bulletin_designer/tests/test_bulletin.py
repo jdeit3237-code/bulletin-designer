@@ -458,6 +458,18 @@ def test_order_field(app):
     assert re.search(r'id="od9"[^>]*value="1"', pg)
 
 
+def test_weekend_ministers_in_calendar(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/7", data={"event_count": "1", "e0_date": "2026-10-24", "e0_time": "5:30 pm", "e0_event": "Vigil Mass",
+        "e0_lectors": "Ann, Bob", "e0_sacristans": "Cy", "e0_ministers": "Di", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "Lectors:" in html and "Ann, Bob" in html and "Sacristan:" in html and "Eucharistic" in html
+    form = c.get("/bulletins/1/section/7").text
+    assert 'value="Ann, Bob"' in form and 'name="e0_ministers"' in form
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
