@@ -15,7 +15,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
+from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
                    send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash as _gen
@@ -171,7 +171,7 @@ def create_app(config=None):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
-        for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0)):
+        for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0), ("min_h", 0)):
             if col not in have:
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "area" not in have:
@@ -449,7 +449,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, s.title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -918,6 +918,38 @@ def create_app(config=None):
         if not move and "area" in request.form:
             flash("Settings saved.", "ok")
         return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/resize/<int:sid>", methods=["POST"])
+    @need("admin", "editor")
+    def resize(bid, sid):
+        """Drag-to-resize: snap the dragged width to a layout width and store a minimum height (inches)."""
+        open_bulletin(bid)
+        conn = db()
+        item = conn.execute("""SELECT i.area, s.slug FROM items i JOIN sections s ON s.id=i.section_id
+                               WHERE i.bulletin_id=? AND i.section_id=?""", (bid, sid)).fetchone()
+        if item is None:
+            abort(404)
+        try:
+            frac = float(request.form.get("frac") or 0)
+            height = float(request.form.get("height") or 0)
+        except ValueError:
+            abort(400)
+        height = 0 if height < 0.5 else min(9.0, round(height, 2))
+        cur = item["area"] or ("left" if item["slug"] == "mass-intentions" else "full")
+        right = cur in ("right", "right3", "right23")
+        if item["slug"] == "cover":
+            area = cur
+        elif frac >= 0.85:
+            area = "full"
+        elif frac >= 0.6:
+            area = "right23" if right else "left23"
+        elif frac >= 0.42:
+            area = "right" if right else "left"
+        else:
+            area = "mid3" if cur == "mid3" else ("right3" if right else "left3")
+        conn.execute("UPDATE items SET area=?, min_h=? WHERE bulletin_id=? AND section_id=?", (area, height, bid, sid))
+        conn.commit()
+        return jsonify(area=area, min_h=height)
 
     # ---------- AI assistant ----------
     def find_section(bid, name):

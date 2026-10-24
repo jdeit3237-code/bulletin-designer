@@ -516,6 +516,21 @@ def test_section_below_contents_on_page_one(app):
     assert html.count("UnderContents") >= 1
 
 
+def test_drag_resize(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    r = c.post("/bulletins/1/resize/5", data={"frac": "0.5", "height": "3", "csrf": t})
+    assert r.get_json() == {"area": "left", "min_h": 3.0}
+    assert c.post("/bulletins/1/resize/5", data={"frac": "0.7", "height": "0", "csrf": t}).get_json()["area"] == "left23"
+    assert c.post("/bulletins/1/resize/5", data={"frac": "0.3", "height": "0", "csrf": t}).get_json()["area"] == "left3"
+    assert c.post("/bulletins/1/resize/5", data={"frac": "0.95", "height": "3", "csrf": t}).get_json()["area"] == "full"
+    html = c.get("/bulletins/1/preview?resize=1").text
+    assert "resize-handle" in html and "min-height:3.0in" in html
+    assert "resize-handle'" not in c.get("/bulletins/1/preview").text
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

@@ -195,3 +195,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .toc-box h2 { margin-top: 0; }
 .toc-box.custom-size .toc li { font-size: var(--fs); }
 .toc-box.fs-condensed .toc li, .toc-box.fs-serif .toc li, .toc-box.fs-sans .toc li, .toc-box.fs-humanist .toc li, .toc-box.fs-rounded .toc li { font-family: inherit; }
+
+.resize-handle { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; padding: 0; border: 2px solid #fff; background: var(--gold-bright, #c9a84c); cursor: nwse-resize; border-radius: 3px; touch-action: none; }
+@media print { .resize-handle { display: none; } }

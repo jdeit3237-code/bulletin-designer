@@ -4,9 +4,10 @@
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Download web PDF (accessible, screen size)</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Download print PDF (300 dpi)</a>
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
+  {% if g.user.role in ('admin','editor') %}<a class="btn secondary" href="{{ url_for('preview', bid=b.id, resize=(None if request.args.get('resize') else 1)) }}">{{ 'Turn off resize handles' if request.args.get('resize') else 'Resize sections (drag corners)' }}</a>{% endif %}
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
-{% macro render_row(r, p) %}<div class="sec {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}"{% if r.font_pt %} style="--fs: {{ r.font_pt }}pt;"{% endif %}>
+{% macro render_row(r, p) %}<div class="sec {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}"{% endif %}>
     {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
@@ -99,6 +100,37 @@
   <footer class="pg-foot"><div class="foot-row"><span class="foot-name">{{ b.footer or 'St. Peter the Fisherman Catholic Parish' }}</span><span class="foot-addr foot-right">{{ foot_addr }}</span></div><div class="foot-row"><span class="foot-addr">Office Hours: {{ foot_hours }}</span><span class="foot-page">{% if foot_phone %}<span class="foot-phone">Phone {{ foot_phone }}</span> &middot; {% endif %}Page {{ p.number }} of {{ pages|length }}</span></div></footer>
 </section>
 {% endfor %}
+{% if request.args.get('resize') and g.user.role in ('admin','editor') %}
+<p class="noprint small" role="status" id="resize-help">Resize mode: drag the gold corner of a section. Width snaps to full, two-thirds, half or third; height sets a minimum. Double-click a corner to reset its height. The page reloads and the other sections flow around it.</p>
+<script>
+(function () {
+  var token = {{ csrf()|tojson }};
+  document.querySelectorAll('.sheet .sec[data-sid]').forEach(function (sec) {
+    var h = document.createElement('button');
+    h.type = 'button'; h.className = 'resize-handle noprint'; h.setAttribute('aria-label', 'Resize section by dragging, or use the Overview settings');
+    sec.style.position = 'relative'; sec.appendChild(h);
+    function send(frac, height) {
+      var f = new FormData(); f.append('csrf', token); f.append('frac', frac); f.append('height', height);
+      fetch('{{ url_for("resize", bid=b.id, sid=0) }}'.replace(/0$/, sec.dataset.sid), {method: 'POST', body: f, credentials: 'same-origin'})
+        .then(function (r) { if (r.ok) location.reload(); else alert('Could not save the new size.'); });
+    }
+    h.addEventListener('dblclick', function () { var body = sec.closest('.pg-body'); send(sec.offsetWidth / body.clientWidth, 0); });
+    h.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); h.setPointerCapture(e.pointerId);
+      var r0 = sec.getBoundingClientRect(), body = sec.closest('.pg-body'), bw = body.clientWidth, ox = e.clientX, oy = e.clientY;
+      var scale = body.getBoundingClientRect().width / bw;
+      function move(ev) { sec.style.outline = '2px dashed #c9a84c'; sec.style.width = Math.max(40, (r0.width + ev.clientX - ox) / scale) + 'px'; sec.style.minHeight = Math.max(20, (r0.height + ev.clientY - oy) / scale) + 'px'; }
+      function up(ev) {
+        h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up);
+        var w = (r0.width + ev.clientX - ox) / scale, ht = (r0.height + ev.clientY - oy) / scale;
+        send(Math.min(1, w / bw), (ht / (sec.closest('.sheet').offsetWidth / 8.5)).toFixed(2));
+      }
+      h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
+    });
+  });
+})();
+</script>
+{% endif %}
 <script>
 document.querySelectorAll('.sheet .pg-body').forEach(function (b) {
   if (b.scrollHeight > b.clientHeight + 2) {
