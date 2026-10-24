@@ -74,3 +74,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-head img { height: .45in; width: auto; }
 .cover-logo { display: block; margin: .1in auto; width: 4in; height: auto; }
 .cover-photo { margin: .1in 0; } .cover-photo img { max-height: 3.2in; width: auto; max-width: 100%; height: auto; }
+
+.cal caption { font-weight: bold; font-size: 13pt; text-align: left; margin-top: .5em; }

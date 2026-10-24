@@ -58,7 +58,7 @@ def create_bulletin(c, day="2026-10-25"):
 def test_pages_multiple_of_four_and_toc(app):
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert html.count('class="sheet') % 4 == 0
     assert "In this issue" in html and "Page 1 of 4" in html
@@ -67,12 +67,12 @@ def test_pages_multiple_of_four_and_toc(app):
 def test_standing_carries_weekly_does_not(app):
     c = setup_admin(app)
     create_bulletin(c, "2026-10-18")
-    c.post("/bulletins/1/section/2", data={"body": "Fr. Medina", "csrf": tok(c, "/bulletins/1")})
-    c.post("/bulletins/1/section/6", data={"body": "Mon | 6pm | Zumba", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/3", data={"body": "Fr. Medina", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/7", data={"body": "Mon | 6pm | Zumba", "csrf": tok(c, "/bulletins/1")})
     create_bulletin(c, "2026-10-25")
-    page = c.get("/bulletins/2/section/2").text
+    page = c.get("/bulletins/2/section/3").text
     assert "Fr. Medina" in page
-    assert "Zumba" not in c.get("/bulletins/2/section/6").text
+    assert "Zumba" not in c.get("/bulletins/2/section/7").text
 
 
 def test_roles(app):
@@ -82,7 +82,7 @@ def test_roles(app):
     for name, role in (("viewer1", "viewer"), ("contrib", "contributor")):
         c.post("/admin/users", data={"action": "create", "username": name, "role": role,
                                      "password": "password-12345", "csrf": t})
-    c.post("/admin/users", data={"action": "role", "uid": "3", "role": "contributor", "sections": "4", "csrf": t})
+    c.post("/admin/users", data={"action": "role", "uid": "3", "role": "contributor", "sections": "5", "csrf": t})
     # contributor id 3 owns Welcome? section id 3 is mass? verify via behaviour below
     v = app.test_client()
     login(v, "viewer1", "password-12345")
@@ -93,7 +93,7 @@ def test_roles(app):
     login(k, "contrib", "password-12345")
     k.post("/password", data={"current": "password-12345", "new": "another-password", "csrf": tok(k, "/password")})
     assert k.post("/bulletins/1/section/1", data={"body": "x", "csrf": tok(k, "/bulletins/1")}).status_code == 403
-    assert k.post("/bulletins/1/section/4", data={"body": "Welcome!", "csrf": tok(k, "/bulletins/1")}).status_code == 302
+    assert k.post("/bulletins/1/section/5", data={"body": "Welcome!", "csrf": tok(k, "/bulletins/1")}).status_code == 302
     assert "Awaiting approval" in c.get("/bulletins/1").text
 
 
@@ -101,7 +101,7 @@ def test_alt_text_required(app):
     import io
     c = setup_admin(app)
     create_bulletin(c)
-    r = c.post("/bulletins/1/section/4", data={"body": "x", "csrf": tok(c, "/bulletins/1"),
+    r = c.post("/bulletins/1/section/5", data={"body": "x", "csrf": tok(c, "/bulletins/1"),
                "image": (io.BytesIO(b"\x89PNG"), "a.png")}, content_type="multipart/form-data", follow_redirects=True)
     assert "Alternative text is required" in r.text
 
@@ -133,7 +133,7 @@ def test_photo_library_reuse(app):
     c.post("/library", data={"title": "Church", "alt": "The church", "csrf": tok(c, "/library"),
            "photo": (io.BytesIO(b"\x89PNG"), "c.png")}, content_type="multipart/form-data")
     assert "Church" in c.get("/library").text
-    c.post("/bulletins/1/section/4", data={"body": "x", "library_id": "1", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/5", data={"body": "x", "library_id": "1", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert 'alt="The church"' in html
     r = c.post("/library/1/delete", data={"csrf": tok(c, "/library")}, follow_redirects=True)
@@ -156,12 +156,12 @@ def test_docx_upload(app):
     import io
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "", "csrf": tok(c, "/bulletins/1"),
+    c.post("/bulletins/1/section/9", data={"body": "", "csrf": tok(c, "/bulletins/1"),
            "document": (make_docx(["Dear parishioners", "Peace be with you"]), "m.docx")},
            content_type="multipart/form-data")
-    page = c.get("/bulletins/1/section/8").text
+    page = c.get("/bulletins/1/section/9").text
     assert "Dear parishioners" in page and "Peace be with you" in page
-    r = c.post("/bulletins/1/section/8", data={"body": "", "csrf": tok(c, "/bulletins/1"),
+    r = c.post("/bulletins/1/section/9", data={"body": "", "csrf": tok(c, "/bulletins/1"),
                "document": (io.BytesIO(b"junk"), "bad.docx")}, content_type="multipart/form-data", follow_redirects=True)
     assert "Could not read" in r.text
 
@@ -170,15 +170,15 @@ def test_txt_upload(app):
     import io
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "", "csrf": tok(c, "/bulletins/1"),
+    c.post("/bulletins/1/section/9", data={"body": "", "csrf": tok(c, "/bulletins/1"),
            "document": (io.BytesIO("Plain note caf\u00e9".encode("utf-8")), "n.txt")}, content_type="multipart/form-data")
-    assert "Plain note" in c.get("/bulletins/1/section/8").text
+    assert "Plain note" in c.get("/bulletins/1/section/9").text
 
 
 def test_pdf_downloads(app):
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
     assert c.get("/bulletins/1/download/bogus").status_code == 404
     try:
         import weasyprint  # noqa: F401
@@ -200,7 +200,7 @@ def test_backup_and_restore(app, tmp_path, monkeypatch):
     import io
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "Moved content", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/9", data={"body": "Moved content", "csrf": tok(c, "/bulletins/1")})
     data = c.get("/admin/backup").data
     other = create_app({"DATABASE": str(tmp_path / "new.db"), "UPLOAD_DIR": str(tmp_path / "newup")})
     n = setup_admin(other)
@@ -209,7 +209,7 @@ def test_backup_and_restore(app, tmp_path, monkeypatch):
     assert r.status_code == 302
     n2 = other.test_client()
     login(n2, "admin", "a-better-password")
-    assert "Moved content" in n2.get("/bulletins/1/section/8").text
+    assert "Moved content" in n2.get("/bulletins/1/section/9").text
     bad = n2.post("/admin/restore", data={"backup": (io.BytesIO(b"nope"), "b.zip"), "csrf": tok(n2, "/admin/users")},
                   content_type="multipart/form-data", follow_redirects=True)
     assert "not a valid bulletin backup" in bad.text
@@ -235,9 +235,9 @@ def test_group_user_for_section(app):
 def test_mass_times_section(app):
     c = setup_admin(app)
     create_bulletin(c)
-    page = c.get("/bulletins/1/section/3").text
+    page = c.get("/bulletins/1/section/4").text
     assert "Time of Mass" in page and "Web address" in page
-    c.post("/bulletins/1/section/3", data={"times_count": "2", "t0_title": "Weekend Masses",
+    c.post("/bulletins/1/section/4", data={"times_count": "2", "t0_title": "Weekend Masses",
            "t0_days": "Saturday, Sunday", "t0_time": "5:00pm", "t0_web": "https://example.org/live",
            "t1_web": "javascript:alert(1)", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
@@ -249,7 +249,23 @@ def test_mass_times_section(app):
 def test_page_numbers_shown(app):
     c = setup_admin(app)
     create_bulletin(c)
-    c.post("/bulletins/1/section/8", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
     page = c.get("/bulletins/1").text
     assert "Printed on" in page and "Page 1" in page and "would start on page" in page
-    assert "Printed on page 1" in c.get("/bulletins/1/section/8").text
+    assert "Printed on page 1" in c.get("/bulletins/1/section/9").text
+
+
+def test_mass_intentions_section(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "Intention for" in c.get("/bulletins/1/section/2").text
+    c.post("/bulletins/1/section/1", data={"body": "Cover", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/section/2", data={"intent_count": "3", "header": "Mass Intentions Week",
+           "n0_day": "Monday", "n0_date": "Oct 26", "n0_time": "8:00am", "n0_for_whom": "John Smith", "n0_by_whom": "Mary Smith",
+           "n1_day": "Monday", "n1_date": "Oct 26", "n1_time": "6:00pm", "n1_for_whom": "Ann Lee", "n1_by_whom": "Bob Lee",
+           "n2_day": "Tuesday", "n2_date": "Oct 27", "n2_time": "8:00am", "n2_for_whom": "Rosa Diaz",
+           "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert html.count("Monday, Oct 26") == 1 and "Tuesday, Oct 27" in html
+    assert "John Smith" in html and "Bob Lee" in html and "Mass Intentions Week" in html
+    assert "Printed on page 2" in c.get("/bulletins/1/section/2").text

@@ -38,6 +38,7 @@ IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 # needed every week; weekly=0 means "standing" content carried forward automatically.
 DEFAULT_SECTIONS = [
     ("cover", "Parish Information & Cover", 0, 1, "Address, phone, office hours, Sunday theme"),
+    ("mass-intentions", "Mass Intentions", 1, 1, "Weekly form: day, date, time, who the Mass is for, who requested it (usually page 2)"),
     ("staff", "Parish Staff", 0, 1, "Standing list; edit only when staff change (carried forward)"),
     ("mass-times", "Mass & Service Times", 0, 1, "Standing list: title, days, name of Mass, time, notes, web address (blank fields are left out)"),
     ("welcome", "Welcome Message", 0, 1, "Standing invitation and welcome"),
@@ -142,11 +143,11 @@ def create_app(config=None):
         for slug, title, weekly, pages, hint in DEFAULT_SECTIONS:
             if not conn.execute("SELECT 1 FROM sections WHERE slug=?", (slug,)).fetchone():
                 top = conn.execute("SELECT COALESCE(MAX(position),0)+1 m FROM sections").fetchone()["m"]
-                if slug == "mass-times":
-                    staff = conn.execute("SELECT position FROM sections WHERE slug='staff'").fetchone()
-                    if staff:
-                        top = staff["position"] + 1
-                        conn.execute("UPDATE sections SET position=position+1 WHERE position>=?", (top,))
+                after = {"mass-times": "staff", "mass-intentions": "cover"}.get(slug)
+                anchor = conn.execute("SELECT position FROM sections WHERE slug=?", (after,)).fetchone() if after else None
+                if anchor:
+                    top = anchor["position"] + 1
+                    conn.execute("UPDATE sections SET position=position+1 WHERE position>=?", (top,))
                 conn.execute("INSERT INTO sections(slug,title,weekly,pages,position,hint) VALUES(?,?,?,?,?,?)",
                              (slug, title, weekly, pages, top, hint))
         if not conn.execute("SELECT 1 FROM users").fetchone():
@@ -214,6 +215,24 @@ def create_app(config=None):
         return rows
 
     app.jinja_env.globals["times_rows"] = times_rows
+
+    INTENT_FIELDS = ("day", "date", "time", "for_whom", "by_whom")
+
+    def intention_data(body):
+        """Return (header, days) where days groups intentions by (day, date), in entered order."""
+        header, days = "", []
+        for line in (body or "").splitlines():
+            if line.startswith("#"):
+                header = line[1:].strip()
+            elif line.strip():
+                parts = [p.strip() for p in line.split("|")]
+                row = dict(zip(INTENT_FIELDS, (parts + [""] * 5)[:5]))
+                if not days or (days[-1]["day"], days[-1]["date"]) != (row["day"], row["date"]):
+                    days.append({"day": row["day"], "date": row["date"], "items": []})
+                days[-1]["items"].append(row)
+        return header, days
+
+    app.jinja_env.globals["intention_data"] = intention_data
 
     def need(*roles):
         def deco(fn):
@@ -396,6 +415,16 @@ def create_app(config=None):
                     if any(vals):
                         lines.append(" | ".join(vals))
                 body = "\n".join(lines)
+            elif s["slug"] == "mass-intentions":
+                lines = []
+                head = request.form.get("header", "").replace("|", "/").replace("\n", " ").strip()
+                if head:
+                    lines.append("# " + head)
+                for i in range(min(int(request.form.get("intent_count", 0)), 60)):
+                    vals = [request.form.get(f"n{i}_{k}", "").replace("|", "/").strip() for k in INTENT_FIELDS]
+                    if any(vals):
+                        lines.append(" | ".join(vals))
+                body = "\n".join(lines)
             elif s["slug"] == "mass-times":
                 lines = []
                 for i in range(min(int(request.form.get("times_count", 0)), 40)):
@@ -406,7 +435,7 @@ def create_app(config=None):
             doc = request.files.get("document")
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
-                if s["slug"] in ("mass-schedule", "mass-times"):
+                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions"):
                     flash("Mass schedules use the form; paste details into the fields instead of uploading a document.", "error")
                     return redirect(request.url)
                 try:
@@ -463,7 +492,9 @@ def create_app(config=None):
         rows = db().execute("""SELECT s.id, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
         return render_template("section.html", where=page_spans(rows).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass=mass_rows(item["body"]) + [{}] * 8,
-                               times=times_rows(item["body"]) + [{}] * 4)
+                               times=times_rows(item["body"]) + [{}] * 4,
+                               intent_header=intention_data(item["body"])[0],
+                               intents=[r for d in intention_data(item["body"])[1] for r in d["items"]] + [{}] * 6)
 
     def open_bulletin(bid):
         b = get_bulletin(bid)

@@ -8,7 +8,7 @@
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
     <legend>Content</legend>
-    {% if s.slug not in ('mass-schedule', 'mass-times') %}
+    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
@@ -23,6 +23,20 @@
       <label for="m{{ loop.index0 }}_sacristan">Sacristan</label><input id="m{{ loop.index0 }}_sacristan" name="m{{ loop.index0 }}_sacristan" type="text" value="{{ m.sacristan or '' }}">
       <label for="m{{ loop.index0 }}_ministers">Eucharistic Ministers</label><input id="m{{ loop.index0 }}_ministers" name="m{{ loop.index0 }}_ministers" type="text" value="{{ m.ministers or '' }}">
       <label for="m{{ loop.index0 }}_intention">Mass intention</label><input id="m{{ loop.index0 }}_intention" name="m{{ loop.index0 }}_intention" type="text" value="{{ m.intention or '' }}">
+    </fieldset>
+    {% endfor %}
+    {% elif s.slug == 'mass-intentions' %}
+    <p>Enter one row per intention. Several intentions on the same day: repeat the same day and date. Leave unused rows empty.</p>
+    <label for="header">Header (e.g. Mass Intentions for the Week of October 25)</label>
+    <input id="header" name="header" type="text" value="{{ intent_header }}">
+    <input type="hidden" name="intent_count" value="{{ intents|length }}">
+    {% for t in intents %}{% set n = loop.index0 %}
+    <fieldset><legend>Intention {{ loop.index }}</legend>
+      <label for="n{{ n }}_day">Day (e.g. Monday)</label><input id="n{{ n }}_day" name="n{{ n }}_day" type="text" value="{{ t.day or '' }}">
+      <label for="n{{ n }}_date">Date (e.g. October 26)</label><input id="n{{ n }}_date" name="n{{ n }}_date" type="text" value="{{ t.date or '' }}">
+      <label for="n{{ n }}_time">Time</label><input id="n{{ n }}_time" name="n{{ n }}_time" type="text" value="{{ t.time or '' }}">
+      <label for="n{{ n }}_for_whom">Intention for (name of the person)</label><input id="n{{ n }}_for_whom" name="n{{ n }}_for_whom" type="text" value="{{ t.for_whom or '' }}">
+      <label for="n{{ n }}_by_whom">Requested by (name of the person)</label><input id="n{{ n }}_by_whom" name="n{{ n }}_by_whom" type="text" value="{{ t.by_whom or '' }}">
     </fieldset>
     {% endfor %}
     {% elif s.slug == 'mass-times' %}

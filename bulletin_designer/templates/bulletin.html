@@ -24,6 +24,14 @@
     {% if r.slug in ('calendar', 'youth-calendar') %}
       <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
       {% for d, t, e in calendar_rows(r.body) %}<tr><td>{{ d }}</td><td>{{ t }}</td><td>{{ e }}</td></tr>{% endfor %}</tbody></table>
+    {% elif r.slug == 'mass-intentions' %}
+      {% set hd, days = intention_data(r.body) %}
+      {% if hd %}<h3>{{ hd }}</h3>{% endif %}
+      {% for d in days %}
+      <table class="cal"><caption>{{ d.day }}{% if d.day and d.date %}, {% endif %}{{ d.date }}</caption>
+        <thead><tr><th scope="col">Time</th><th scope="col">Intention for</th><th scope="col">Requested by</th></tr></thead><tbody>
+        {% for it in d['items'] %}<tr><td>{{ it.time }}</td><td>{{ it.for_whom }}</td><td>{{ it.by_whom }}</td></tr>{% endfor %}</tbody></table>
+      {% endfor %}
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
       <div class="mass">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}
