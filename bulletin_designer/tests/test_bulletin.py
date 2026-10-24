@@ -407,6 +407,20 @@ def test_full_section_moves_to_chosen_page(app):
     assert "Settings saved" in c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "csrf": t}, follow_redirects=True).text
 
 
+def test_add_four_pages(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    base = c.get("/bulletins/1/preview").text.count('class="page')
+    c.post("/bulletins/1/extra-pages", data={"do": "add", "csrf": t})
+    assert "4 pages" in c.get("/bulletins/1").text or "extra pages" in c.get("/bulletins/1").text
+    assert re.search(r"<strong>(\d+) pages", c.get("/bulletins/1").text).group(1)
+    n = int(re.search(r"<strong>(\d+) pages", c.get("/bulletins/1").text).group(1))
+    assert n % 4 == 0
+    c.post("/bulletins/1/extra-pages", data={"do": "remove", "csrf": t})
+    assert int(re.search(r"<strong>(\d+) pages", c.get("/bulletins/1").text).group(1)) == n - 4
+
+
 def test_suggestions_page_and_apply(app):
     c = setup_admin(app)
     create_bulletin(c)

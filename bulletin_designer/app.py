@@ -167,7 +167,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -470,7 +470,9 @@ def create_app(config=None):
                     toc.append({"title": r["title"], "page": p["number"], "pos": r["position"]})
         toc.sort(key=lambda t: (t["page"], t["pos"]))
         cur = len(pages) + 1
-        for _ in range((-len(pages)) % 4 if pages else 4):
+        extra = db().execute("SELECT extra_pages FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
+        extra = (extra["extra_pages"] or 0) if extra else 0
+        for _ in range(((-len(pages)) % 4 if pages else 4) + extra):
             pages.append({"row": None, "number": cur})
             cur += 1
         return pages, toc
@@ -1061,6 +1063,17 @@ def create_app(config=None):
                 db().commit()
                 flash(f"Added to {sec['title']}. Review and edit it there.", "ok")
         return redirect(url_for("suggestions", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/extra-pages", methods=["POST"])
+    @need("admin", "editor")
+    def extra_pages(bid):
+        open_bulletin(bid)
+        cur = db().execute("SELECT extra_pages FROM bulletins WHERE id=?", (bid,)).fetchone()["extra_pages"] or 0
+        new = cur + 4 if request.form.get("do") == "add" else max(0, cur - 4)
+        db().execute("UPDATE bulletins SET extra_pages=? WHERE id=?", (new, bid))
+        db().commit()
+        flash(f"{new} extra pages added." if new else "Extra pages removed.", "ok")
+        return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/header-text", methods=["POST"])
     @need("admin", "editor")
