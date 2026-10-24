@@ -391,6 +391,22 @@ def test_placement_and_font_options(app):
     assert "Condensed" in c.get("/style-guide").text or c.get("/style-guide").status_code in (200, 404)
 
 
+def test_full_section_moves_to_chosen_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "pages": "1", "cols": "1", "csrf": t}, follow_redirects=True)
+    html = c.get("/bulletins/1/preview").text
+    assert re.search(r'id="pg2".*?Gospel', html, re.S) and not re.search(r'id="pg2".*?Welcome text', html.split('id="pg3"')[0], re.S)
+    pg = c.get("/bulletins/1").text
+    assert re.search(r'id="pn9"[^>]*value="2"', pg)
+    c.post("/bulletins/1/layout/4", data={"area": "", "page_no": "3", "pages": "1", "cols": "1", "font_pt": "0", "font_style": "", "csrf": t})
+    assert re.search(r'id="pn4"[^>]*value="3"', c.get("/bulletins/1").text)
+    assert "Settings saved" in c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "csrf": t}, follow_redirects=True).text
+
+
 def test_suggestions_page_and_apply(app):
     c = setup_admin(app)
     create_bulletin(c)

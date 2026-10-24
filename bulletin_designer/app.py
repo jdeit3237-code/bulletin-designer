@@ -427,10 +427,16 @@ def create_app(config=None):
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
                    and not (r["status"] == "pending" and not include_pending)]
         pages = []
-        for r in printed:
-            if area_of(r) == "full":
-                for n in range(r["pages"]):
-                    pages.append({"row": r, "part": n + 1, "of": r["pages"]})
+        def blocks(r):
+            return [{"row": r, "part": n + 1, "of": r["pages"]} for n in range(r["pages"])]
+        fulls = [r for r in printed if area_of(r) == "full"]
+        for r in fulls:
+            if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):
+                pages.extend(blocks(r))
+        for r in sorted((r for r in fulls if r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"),
+                        key=lambda r: (r["page_no"], r["position"])):
+            at = max(1, min(r["page_no"] - 1, len(pages)))
+            pages[at:at] = blocks(r)
         if not pages:
             pages.append({"row": None})
         halves = [r for r in printed if area_of(r) != "full"]
@@ -837,6 +843,8 @@ def create_app(config=None):
                 conn.execute("DELETE FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid))
                 conn.execute("DELETE FROM sections WHERE id=?", (sid,))
         conn.commit()
+        if not move and "area" in request.form:
+            flash("Settings saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     # ---------- AI assistant ----------
