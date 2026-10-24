@@ -83,7 +83,7 @@
     <h2>Notes</h2><p>This page is intentionally left for notes.</p>
   {% endif %}
   </div>
-  <footer class="pg-foot"><span class="foot-text">{{ b.footer or 'St. Peter the Fisherman Catholic Church' }}{% if foot_addr %}<br><span class="foot-addr">{{ foot_addr }}</span>{% endif %}</span><span class="foot-page">Page {{ p.number }} of {{ pages|length }}</span></footer>
+  <footer class="pg-foot"><span class="foot-text"><span class="foot-name">{{ b.footer or 'St. Peter the Fisherman Catholic Church' }}</span><br><span class="foot-addr">{{ foot_addr }}</span><br><span class="foot-addr">Office Hours: {{ foot_hours }}</span></span><span class="foot-page">Page {{ p.number }} of {{ pages|length }}</span></footer>
 </section>
 {% endfor %}
 <script>
