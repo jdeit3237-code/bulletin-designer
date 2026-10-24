@@ -30,8 +30,7 @@
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
       <div class="mass times-item">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}
-        {% if t.days %}<p><strong>{{ t.days }}</strong></p>{% endif %}
-        {% if t.name or t.time %}<p>{{ t.name }}{% if t.name and t.time %} &ndash; {% endif %}{{ t.time }}</p>{% endif %}
+        {% if t.days or t.name or t.time %}<p>{% if t.days %}<strong>{{ t.days }}</strong>{% endif %}{% if t.days and (t.name or t.time) %}: {% endif %}{{ t.name }}{% if t.name and t.time %} &ndash; {% endif %}{{ t.time }}</p>{% endif %}
         {% if t.notes %}<p>{{ t.notes }}</p>{% endif %}
         {% if t.web %}<p><a href="{{ t.web }}">{{ t.web }}</a></p>{% endif %}</div>
       {% endfor %}
