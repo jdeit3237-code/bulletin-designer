@@ -434,6 +434,20 @@ def test_stack_below_and_same_column(app):
     assert html.index("Welcome text") < html.index("Gospel")
 
 
+def test_several_sections_on_page_one(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
+    for sid in (5, 9):
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": "right", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert html.index("Welcome text") < html.index("Gospel") < html.index('aria-label="Page 2"')
+    pg = c.get("/bulletins/1").text
+    assert len(re.findall(r"Page 1</td>", pg)) >= 2
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)

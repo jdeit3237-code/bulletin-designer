@@ -419,7 +419,7 @@ def create_app(config=None):
     def rows_on(p):
         d = p.get("duo")
         rows = [d["left"], *d["left_more"], d["right"], *d["right_more"]] if d else [p.get("row")]
-        return rows + list(p.get("more", []))
+        return rows + list(p.get("right_more", [])) + list(p.get("more", []))
 
     def layout(bulletin_id, include_pending=False):
         """Return (pages, toc). Full-width sections take whole pages; left/right half sections share a page
@@ -435,10 +435,13 @@ def create_app(config=None):
         def blocks(r):
             return [{"row": r, "part": n + 1, "of": r["pages"]} for n in range(r["pages"])]
         cover_printed = any(r["slug"] == "cover" for r in printed)
-        p1 = next((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover" and not cover_printed), None)
+        p1_all = [] if cover_printed else sorted((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover"),
+                                                 key=lambda r: r["position"])
+        p1 = p1_all[0] if p1_all else None
         if p1 is not None:
             pages.extend(blocks(p1))
-        fulls = [r for r in printed if area_of(r) == "full" and r is not p1]
+            pages[0]["right_more"] = p1_all[1:]
+        fulls = [r for r in printed if area_of(r) == "full" and r not in p1_all]
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):
                 pages.extend(blocks(r))
@@ -446,7 +449,7 @@ def create_app(config=None):
                         key=lambda r: (r["page_no"], r["position"])):
             at = max(1, min(r["page_no"] - 1, len(pages)))
             pages[at:at] = blocks(r)
-        for r in sorted((r for r in printed if area_of(r) == "below" and r is not p1), key=lambda r: r["position"]):
+        for r in sorted((r for r in printed if area_of(r) == "below" and r not in p1_all), key=lambda r: r["position"]):
             target = None
             for pg in pages:
                 if pg.get("row") is not None and pg["row"]["position"] < r["position"]:
@@ -457,7 +460,7 @@ def create_app(config=None):
                 target.setdefault("more", []).append(r)
         if not pages:
             pages.append({"row": None})
-        halves = [r for r in printed if area_of(r) in ("left", "right") and r is not p1]
+        halves = [r for r in printed if area_of(r) in ("left", "right") and r not in p1_all]
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
