@@ -153,3 +153,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .toolbar form.inline { display: inline-block; margin: .2em .6em .2em 0; vertical-align: top; }
 .toolbar .meta { display: block; max-width: 22em; }
 .toolbar .addbar { margin: 0 0 .3em; }
+
+.duo { display: flex; gap: .3in; align-items: flex-start; }
+.duo .half, .half { width: 50%; flex: 0 0 auto; box-sizing: border-box; }
+.duo .half { flex: 1 1 0; }

@@ -395,11 +395,23 @@ def create_app(config=None):
             i.position, i.pages, i.cols, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
             i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
-        pages, toc, cur = [], [], 1
-        for r in rows:
+        pages, toc, cur, skip = [], [], 1, set()
+        for idx, r in enumerate(rows):
+            if r["id"] in skip:
+                continue
             has = bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"])
             if not has or (r["status"] == "pending" and not include_pending):
                 continue
+            if r["slug"] == "mass-intentions" and r["pages"] == 1 and idx + 1 < len(rows):
+                nxt = rows[idx + 1]
+                nhas = bool((nxt["body"] or "").strip() or nxt["image"]) and nxt["slug"] != "cover"
+                if nhas and nxt["pages"] == 1 and not (nxt["status"] == "pending" and not include_pending):
+                    toc.append({"title": r["title"], "page": cur})
+                    toc.append({"title": nxt["title"], "page": cur})
+                    pages.append({"row": r, "part": 1, "of": 1, "number": cur, "side": nxt})
+                    cur += 1
+                    skip.add(nxt["id"])
+                    continue
             toc.append({"title": r["title"], "page": cur})
             for n in range(r["pages"]):
                 pages.append({"row": r, "part": n + 1, "of": r["pages"], "number": cur})
