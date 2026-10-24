@@ -460,15 +460,41 @@ def create_app(config=None):
         cover_printed = any(r["slug"] == "cover" for r in printed)
         p1_all = [] if cover_printed else sorted((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover"),
                                                  key=lambda r: r["position"])
-        p1_side = [r for r in p1_all if area_of(r) != "below"]
-        p1_under = [r for r in p1_all if area_of(r) == "below"]
-        if not p1_side and p1_under:
-            p1_side, p1_under = p1_under[:1], p1_under[1:]
-        p1 = p1_side[0] if p1_side else None
-        if p1 is not None:
-            pages.extend(blocks(p1))
-            pages[0]["right_more"] = p1_side[1:]
-            pages[0]["p1_below"] = p1_under
+        brow = db().execute("SELECT toc_place, toc_show FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
+        toc_full = bool(brow and brow["toc_place"] == "full" and (brow["toc_show"] is None or brow["toc_show"]))
+        slot_keys = ("left", "right", "left3", "mid3", "right3", "left23", "right23")
+        if toc_full and p1_all:
+            duo = {"third": None, **{k: None for k in slot_keys}, **{k + "_more": [] for k in slot_keys}}
+            under = []
+            for r in p1_all:
+                a = area_of(r)
+                if a not in slot_keys:
+                    under.append(r)
+                    continue
+                third = a.endswith("3")
+                if duo["third"] is None:
+                    duo["third"] = third
+                if duo["third"] != third:
+                    under.append(r)
+                elif duo[a] is None:
+                    duo[a] = r
+                else:
+                    duo[a + "_more"].append(r)
+            first = next((duo[k] for k in slot_keys if duo[k]), None)
+            if first is None:
+                first, under = under[0], under[1:]
+                duo = None
+            pages.append({"row": first, "part": 1, "of": first["pages"], "duo": duo, "p1_full": True, "p1_below": under})
+        else:
+            p1_side = [r for r in p1_all if area_of(r) != "below"]
+            p1_under = [r for r in p1_all if area_of(r) == "below"]
+            if not p1_side and p1_under:
+                p1_side, p1_under = p1_under[:1], p1_under[1:]
+            p1 = p1_side[0] if p1_side else None
+            if p1 is not None:
+                pages.extend(blocks(p1))
+                pages[0]["right_more"] = p1_side[1:]
+                pages[0]["p1_below"] = p1_under
         fulls = [r for r in printed if area_of(r) == "full" and r not in p1_all]
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):

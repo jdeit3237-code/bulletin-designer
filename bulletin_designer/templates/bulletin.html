@@ -53,11 +53,14 @@
     {% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
 </div>{% endmacro %}
+{% macro render_duo(p) %}{% if p.duo.third %}{% set cols = [('left23',2),('right3',1)] if p.duo.left23 else ([('left3',1),('right23',2)] if p.duo.right23 else [('left3',1),('mid3',1),('right3',1)]) %}
+    <div class="duo thirds">{% for k, w in cols %}<div class="third" style="flex-grow:{{ w }}">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
+{% else %}    <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}{% for m in p.duo.left_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}{% for m in p.duo.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>{% endif %}{% endmacro %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
   <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
-  {% set side_by_side = loop.first and p.row and not p.duo and p.row.slug != 'cover' %}
+  {% set side_by_side = loop.first and p.row and (not p.duo or p.p1_full) and p.row.slug != 'cover' %}
   {% if loop.first %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
     <header class="banner">
@@ -82,15 +85,13 @@
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if side_by_side %}
     {% set place = b.toc_place or 'left' %}
-    {% if place == 'full' or not (b.toc_show is none or b.toc_show) %}{{ toc_html }}{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}
+    {% if p.p1_full %}{{ toc_html }}{% if p.duo %}{{ render_duo(p) }}{% else %}{{ render_row(r, p) }}{% endif %}
+    {% elif place == 'full' or not (b.toc_show is none or b.toc_show) %}{{ toc_html }}{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}
     {% elif place == 'right' %}<div class="duo"><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{{ toc_html }}</div></div>
     {% else %}<div class="duo"><div class="half">{{ toc_html }}</div><div class="half">{{ render_row(r, p) }}{% for m in p.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>{% endif %}
     {% for m in p.p1_below %}{{ render_row(m, {'part': 1}) }}{% endfor %}
-    {% elif p.duo and p.duo.third %}
-    {% set cols = [('left23',2),('right3',1)] if p.duo.left23 else ([('left3',1),('right23',2)] if p.duo.right23 else [('left3',1),('mid3',1),('right3',1)]) %}
-    <div class="duo thirds">{% for k, w in cols %}<div class="third" style="flex-grow:{{ w }}">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
     {% elif p.duo %}
-    <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}{% for m in p.duo.left_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}{% for m in p.duo.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>
+    {{ render_duo(p) }}
     {% else %}
     {{ render_row(r, p) }}
     {% endif %}

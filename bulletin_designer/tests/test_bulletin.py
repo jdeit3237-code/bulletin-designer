@@ -558,6 +558,21 @@ def test_contents_columns(app):
     assert 'name="toc_cols"' in c.get("/bulletins/1").text
 
 
+def test_full_width_contents_honors_widths(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, body, area in ((5, "LeftSide", "left3"), (9, "RightSide", "right3")):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": body, "csrf": t})
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": area, "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/toc-settings", data={"toc_show": "1", "toc_start": "2", "toc_place": "full", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    page1 = html[:html.index('aria-label="Page 2"')]
+    assert page1.count('class="third"') == 3
+    assert page1.index("toc-box") < page1.index('class="third"')
+    assert page1.index("LeftSide") < page1.index("RightSide")
+
+
 def test_add_four_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
