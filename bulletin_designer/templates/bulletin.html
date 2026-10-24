@@ -6,7 +6,7 @@
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
-{% macro render_row(r, p) %}<div class="{{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}"{% if r.font_pt %} style="--fs: {{ r.font_pt }}pt;"{% endif %}>
+{% macro render_row(r, p) %}<div class="sec {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}"{% if r.font_pt %} style="--fs: {{ r.font_pt }}pt;"{% endif %}>
     {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}

@@ -185,3 +185,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .times-item { background: none; border-left: 3px solid var(--gold, #c9a84c); padding: 0 .6em; margin: 0 0 .3em; line-height: 1.2; }
 .times-item h3 { margin: 0; font-size: 12pt; }
 .times-item p { margin: 0; }
+.sec + .sec { margin-top: .125in; }
+.sec + .sec > h2 { margin-top: 0; }
