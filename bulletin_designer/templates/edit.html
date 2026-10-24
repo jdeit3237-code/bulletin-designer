@@ -58,6 +58,8 @@
   <select id="hp_lib" name="library_id"><option value="">- keep current -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select>
   <label for="hp_up">Or upload a new photo (PNG, JPG, GIF, WebP)</label><input id="hp_up" name="image" type="file" accept="image/*">
   <label for="hdr_alt">Alternative text (required for a new upload)</label><input id="hdr_alt" name="hdr_alt" type="text" value="{{ b.hdr_alt }}">
+  <label for="hdr_style">Header edge design (the photo fits inside whichever you choose)</label>
+  <select id="hdr_style" name="hdr_style">{% for v, n in [('waves','Waves'),('swell','Big swell'),('gentle','Gentle waves'),('straight','Straight edges')] %}<option value="{{ v }}" {{ 'selected' if (b.hdr_style or 'waves') == v }}>{{ n }}</option>{% endfor %}</select>
   <label for="hdr_h">Header photo height: <output id="hh_o">{{ b.hdr_h or 2.4 }}</output> in (make the header taller or shorter)</label>
   <input id="hdr_h" name="hdr_h" type="range" min="0.5" max="5" step="0.1" value="{{ b.hdr_h or 2.4 }}">
   <label for="hdr_zoom">Zoom: <output id="hz_o">{{ b.hdr_zoom or 1 }}</output>x</label><input id="hdr_zoom" name="hdr_zoom" type="range" min="1" max="4" step="0.1" value="{{ b.hdr_zoom or 1 }}">

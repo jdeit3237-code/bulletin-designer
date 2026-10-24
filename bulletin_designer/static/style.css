@@ -116,9 +116,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .masthead { position: static; border: 0; border-radius: 6px; overflow: hidden; margin-bottom: .15in; }
 .masthead .banner { position: static; margin: 0; border-radius: 0; border: 0; color: #fff; padding: .16in .3in .1in;
   background:
-    radial-gradient(circle at 92% 20%, rgba(255,255,255,.16) 0, rgba(255,255,255,.16) .55in, transparent .56in),
-    radial-gradient(circle at 100% 100%, rgba(212,184,115,.35) 0, rgba(212,184,115,.35) 1.1in, transparent 1.11in),
-    radial-gradient(circle at 78% 0%, rgba(255,255,255,.10) 0, rgba(255,255,255,.10) .9in, transparent .91in),
+    url(banner-waves.svg) 0 0 / 100% 100% no-repeat,
     linear-gradient(120deg, #14573d 0%, #2a8463 60%, #3c9a78 100%);
   border-top: 6px solid var(--gold-bright); }
 .masthead .banner img.logo-badge { margin: 0; border: 2px solid var(--gold-bright); box-shadow: 0 2px 6px rgba(0,0,0,.3); background: #fff; padding: .06in .12in; height: .8in; }
@@ -133,4 +131,9 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .masthead .wave-top { height: .3in; margin-bottom: -.3in; position: relative; z-index: 2; background: url(wave-top.svg) 0 0 / 100% 100% no-repeat; }
 .masthead .hdr-photo { border: 0; }
 .masthead .wave-bot { height: .4in; margin-top: -.4in; position: relative; z-index: 2; background: url(wave-bottom.svg) 0 0 / 100% 100% no-repeat; }
-.masthead .ship { position: absolute; right: .45in; bottom: .12in; width: .55in; height: .46in; z-index: 3; background: url(ship.svg) 0 0 / 100% 100% no-repeat; }
+.masthead.m-swell .wave-top { background-image: url(wave-top-swell.svg); }
+.masthead.m-swell .wave-bot { background-image: url(wave-bottom-swell.svg); }
+.masthead.m-gentle .wave-top { background-image: url(wave-top-gentle.svg); }
+.masthead.m-gentle .wave-bot { background-image: url(wave-bottom-gentle.svg); }
+.masthead.m-straight .wave-top, .masthead.m-straight .wave-bot { display: none; }
+.masthead.m-straight .hdr-photo { border-top: 4px solid #fff; border-bottom: 6px solid var(--gold-bright); }
