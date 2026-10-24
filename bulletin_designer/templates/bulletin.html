@@ -8,7 +8,7 @@
 {% include "_assistant_panel.html" %}
 {% for p in pages %}
 <section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
-  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ long_sunday(b.sunday) }}</span></header>
+  <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ long_sunday(b.hdr_date or b.sunday) }}</span></header>
   <div class="pg-body">
   {% if loop.first %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
@@ -17,7 +17,7 @@
       <div class="banner-text"><p class="banner-kicker">Welcome to</p>
         <h1 class="cover-title">St. Peter the Fisherman</h1>
         <p class="banner-sub">Catholic Parish Weekly Bulletin</p></div>
-      <p class="banner-date">{{ long_sunday(b.sunday) }}{% if b.theme %} &middot; {{ b.theme }}{% endif %}</p>
+      <p class="banner-date">{{ long_sunday(b.hdr_date or b.sunday) }}{% if b.theme %} &middot; {{ b.theme }}{% endif %}</p>
     </header>
     <div class="wave-top"></div>
     {% set himg = b.hdr_image %}

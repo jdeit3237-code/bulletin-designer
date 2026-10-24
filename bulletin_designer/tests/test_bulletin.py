@@ -357,3 +357,11 @@ def test_header_style_choice(app):
     assert "m-swell" in c.get("/bulletins/1/preview").text
     c.post("/bulletins/1/header-photo", data={"hdr_style": "bogus", "csrf": tok(c, "/bulletins/1")})
     assert "m-waves" in c.get("/bulletins/1/preview").text
+
+
+def test_header_date_and_title(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/header-text", data={"hdr_date": "2026-11-01", "theme": "All Saints", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Sunday, November 1, 2026" in html and "All Saints" in html

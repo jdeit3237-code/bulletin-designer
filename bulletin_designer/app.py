@@ -154,7 +154,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -880,6 +880,18 @@ def create_app(config=None):
         db().execute("UPDATE bulletins SET footer=? WHERE id=?", (text, bid))
         db().commit()
         flash("Footer saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/header-text", methods=["POST"])
+    @need("admin", "editor")
+    def set_header_text(bid):
+        open_bulletin(bid)
+        d = request.form.get("hdr_date", "").strip()
+        d = d if long_date(d) else ""
+        title = " ".join(request.form.get("theme", "").split())[:120]
+        db().execute("UPDATE bulletins SET hdr_date=?, theme=? WHERE id=?", (d, title, bid))
+        db().commit()
+        flash("Header date and title saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/header-photo", methods=["POST"])

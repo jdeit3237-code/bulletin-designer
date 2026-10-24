@@ -72,6 +72,15 @@
   </script>
 </form>
 <h2>Footer text</h2>
+<h2>Header date and title (changes each week)</h2>
+<form method="post" action="{{ url_for('set_header_text', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="hdr_date">Date shown in the header (pick from the calendar)</label>
+  <input id="hdr_date" name="hdr_date" type="date" value="{{ b.hdr_date or b.sunday }}">
+  <label for="theme">Title shown with the date (for example: Thirtieth Sunday in Ordinary Time)</label>
+  <input id="theme" name="theme" type="text" maxlength="120" value="{{ b.theme }}">
+  <p><button class="btn">Save header date and title</button></p>
+</form>
 <form method="post" action="{{ url_for('set_footer', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="footer">Text shown in the footer of every page (the page number is added automatically)</label>
