@@ -103,6 +103,24 @@ def doc_text(path):
     raise ValueError("Old .doc files cannot be read on this server. Please save the file as .docx and upload again.")
 
 
+def gap_value(raw):
+    """Blank = default (stored 0); a typed 0 = no space (stored as a tiny value)."""
+    raw = (raw or "").strip()
+    if not raw:
+        return 0.0
+    try:
+        v = max(0.0, min(1.0, float(raw)))
+    except ValueError:
+        return 0.0
+    return v if v > 0 else 0.0001
+
+
+def gap_display(v):
+    if not v:
+        return ""
+    return "0" if v < 0.001 else ("%g" % v)
+
+
 def create_app(config=None):
     app = Flask(__name__)
     base = os.path.dirname(os.path.abspath(__file__))
@@ -282,6 +300,7 @@ def create_app(config=None):
             return escape(text)
         return Markup(escape(" ".join(words[:-1])) + Markup("&nbsp;") + escape(words[-1]))
     app.jinja_env.globals["tight"] = tight
+    app.jinja_env.globals["gap_display"] = gap_display
     app.jinja_env.globals["long_sunday"] = long_date
 
     MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
@@ -813,7 +832,7 @@ def create_app(config=None):
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
                           num("crop_zoom", 1, 4, 1), num("crop_x", 0, 100, 50), num("crop_y", 0, 100, 50), num("crop_h", 0, 9, 0),
                           "" if new_title == s["title"] else new_title,
-                          num("title_gap", 0, 1, 0), num("item_gap", 0, 1, 0),
+                          gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")),
                           status, g.user["username"], item["id"]))
             db().commit()
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
@@ -954,14 +973,9 @@ def create_app(config=None):
             except ValueError:
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
-            def gap(key):
-                try:
-                    return max(0.0, min(1.0, float(request.form.get(key) or 0)))
-                except ValueError:
-                    return 0.0
             conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
                          (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "",
-                          gap("title_gap"), gap("item_gap"), bid, sid))
+                          gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")), bid, sid))
         if move == "remove":
             sec = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
             if sec["bulletin_id"] == bid:
