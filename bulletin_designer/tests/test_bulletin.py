@@ -638,3 +638,13 @@ def test_gap_fields_in_section_list(app):
     create_bulletin(c)
     html = c.get("/bulletins/1").text
     assert 'name="title_gap"' in html and 'name="item_gap"' in html
+
+
+def test_toc_gap_fields(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1").text
+    assert 'name="toc_title_gap"' in html and 'name="toc_item_gap"' in html
+    c.post("/bulletins/1/toc-settings", data={"csrf": tok(c), "toc_show": "1", "toc_title_gap": "0", "toc_item_gap": "0.05"})
+    prev = c.get("/bulletins/1/preview").text
+    assert "--ig: 0.05in" in prev and "margin-bottom:0.0001in" in prev

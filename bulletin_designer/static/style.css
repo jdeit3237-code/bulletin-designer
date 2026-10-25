@@ -215,3 +215,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec.has-ig > p, .sec.has-ig .cal tr + tr td { margin-top: 0; margin-bottom: var(--ig); }
 .sec.has-ig .cal td { padding-top: var(--ig); padding-bottom: 0; }
 .sec.has-ig .times-item h3 { margin-top: 0; }
+
+.toc-box .toc { margin-top: 0; margin-bottom: 0; }
+.toc-box[style*="--ig"] .toc li { margin: 0 0 var(--ig); }
