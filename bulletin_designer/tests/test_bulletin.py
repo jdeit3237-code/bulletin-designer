@@ -631,3 +631,10 @@ def test_item_gap_column_and_form(app):
     create_bulletin(c)
     html = c.get("/bulletins/1/section/2").text
     assert 'name="item_gap"' in html and 'name="title_gap"' in html
+
+
+def test_gap_fields_in_section_list(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1").text
+    assert 'name="title_gap"' in html and 'name="item_gap"' in html

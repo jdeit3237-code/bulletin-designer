@@ -671,7 +671,7 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
@@ -954,8 +954,14 @@ def create_app(config=None):
             except ValueError:
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
-            conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=? WHERE bulletin_id=? AND section_id=?",
-                         (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "", bid, sid))
+            def gap(key):
+                try:
+                    return max(0.0, min(1.0, float(request.form.get(key) or 0)))
+                except ValueError:
+                    return 0.0
+            conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
+                         (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "",
+                          gap("title_gap"), gap("item_gap"), bid, sid))
         if move == "remove":
             sec = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
             if sec["bulletin_id"] == bid:
