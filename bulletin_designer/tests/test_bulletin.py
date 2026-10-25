@@ -617,3 +617,10 @@ def test_paste_events_into_calendar(app):
                                                    "when_time": "6 pm", "csrf": t})
     html = c.get("/bulletins/1/preview").text
     assert "Rosary Rally" in html and "Food Drive" in html and "6 pm" in html
+
+
+def test_no_stragglers_binds_last_words(app):
+    t = app.jinja_env.globals["tight"]
+    assert str(t("one two three four", True)).endswith("three&nbsp;four")
+    assert str(t("one two three four", False)) == "one two three four"
+    assert str(t("<b> x y", True)) == "&lt;b&gt; x&nbsp;y"

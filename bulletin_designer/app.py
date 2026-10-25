@@ -167,7 +167,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -268,6 +268,18 @@ def create_app(config=None):
         return vals
 
     app.jinja_env.globals["iso_date"] = iso_date
+
+    def tight(text, on=True):
+        """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
+        from markupsafe import Markup, escape
+        text = str(text or "")
+        if on is not None and not on:
+            return escape(text)
+        words = text.split(" ")
+        if len(words) < 3:
+            return escape(text)
+        return Markup(escape(" ".join(words[:-1])) + Markup("&nbsp;") + escape(words[-1]))
+    app.jinja_env.globals["tight"] = tight
     app.jinja_env.globals["long_sunday"] = long_date
 
     MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
@@ -1219,6 +1231,15 @@ def create_app(config=None):
                       request.form.get("toc_cols") if request.form.get("toc_cols") in ("1", "2", "3", "4") else 1, bid))
         db().commit()
         flash("Contents settings saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/no-stragglers", methods=["POST"])
+    @need("admin", "editor")
+    def no_stragglers(bid):
+        open_bulletin(bid)
+        db().execute("UPDATE bulletins SET no_stragglers=? WHERE id=?", (1 if request.form.get("no_stragglers") else 0, bid))
+        db().commit()
+        flash("Straggler setting saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/extra-pages", methods=["POST"])

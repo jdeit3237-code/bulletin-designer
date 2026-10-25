@@ -64,6 +64,12 @@
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
 <h2>Header photo</h2>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
+<h2>No stragglers</h2>
+<form method="post" action="{{ url_for('no_stragglers', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label><input type="checkbox" name="no_stragglers" value="1" {{ 'checked' if b.no_stragglers is none or b.no_stragglers }}> Never leave a single word alone on the last line of a paragraph</label>
+  <p><button class="btn">Save</button></p>
+</form>
 <h2>"In this issue" (table of contents)</h2>
 <form method="post" action="{{ url_for('toc_settings', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
