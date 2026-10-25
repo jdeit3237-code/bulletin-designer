@@ -202,10 +202,11 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .toc li { break-inside: avoid; }
 .times-item:first-of-type h3 { margin-top: .15em; }
 
-.mass { text-align: center; border-left: 0; }
-.mass h3 { text-align: center; }
-.mass p { margin: 0 0 .03in; font-size: 12pt; text-align: center; }
-.mass-head { text-align: center; }
+.sec-mass-schedule { text-align: center; }
+.sec-mass-schedule h2 { border-left: 0; padding-left: 0; text-align: center; }
+.sec-mass-schedule .mass { border-left: 0; }
+.sec-mass-schedule .mass h3, .sec-mass-schedule .mass-head { text-align: center; }
+.sec-mass-schedule .mass p { margin: 0 0 .03in; font-size: 12pt; text-align: center; }
 .sheet .pg-head { margin-bottom: .03125in; }
 .sheet .pg-body { padding-top: 0; padding-bottom: 0; }
 .sheet .pg-body > .sec:first-child > h2 { margin-top: 0; }
