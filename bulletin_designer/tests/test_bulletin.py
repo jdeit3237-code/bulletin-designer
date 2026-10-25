@@ -657,3 +657,15 @@ def test_no_underline_setting(app):
     assert "no-ul" not in c.get("/bulletins/1/preview").text.replace(".sheet.no-ul", "")
     c.post("/bulletins/1/underlines", data={"csrf": tok(c), "no_underline": "1"})
     assert 'class="sheet' in c.get("/bulletins/1/preview").text and "no-ul" in c.get("/bulletins/1/preview").text
+
+
+def test_settings_carry_to_next_bulletin(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c)
+    c.post("/bulletins/1/underlines", data={"csrf": t, "no_underline": "1"})
+    c.post("/bulletins/1/toc-settings", data={"csrf": t, "toc_show": "1", "toc_title_gap": "0.05", "toc_item_gap": "0.02", "toc_cols": "2"})
+    c.post("/bulletins/new", data={"csrf": t, "sunday": "2099-01-03"})
+    html = c.get("/bulletins/2").text
+    assert 'name="no_underline" value="1" checked' in html
+    assert 'value="0.05"' in html and 'value="0.02"' in html

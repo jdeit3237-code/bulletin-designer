@@ -103,6 +103,11 @@ def doc_text(path):
     raise ValueError("Old .doc files cannot be read on this server. Please save the file as .docx and upload again.")
 
 
+BULLETIN_CARRY = ("footer", "hdr_image", "hdr_alt", "hdr_h", "hdr_zoom", "hdr_x", "hdr_y", "hdr_style",
+                  "toc_title", "toc_title_gap", "toc_item_gap", "toc_start", "toc_show", "toc_pt", "toc_style",
+                  "toc_place", "toc_cols", "no_stragglers", "no_underline")
+
+
 def gap_value(raw):
     """Blank = default (stored 0); a typed 0 = no space (stored as a tiny value)."""
     raw = (raw or "").strip()
@@ -456,14 +461,17 @@ def create_app(config=None):
             pos, pages, cols = (old["position"], old["pages"], old["cols"]) if old else (s["position"], s["pages"], 1)
             if old and not s["weekly"]:
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
-                    position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap) VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?)""",
+                    position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap,area,page_no,font_pt,font_style,min_h)
+                    VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                              (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else old["body"], old["image"], old["alt"], old["decorative"],
                               old["caption"], old["source"], pos, pages, cols,
-                              old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"]))
+                              old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
+                              old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"]))
             else:
-                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
-                              old["font_pt"] if old else 0, old["font_style"] if old else "", old["title"] if old else ""))
+                              old["font_pt"] if old else 0, old["font_style"] if old else "", old["title"] if old else "",
+                              old["title_gap"] if old else 0, old["item_gap"] if old else 0, old["min_h"] if old else 0))
         conn.commit()
 
     def area_of(r):
@@ -672,9 +680,14 @@ def create_app(config=None):
             flash("Enter a valid date.", "error")
             return redirect(url_for("dashboard"))
         conn = db()
-        conn.execute("INSERT OR IGNORE INTO bulletins(sunday) VALUES(?)", (sunday,))
-        conn.commit()
+        created = conn.execute("INSERT OR IGNORE INTO bulletins(sunday) VALUES(?)", (sunday,)).rowcount == 1
         b = conn.execute("SELECT id FROM bulletins WHERE sunday=?", (sunday,)).fetchone()
+        prev = conn.execute("SELECT * FROM bulletins WHERE sunday<? AND id<>? ORDER BY sunday DESC LIMIT 1", (sunday, b["id"])).fetchone() if created else None
+        if prev:
+            keep = [c for c in BULLETIN_CARRY if c in prev.keys()]
+            conn.execute("UPDATE bulletins SET " + ", ".join(c + "=?" for c in keep) + " WHERE id=?",
+                         [prev[c] for c in keep] + [b["id"]])
+        conn.commit()
         ensure_items(b["id"], sunday)
         return redirect(url_for("edit", bid=b["id"]))
 
