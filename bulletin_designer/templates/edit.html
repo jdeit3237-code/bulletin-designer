@@ -72,6 +72,12 @@
   <label><input type="checkbox" name="no_stragglers" value="1" {{ 'checked' if b.no_stragglers is none or b.no_stragglers }}> Never leave a single word alone on the last line of a paragraph</label>
   <p><button class="btn">Save</button></p>
 </form>
+<h2>Underlines</h2>
+<form method="post" action="{{ url_for('underlines', bid=b.id) }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label><input type="checkbox" name="no_underline" value="1" {{ 'checked' if b.no_underline }}> Remove the underlines from section subtitles and from the "In this issue" list</label>
+  <p><button class="btn">Save</button></p>
+</form>
 <h2>"In this issue" (table of contents)</h2>
 <form method="post" action="{{ url_for('toc_settings', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">

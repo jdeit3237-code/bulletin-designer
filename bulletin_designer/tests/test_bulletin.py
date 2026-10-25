@@ -648,3 +648,12 @@ def test_toc_gap_fields(app):
     c.post("/bulletins/1/toc-settings", data={"csrf": tok(c), "toc_show": "1", "toc_title_gap": "0", "toc_item_gap": "0.05"})
     prev = c.get("/bulletins/1/preview").text
     assert "--ig: 0.05in" in prev and "margin-bottom:0.0001in" in prev
+
+
+def test_no_underline_setting(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert 'name="no_underline"' in c.get("/bulletins/1").text
+    assert "no-ul" not in c.get("/bulletins/1/preview").text.replace(".sheet.no-ul", "")
+    c.post("/bulletins/1/underlines", data={"csrf": tok(c), "no_underline": "1"})
+    assert 'class="sheet' in c.get("/bulletins/1/preview").text and "no-ul" in c.get("/bulletins/1/preview").text

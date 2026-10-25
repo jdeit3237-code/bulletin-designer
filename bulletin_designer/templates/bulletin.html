@@ -57,7 +57,7 @@
     <div class="duo thirds">{% for k, w in cols %}<div class="third" style="flex-grow:{{ w }}">{% if p.duo[k] %}{{ render_row(p.duo[k], {'part': 1}) }}{% endif %}{% for m in p.duo[k ~ '_more'] %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div>{% endfor %}</div>
 {% else %}    <div class="duo"><div class="half">{% if p.duo.left %}{{ render_row(p.duo.left, {'part': 1}) }}{% endif %}{% for m in p.duo.left_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div><div class="half">{% if p.duo.right %}{{ render_row(p.duo.right, {'part': 1}) }}{% endif %}{% for m in p.duo.right_more %}{{ render_row(m, {'part': 1}) }}{% endfor %}</div></div>{% endif %}{% endmacro %}
 {% for p in pages %}
-<section class="sheet {{ 'cover' if loop.first }}" aria-label="Page {{ p.number }}">
+<section class="sheet {{ 'cover' if loop.first }} {{ 'no-ul' if b.no_underline }}" aria-label="Page {{ p.number }}">
   <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
   <div class="pg-body">
   {% set side_by_side = loop.first and p.row and (not p.duo or p.p1_full) and p.row.slug != 'cover' %}

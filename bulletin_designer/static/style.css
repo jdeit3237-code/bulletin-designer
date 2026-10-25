@@ -218,3 +218,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .toc-box .toc { margin-top: 0; margin-bottom: 0; }
 .toc-box[style*="--ig"] .toc li { margin: 0 0 var(--ig); }
+
+.sheet.no-ul .intent h4 { border-bottom: 0; padding-bottom: 0; text-decoration: none; }
+.sheet.no-ul .staff-role, .sheet.no-ul .toc a, .sheet.no-ul h3, .sheet.no-ul h4, .sheet.no-ul a { text-decoration: none; }
