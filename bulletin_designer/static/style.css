@@ -49,7 +49,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-head .head-title { flex: 1; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
 .sheet .pg-head .head-date { white-space: nowrap; color: var(--gold-bright); }
 .sheet .pg-body { flex: 1; overflow: hidden; padding-top: .5em; font-size: 12.5pt; line-height: 1.4; }
-.sheet h2 { margin: .2em 0 .3em; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
+.sheet h2 { margin: .2em 0 .03125in; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
 .sheet .pg-foot { display: flex; justify-content: space-between; align-items: center; gap: .2in; color: #fff;
   background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 4px solid var(--gold-bright);
   border-radius: 4px; padding: .1in .25in; font: bold 12pt Arial, sans-serif; -webkit-print-color-adjust: exact; }
@@ -154,7 +154,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .toolbar .meta { display: block; max-width: 22em; }
 .toolbar .addbar { margin: 0 0 .3em; }
 
-.duo { display: flex; gap: .25in; align-items: flex-start; }
+.duo { display: flex; gap: .125in; align-items: flex-start; }
 .duo .half, .half { width: 50%; flex: 0 0 auto; box-sizing: border-box; }
 .duo .half { flex: 1 1 0; }
 
@@ -189,7 +189,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec + .sec > h2 { margin-top: 0; }
 .ministers { display: block; line-height: 1.2; }
 .ministers span { display: block; }
-.duo.thirds { gap: .2in; }
+.duo.thirds { gap: .125in; }
 .duo .third { flex: 1 1 0; width: 33.3%; box-sizing: border-box; min-width: 0; }
 .duo .third h2 { margin-top: 0; }
 .toc-box h2 { margin-top: 0; }
@@ -201,3 +201,12 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .toc li { break-inside: avoid; }
 .times-item:first-of-type h3 { margin-top: .15em; }
+
+.mass { text-align: center; border-left: 0; }
+.mass h3 { text-align: center; }
+.mass p { margin: 0 0 .03in; font-size: 12pt; text-align: center; }
+.mass-head { text-align: center; }
+.sheet .pg-head { margin-bottom: .03125in; }
+.sheet .pg-body { padding-top: 0; padding-bottom: 0; }
+.sheet .pg-body > .sec:first-child > h2 { margin-top: 0; }
+.sheet .pg-foot { margin-top: .03125in; }

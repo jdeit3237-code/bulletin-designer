@@ -8,7 +8,7 @@
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
 {% macro render_row(r, p) %}<div class="sec {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}"{% endif %}>
-    {% if p.part == 1 %}<h2>{{ r.title }}</h2>{% else %}<h2>{{ r.title }} (continued)</h2>{% endif %}
+    {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
       {% if cv.extra %}<p>{{ cv.extra }}</p>{% endif %}
@@ -37,12 +37,12 @@
       {% endfor %}
     {% elif r.slug == 'mass-schedule' %}
       {% set hd, rows = mass_data(r.body) %}
-      {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3>{{ hd }}</h3>{% endif %}
+      {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3 class="mass-head">{{ hd }}</h3>{% endif %}
       {% for m in rows %}
       <div class="mass"><h3>{{ m.day }}{% if m.day and m.date %}, {% endif %}{{ m.date }}{% if m.time %} &ndash; {{ m.time }}{% endif %}</h3>
-        <dl>{% if m.lectors_list %}<dt>{{ 'Lectors' if m.lectors_list|length > 1 else 'Lector' }}</dt><dd>{{ m.lectors_list|join(', ') }}</dd>{% endif %}
-        {% if m.sacristans_list %}<dt>{{ 'Sacristans' if m.sacristans_list|length > 1 else 'Sacristan' }}</dt><dd>{{ m.sacristans_list|join(', ') }}</dd>{% endif %}
-        {% if m.ministers_list %}<dt>Eucharistic Ministers</dt><dd>{{ m.ministers_list|join(', ') }}</dd>{% endif %}</dl></div>
+        {% if m.lectors_list %}<p><strong>{{ 'Lectors' if m.lectors_list|length > 1 else 'Lector' }}:</strong> {{ m.lectors_list|join(', ') }}</p>{% endif %}
+        {% if m.sacristans_list %}<p><strong>{{ 'Sacristans' if m.sacristans_list|length > 1 else 'Sacristan' }}:</strong> {{ m.sacristans_list|join(', ') }}</p>{% endif %}
+        {% if m.ministers_list %}<p><strong>Eucharistic {{ 'Ministers' if m.ministers_list|length > 1 else 'Minister' }}:</strong> {{ m.ministers_list|join(', ') }}</p>{% endif %}</div>
       {% endfor %}
     {% else %}
       {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}{% endfor %}

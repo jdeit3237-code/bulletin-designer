@@ -283,7 +283,7 @@ def test_this_week_ministers(app):
            "m0_ministers": "Di Fox; Ed Poe; Flo Qui", "m1_day": "", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert "Ministers This Week" in html and "Sunday, October 25, 2026" in html
-    assert "Lectors" in html and "Ann Kay, Bo Roe" in html and "Sacristan<" in html
+    assert "Lectors:" in html and "Ann Kay, Bo Roe" in html and "Sacristan:" in html
     assert "Di Fox, Ed Poe, Flo Qui" in html
 
 
