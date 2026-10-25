@@ -669,3 +669,16 @@ def test_settings_carry_to_next_bulletin(app):
     html = c.get("/bulletins/2").text
     assert 'name="no_underline" value="1" checked' in html
     assert 'value="0.05"' in html and 'value="0.02"' in html
+
+
+def test_mass_notes_textarea(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    assert "Notes for this Mass" in c.get(f"/bulletins/1/section/{sid}").text
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
+           "m0_notes": "Bring canned goods\nSecond collection", "csrf": tok(c, "/bulletins/1")})
+    assert "Bring canned goods\nSecond collection" in c.get(f"/bulletins/1/section/{sid}").text
+    html = c.get("/bulletins/1/preview").text
+    assert "<p>Bring canned goods</p>" in html and "<p>Second collection</p>" in html

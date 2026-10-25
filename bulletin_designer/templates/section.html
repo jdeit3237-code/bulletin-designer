@@ -72,6 +72,7 @@
       <label for="m{{ n }}_lectors">Lector(s) - names separated by commas</label><input id="m{{ n }}_lectors" name="m{{ n }}_lectors" type="text" value="{{ m.lectors or '' }}">
       <label for="m{{ n }}_sacristans">Sacristan(s) - names separated by commas</label><input id="m{{ n }}_sacristans" name="m{{ n }}_sacristans" type="text" value="{{ m.sacristans or '' }}">
       <label for="m{{ n }}_ministers">Eucharistic Ministers - names separated by commas</label><input id="m{{ n }}_ministers" name="m{{ n }}_ministers" type="text" value="{{ m.ministers or '' }}">
+      <label for="m{{ n }}_notes">Notes for this Mass (optional)</label><textarea id="m{{ n }}_notes" name="m{{ n }}_notes" rows="3">{{ m.notes or '' }}</textarea>
     </fieldset>
     {% endfor %}
     </div>
@@ -226,7 +227,7 @@ document.addEventListener('click',function(e){
   f=box.querySelectorAll('fieldset[data-clone]'),last=f[f.length-1],n=f.length;
   var d=document.createElement('div');
   d.innerHTML=last.outerHTML.replace(new RegExp('"'+p+'\\d+_','g'),'"'+p+n+'_').replace(/(<legend>)[^<]*\d+/,'$1'+box.getAttribute('data-label')+' '+(n+1));
-  var nf=d.firstElementChild;nf.querySelectorAll('input').forEach(function(x){x.value='';});
+  var nf=d.firstElementChild;nf.querySelectorAll('input,textarea').forEach(function(x){x.value='';x.textContent='';});
   last.after(nf);document.querySelector('input[name='+box.getAttribute('data-count')+']').value=n+1;nf.querySelector('input').focus();});
 </script>
 

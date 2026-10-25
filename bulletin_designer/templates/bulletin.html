@@ -42,7 +42,8 @@
       <div class="mass"><h3>{{ m.day }}{% if m.day and m.date %}, {% endif %}{{ m.date }}{% if m.time %} &ndash; {{ m.time }}{% endif %}</h3>
         {% if m.lectors_list %}<p><strong>{{ 'Lectors' if m.lectors_list|length > 1 else 'Lector' }}:</strong> {{ m.lectors_list|join(', ') }}</p>{% endif %}
         {% if m.sacristans_list %}<p><strong>{{ 'Sacristans' if m.sacristans_list|length > 1 else 'Sacristan' }}:</strong> {{ m.sacristans_list|join(', ') }}</p>{% endif %}
-        {% if m.ministers_list %}<p><strong>Eucharistic {{ 'Ministers' if m.ministers_list|length > 1 else 'Minister' }}:</strong> {{ m.ministers_list|join(', ') }}</p>{% endif %}</div>
+        {% if m.ministers_list %}<p><strong>Eucharistic {{ 'Ministers' if m.ministers_list|length > 1 else 'Minister' }}:</strong> {{ m.ministers_list|join(', ') }}</p>{% endif %}
+        {% for line in m.notes.split('\n') if line.strip() %}<p>{{ line }}</p>{% endfor %}</div>
       {% endfor %}
     {% else %}
       {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ tight(para.strip(), b.no_stragglers) }}</p>{% endif %}{% endfor %}

@@ -289,6 +289,8 @@ def create_app(config=None):
         vals = []
         for k in fields:
             v = request.form.get(f"{prefix}{i}_{k}", "").replace("|", "/").strip()
+            if k == "notes":
+                v = "\\n".join(l.strip() for l in request.form.get(f"{prefix}{i}_{k}", "").replace("|", "/").splitlines() if l.strip())
             vals.append("" if k == "day" else long_date(v) if k == "date" else v)
         return vals
 
@@ -308,7 +310,7 @@ def create_app(config=None):
     app.jinja_env.globals["gap_display"] = gap_display
     app.jinja_env.globals["long_sunday"] = long_date
 
-    MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers")
+    MASS_FIELDS = ("day", "date", "time", "lectors", "sacristans", "ministers", "notes")
 
     def split_names(text):
         return [n.strip() for n in re.split(r"[;,\n]", text or "") if n.strip()]
@@ -321,7 +323,8 @@ def create_app(config=None):
                 header = line[1:].strip()
             elif line.strip():
                 parts = [p.strip() for p in line.split("|")]
-                row = dict(zip(MASS_FIELDS, (parts + [""] * 6)[:6]))
+                row = dict(zip(MASS_FIELDS, (parts + [""] * 7)[:7]))
+                row["notes"] = row["notes"].replace("\\n", "\n")
                 for k in ("lectors", "sacristans", "ministers"):
                     row[k + "_list"] = split_names(row[k])
                 rows.append(row)
