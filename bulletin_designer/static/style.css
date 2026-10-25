@@ -211,3 +211,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-body { padding-top: 0; padding-bottom: 0; }
 .sheet .pg-body > .sec:first-child > h2 { margin-top: 0; }
 .sheet .pg-foot { margin-top: .03125in; }
+.sec.has-ig .mass, .sec.has-ig .intent, .sec.has-ig .staff-item, .sec.has-ig .times-item { margin-top: 0; margin-bottom: var(--ig); }
+.sec.has-ig > p, .sec.has-ig .cal tr + tr td { margin-top: 0; margin-bottom: var(--ig); }
+.sec.has-ig .cal td { padding-top: var(--ig); padding-bottom: 0; }
+.sec.has-ig .times-item h3 { margin-top: 0; }

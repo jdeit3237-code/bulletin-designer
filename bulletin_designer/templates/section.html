@@ -28,6 +28,8 @@
     <input id="section_title" name="section_title" type="text" maxlength="120" value="{{ item.title or s.title }}">
     <label for="title_gap">Space between title and text, in inches (0 = standard 1/32 inch; for example 0.1 for more space)</label>
     <input id="title_gap" name="title_gap" type="number" min="0" max="1" step="0.01" value="{{ item.title_gap or 0 }}">
+    <label for="item_gap">Space between the items in this section, in inches (0 = standard; for example 0.05 for tight, 0.15 for loose)</label>
+    <input id="item_gap" name="item_gap" type="number" min="0" max="1" step="0.01" value="{{ item.item_gap or 0 }}">
     {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover', 'staff') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">

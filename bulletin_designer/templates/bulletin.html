@@ -7,7 +7,7 @@
   {% if g.user.role in ('admin','editor') %}<a class="btn secondary" href="{{ url_for('preview', bid=b.id, resize=(None if request.args.get('resize') else 1)) }}">{{ 'Turn off resize handles' if request.args.get('resize') else 'Resize sections (drag corners)' }}</a>{% endif %}
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
-{% macro render_row(r, p) %}<div class="sec sec-{{ r.slug }} {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}"{% endif %}>
+{% macro render_row(r, p) %}<div class="sec sec-{{ r.slug }} {{ 'has-ig' if r.item_gap }} {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h or r.item_gap %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}{% if r.item_gap %}--ig: {{ r.item_gap }}in;{% endif %}"{% endif %}>
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}

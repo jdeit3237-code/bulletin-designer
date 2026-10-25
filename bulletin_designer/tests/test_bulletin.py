@@ -624,3 +624,10 @@ def test_no_stragglers_binds_last_words(app):
     assert str(t("one two three four", True)).endswith("three&nbsp;four")
     assert str(t("one two three four", False)) == "one two three four"
     assert str(t("<b> x y", True)) == "&lt;b&gt; x&nbsp;y"
+
+
+def test_item_gap_column_and_form(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1/section/2").text
+    assert 'name="item_gap"' in html and 'name="title_gap"' in html
