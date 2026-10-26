@@ -807,9 +807,12 @@ def create_app(config=None):
                          "left3": wide_l or wide_r and False, "right3": wide_r, "mid3": wide_l or wide_r}[side]
                 return not clash
             idx = None
-            if page_wanted(r) and 1 <= want - 1 < len(pages) and pages[want - 1].get("duo") is not None \
-                    and bool(pages[want - 1]["duo"].get("third")) == third and pages[want - 1]["duo"][side] is not None:
-                pages[want - 1]["duo"][side + "_more"].append(r)
+            cand = made.get(want) if page_wanted(r) else None
+            if cand is None and page_wanted(r) and 1 <= want - 1 < len(pages):
+                cand = pages[want - 1]
+            if cand is not None and cand.get("duo") is not None and bool(cand["duo"].get("third")) == third \
+                    and cand["duo"][side] is not None:
+                cand["duo"][side + "_more"].append(r)
                 continue
             first = next((i for i, pg in enumerate(pages) if pg is made.get(want)), None) if page_wanted(r) else None
             for k in range(first if first is not None else (max(1, want - 1) if page_wanted(r) else 1), len(pages)):

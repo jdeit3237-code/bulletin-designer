@@ -1010,3 +1010,15 @@ def test_total_pages_setting(app):
     c.post("/bulletins/1/total-pages", data={"total_pages": "12", "csrf": t})
     html = c.get("/bulletins/1/preview").text
     assert html.count('<section class="sheet') == 12
+
+
+def test_three_sections_same_requested_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, body, area in ((9, "AAA1", "left3"), (10, "BBB2", "left3"), (11, "CCC3", "right23")):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": body, "csrf": t})
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": area, "page_no": "8", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    pg = next(p for p in html.split('<section class="sheet') if "AAA1" in p)
+    assert "BBB2" in pg and "CCC3" in pg
