@@ -53,7 +53,7 @@
         {% for line in m.notes.split('\n') if line.strip() %}<p>{{ line }}</p>{% endfor %}</div>
       {% endfor %}
     {% else %}
-      {% for para in soft_paras(r.body) %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endfor %}
+      {% for para in soft_paras(r.body) %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}
     {% endif %}
     {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}

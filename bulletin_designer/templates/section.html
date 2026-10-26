@@ -203,12 +203,17 @@
       <button type="button" class="btn" data-fmt="s">Apply size</button>
       <button type="button" class="btn" data-fmt="x">Remove styling</button>
       <button type="button" class="btn" id="softret">Soft return</button>
+      <button type="button" class="btn" id="bulletbtn">Make selected lines bullets</button>
+      <label for="bullet_style" class="meta">Bullet type</label>
+      <select id="bullet_style" name="bullet_style">{% for k, v in BULLETS.items() %}<option value="{{ k }}" {{ 'selected' if (item.bullet_style or 'disc') == k }}>{{ v }}</option>{% endfor %}</select>
     </div>
     <textarea id="body" name="body">{{ item.body }}</textarea>
     {% raw %}<script>
     (function(){var t=document.getElementById('body');
     function strip(s){var p;do{p=s;s=s.replace(/\*\*(.*?)\*\*/gs,'$1').replace(/__(.*?)__/gs,'$1').replace(/\{#[0-9a-fA-F]{6}\|(.*?)\}/gs,'$1').replace(/\{\d{1,2}pt\|(.*?)\}/gs,'$1');}while(s!==p);return s;}
     function soft(){var a=t.selectionStart;t.value=t.value.slice(0,a)+'//\n'+t.value.slice(t.selectionEnd);t.focus();t.setSelectionRange(a+3,a+3);}
+    document.getElementById('bulletbtn').addEventListener('click',function(){var v=t.value,a=t.selectionStart,e=t.selectionEnd,st=v.lastIndexOf('\n',a-1)+1,en=v.indexOf('\n',e);if(en<0)en=v.length;
+      var seg=v.slice(st,en).split('\n').map(function(l){return l.trim()===''||/^[-*\u2022] /.test(l)?l:'- '+l;}).join('\n');t.value=v.slice(0,st)+seg+v.slice(en);t.focus();t.setSelectionRange(st,st+seg.length);});
     document.getElementById('softret').addEventListener('click',soft);
     t.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.shiftKey){e.preventDefault();soft();}});
     document.querySelectorAll('[data-fmt]').forEach(function(b){b.addEventListener('click',function(){
@@ -218,7 +223,7 @@
       else if(k==='s')r='{'+Math.min(40,Math.max(8,parseInt(document.getElementById('fmtsize').value)||14))+'pt|'+sel+'}';else if(k==='c')r='{'+document.getElementById('fmtcolor').value+'|'+sel+'}';else r=strip(sel);
       t.value=t.value.slice(0,a)+r+t.value.slice(e);t.focus();t.setSelectionRange(a,a+r.length);});});})();
     </script>{% endraw %}
-    <p class="meta">Press Enter for a new paragraph, or Shift+Enter (or the Soft return button) to start a new line without paragraph spacing (shown as // at the end of the line). Styling shows as ** ** (bold), __ __ (underline) and {% raw %}{#color|text}, {14pt|text}{% endraw %} in the box, and prints as styled text.</p>
+    <p class="meta">Start a line with - (dash and space) to make it a bullet, or select lines and click Make selected lines bullets; choose the bullet type beside it. Press Enter for a new paragraph, or Shift+Enter (or the Soft return button) to start a new line without paragraph spacing (shown as // at the end of the line). Styling shows as ** ** (bold), __ __ (underline) and {% raw %}{#color|text}, {14pt|text}{% endraw %} in the box, and prints as styled text.</p>
     {% endif %}
     <label for="source">Source / attribution (e.g. usccb.org, miamiarch.org, stpeterbpk.org)</label>
     <input id="source" name="source" type="text" value="{{ item.source }}">

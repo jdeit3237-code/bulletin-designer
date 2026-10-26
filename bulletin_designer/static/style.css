@@ -266,3 +266,13 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .ad-contact { position: absolute; left: 0; right: 0; bottom: .05in; margin: 0; }
 .sheet .pg-foot.slim { padding: .045in .25in; line-height: 1.1; border-top-width: 2px; margin-top: 0; min-height: 0; }
 .sheet .pg-foot.slim .foot-row { line-height: 1.05; }
+.sheet .bl { list-style: none; margin: 0 0 .06in 0; padding: 0; }
+.sheet .bl li { position: relative; padding-left: .28in; margin: 0 0 .03in 0; }
+.sheet .bl li::before { position: absolute; left: .08in; content: "\2022"; }
+.sheet .bl.b-circle li::before { content: "\25E6"; }
+.sheet .bl.b-square li::before { content: "\25AA"; }
+.sheet .bl.b-dash li::before { content: "\2013"; }
+.sheet .bl.b-check li::before { content: "\2713"; }
+.sheet .bl.b-arrow li::before { content: "\27A4"; }
+.sheet .bl.b-cross li::before { content: "\271D"; }
+.sheet .bl.b-star li::before { content: "\2605"; }
