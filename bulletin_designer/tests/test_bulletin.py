@@ -782,3 +782,35 @@ def test_photo_only_option(app):
     import os
     here = os.path.dirname(__file__)
     assert "Photo only" in open(os.path.join(here, "..", "templates", "section.html")).read()
+
+
+def _card(w, h, color):
+    import io
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (w, h), color).save(b, "PNG")
+    b.seek(0)
+    return b
+
+
+def test_ads_laid_out_on_last_two_pages(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    data = {"csrf": tok(c, "/ads"), "cards": [(_card(1050, 600, "navy"), "a.png"), (_card(1050, 600, "green"), "b.png"),
+                                              (_card(1050, 600, "red"), "c.png"), (_card(600, 1050, "gold"), "d.png")]}
+    r = c.post("/ads", data=data, content_type="multipart/form-data", follow_redirects=True)
+    assert "Added 4 card(s)" in r.text and "Vertical" in r.text
+    html = c.get("/bulletins/1/preview").text
+    assert html.count('class="ad"') == 4 and "Our Advertisers" in html
+    assert len(re.findall(r'class="sheet ', html)) % 4 == 0
+    last2 = html.split('aria-label="Page ')[-2:]
+    assert all("ad-grid" in p for p in last2)
+    # inactive cards are left out
+    c.post("/ads/save", data={"csrf": tok(c, "/ads"), "name_1": "A", "pos_1": "1", "active_1": "1", "active_2": "1", "active_3": "1"}, follow_redirects=True)
+    assert c.get("/bulletins/1/preview").text.count('class="ad"') == 3
+
+
+def test_ads_none_means_no_ad_pages(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "ad-grid" not in c.get("/bulletins/1/preview").text.replace(".ad-grid", "")

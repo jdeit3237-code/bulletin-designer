@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% block title %}Advertisements{% endblock %}
+{% block content %}
+<h1>Advertisements</h1>
+<p>Add each business card once. Active cards are placed automatically on the last two pages of every bulletin, sized to fit and centered. Cards stay here from week to week, so you only add or remove what changes.</p>
+{% if ads %}<p role="status"><strong>{{ ads|selectattr('active')|list|length }}</strong> active card(s) fill <strong>{{ ad_page_count }}</strong> page(s).</p>{% endif %}
+{% if g.user.role in ('admin','editor') %}
+<h2>Add business cards</h2>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="cards">Card images (JPG, PNG, GIF, WebP or PDF; you can choose several at once)</label>
+  <input id="cards" name="cards" type="file" accept="image/*,.pdf,application/pdf" multiple required>
+  <p class="meta">Horizontal and vertical cards are detected automatically. A PDF uses its first page.</p>
+  <p><button class="btn">Add cards</button></p>
+</form>
+{% endif %}
+<h2>Cards</h2>
+{% if ads %}
+<form method="post" action="{{ url_for('ads_save') }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <table>
+    <caption class="small">Lower numbers print first within horizontal and vertical groups. Untick Print to leave a card out without deleting it.</caption>
+    <thead><tr><th scope="col">Card</th><th scope="col">Name</th><th scope="col">Order</th><th scope="col">Print</th><th scope="col">Remove</th></tr></thead>
+    <tbody>
+    {% for a in ads %}
+      <tr>
+        <td><img src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="max-width:180px;max-height:120px;border:1px solid #bbb"><br><span class="meta">{{ 'Horizontal' if a.w >= a.h else 'Vertical' }}</span></td>
+        <td><label class="sr-only" for="n{{ a.id }}">Name</label><input id="n{{ a.id }}" name="name_{{ a.id }}" type="text" value="{{ a.name }}"></td>
+        <td><label class="sr-only" for="p{{ a.id }}">Order</label><input id="p{{ a.id }}" name="pos_{{ a.id }}" type="number" value="{{ a.position }}" style="width:5em"></td>
+        <td><input type="checkbox" name="active_{{ a.id }}" value="1" {{ 'checked' if a.active }} aria-label="Print {{ a.name }}"></td>
+        <td>{% if g.user.role in ('admin','editor') %}<button class="btn secondary" formaction="{{ url_for('ads_delete', aid=a.id) }}" onclick="return confirm('Remove this card?')">Remove</button>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if g.user.role in ('admin','editor') %}<p><button class="btn">Save changes</button></p>{% endif %}
+</form>
+{% else %}<p>No cards yet.</p>{% endif %}
+{% endblock %}

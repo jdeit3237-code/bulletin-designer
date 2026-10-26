@@ -245,3 +245,8 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec.img-only figure { margin: 0; }
 
 .sec.hide-title > h2 { display: none; }
+
+.sheet .ad-title { text-align: center; font: bold 13pt Arial, sans-serif; color: #1f6b4d; margin: .1in 0 .1in; }
+.sheet .ad-grid { height: 8.3in; }
+.sheet .ad-row { text-align: center; font-size: 0; line-height: 0; white-space: nowrap; }
+.sheet .ad-grid img.ad { display: inline-block; vertical-align: middle; margin: 0 .125in; max-width: none; max-height: none; object-fit: contain; border: .5pt solid #bbb; background: #fff; }

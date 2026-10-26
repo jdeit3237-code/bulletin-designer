@@ -85,7 +85,10 @@
     </ol></div>{% endif %}{% endset %}
   {% if loop.first and not side_by_side %}<div class="half">{{ toc_html }}</div>{% endif %}
   {% endif %}
-  {% if p.row %}
+  {% if p.ad_rows is defined %}
+    <p class="ad-title">Thank you to our advertisers - please support them</p>
+    <div class="ad-grid" style="padding-top:{{ p.ad_gap }}in">{% for row in p.ad_rows %}<div class="ad-row" style="height:{{ row|map(attribute='h')|max }}in;margin-bottom:{{ p.ad_gap }}in">{% for a in row %}<img class="ad" src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="width:{{ a.w }}in;height:{{ a.h }}in">{% endfor %}</div>{% endfor %}</div>
+  {% elif p.row %}
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
     {% if side_by_side %}
     {% set place = b.toc_place or 'left' %}

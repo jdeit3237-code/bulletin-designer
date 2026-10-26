@@ -70,6 +70,64 @@ DEFAULT_SECTIONS = [
 ]
 
 
+AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 8.2, 0.25, 0.22
+
+
+def pack_ads(cards, scale):
+    """Shelf-pack cards (long edge 3.5in x scale, true aspect). Horizontal cards first, then vertical. Returns pages of rows."""
+    def size(c):
+        ratio = min(c["w"], c["h"]) / max(c["w"], c["h"]) if c["w"] and c["h"] else 0.57
+        long_edge = 3.5 * scale
+        return (long_edge, long_edge * ratio) if c["w"] >= c["h"] else (long_edge * ratio, long_edge)
+    ordered = [c for c in cards if c["w"] >= c["h"]] + [c for c in cards if c["w"] < c["h"]]
+    rows, row, row_w = [], [], 0.0
+    for c in ordered:
+        w, h = size(c)
+        item = {"name": c["name"], "image": c["image"], "w": round(w, 3), "h": round(h, 3)}
+        if row and (row_w + AD_GAP_X + w > AD_W + 0.001 or (row[0]["w"] >= row[0]["h"]) != (c["w"] >= c["h"])):
+            rows.append(row)
+            row, row_w = [], 0.0
+        row_w += (AD_GAP_X if row else 0) + w
+        row.append(item)
+    if row:
+        rows.append(row)
+    pages, cur, used = [], [], 0.0
+    for r in rows:
+        h = max(i["h"] for i in r)
+        if cur and used + AD_GAP_Y + h > AD_H:
+            pages.append(cur)
+            cur, used = [], 0.0
+        used += (AD_GAP_Y if cur else 0) + h
+        cur.append(r)
+    if cur:
+        pages.append(cur)
+    return pages
+
+
+def ad_pages(cards):
+    """Fit all cards on the last two pages (largest uniform scale that works); more pages only if it cannot fit."""
+    if not cards:
+        return []
+    for scale in (1.0, 0.95, 0.9, 0.85, 0.8, 0.75):
+        pages = pack_ads(cards, scale)
+        if len(pages) <= 2:
+            break
+    else:
+        pages = pack_ads(cards, 0.85)
+    if len(pages) == 1 and len(pages[0]) > 1:
+        rows = pages[0]
+        mid = (len(rows) + 1) // 2
+        pages = [rows[:mid], rows[mid:]]
+    elif len(pages) == 1:
+        pages = [pages[0], []]
+    out = []
+    for rows in pages:
+        used = sum(max(i["h"] for i in r) for r in rows)
+        gap = min(0.6, max(AD_GAP_Y, (AD_H - used) / (len(rows) + 1))) if rows else 0
+        out.append({"rows": rows, "gap": round(gap, 3)})
+    return out
+
+
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
@@ -133,7 +191,7 @@ def create_app(config=None):
         SECRET_KEY=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
         DATABASE=os.environ.get("BULLETIN_DB", os.path.join(base, "bulletin.db")),
         UPLOAD_DIR=os.environ.get("BULLETIN_UPLOADS", os.path.join(base, "uploads")),
-        MAX_CONTENT_LENGTH=12 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=40 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
@@ -162,6 +220,8 @@ def create_app(config=None):
             weekly INTEGER, pages INTEGER, position INTEGER, hint TEXT, bulletin_id INTEGER);
         CREATE TABLE IF NOT EXISTS photos(id INTEGER PRIMARY KEY, filename TEXT, title TEXT, alt TEXT,
             tags TEXT DEFAULT '', uploaded_by TEXT, decorative INTEGER DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS ads(id INTEGER PRIMARY KEY, name TEXT, image TEXT, w INTEGER, h INTEGER,
+            position INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
             PRIMARY KEY(user_id, section_id));
         CREATE TABLE IF NOT EXISTS bulletins(id INTEGER PRIMARY KEY, sunday TEXT UNIQUE,
@@ -671,8 +731,15 @@ def create_app(config=None):
         cur = len(pages) + 1
         extra = db().execute("SELECT extra_pages FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
         extra = (extra["extra_pages"] or 0) if extra else 0
-        for _ in range(((-len(pages)) % 4 if pages else 4) + extra):
+        ads = [dict(r) for r in db().execute("SELECT name,image,w,h FROM ads WHERE active=1 ORDER BY position, id").fetchall()]
+        ad_pg = ad_pages(ads)
+        for _ in range(((-(len(pages) + len(ad_pg))) % 4 if pages else 4) + extra):
             pages.append({"row": None, "number": cur})
+            cur += 1
+        for k, pg_ in enumerate(ad_pg):
+            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_first": k == 0, "number": cur})
+            if k == 0:
+                toc.append({"title": "Our Advertisers", "page": cur, "pos": 99999})
             cur += 1
         return pages, toc
 
@@ -1426,6 +1493,87 @@ def create_app(config=None):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
+
+    def save_ad_file(f):
+        from PIL import Image, ImageOps
+        ext = f.filename.rsplit(".", 1)[-1].lower() if f.filename and "." in f.filename else ""
+        base = f"{uuid.uuid4().hex}"
+        if ext == "pdf":
+            try:
+                import fitz
+                doc = fitz.open(stream=f.read(), filetype="pdf")
+                pix = doc[0].get_pixmap(dpi=300)
+                name = base + ".png"
+                pix.save(os.path.join(app.config["UPLOAD_DIR"], name))
+                return name, pix.width, pix.height
+            except Exception:
+                return None
+        if ext not in IMAGE_EXT:
+            return None
+        try:
+            im = ImageOps.exif_transpose(Image.open(f.stream))
+            png = im.mode in ("RGBA", "LA", "P")
+            name = base + (".png" if png else ".jpg")
+            im.save(os.path.join(app.config["UPLOAD_DIR"], name), **({} if png else {"quality": 92}))
+            return name, im.width, im.height
+        except Exception:
+            return None
+
+    @app.route("/ads", methods=["GET", "POST"])
+    @need()
+    def ads():
+        conn = db()
+        if request.method == "POST":
+            if g.user["role"] not in ("admin", "editor"):
+                abort(403)
+            added, bad = 0, 0
+            for f in request.files.getlist("cards"):
+                if not f or not f.filename:
+                    continue
+                res = save_ad_file(f)
+                if not res:
+                    bad += 1
+                    continue
+                nxt = conn.execute("SELECT COALESCE(MAX(position),0)+1 FROM ads").fetchone()[0]
+                title = os.path.splitext(secure_filename(f.filename))[0].replace("_", " ").replace("-", " ").strip()[:80]
+                conn.execute("INSERT INTO ads(name,image,w,h,position,active) VALUES(?,?,?,?,?,1)", (title or "Advertiser", res[0], res[1], res[2], nxt))
+                added += 1
+            conn.commit()
+            flash(f"Added {added} card(s)." + (f" {bad} file(s) could not be read (use JPG, PNG, GIF, WebP or PDF)." if bad else ""), "error" if bad and not added else "ok")
+            return redirect(url_for("ads"))
+        rows = conn.execute("SELECT * FROM ads ORDER BY position, id").fetchall()
+        pg = ad_pages([dict(r) for r in rows if r["active"]])
+        return render_template("ads.html", ads=rows, ad_page_count=len(pg))
+
+    @app.route("/ads/save", methods=["POST"])
+    @need("admin", "editor")
+    def ads_save():
+        conn = db()
+        for r in conn.execute("SELECT id FROM ads").fetchall():
+            i = r["id"]
+            try:
+                pos = int(request.form.get(f"pos_{i}", "0"))
+            except ValueError:
+                pos = 0
+            conn.execute("UPDATE ads SET name=?, position=?, active=? WHERE id=?",
+                         (request.form.get(f"name_{i}", "").strip()[:80] or "Advertiser", pos, 1 if request.form.get(f"active_{i}") else 0, i))
+        conn.commit()
+        flash("Advertisements saved.", "ok")
+        return redirect(url_for("ads"))
+
+    @app.route("/ads/<int:aid>/delete", methods=["POST"])
+    @need("admin", "editor")
+    def ads_delete(aid):
+        conn = db()
+        a = conn.execute("SELECT * FROM ads WHERE id=?", (aid,)).fetchone() or abort(404)
+        conn.execute("DELETE FROM ads WHERE id=?", (aid,))
+        conn.commit()
+        try:
+            os.remove(os.path.join(app.config["UPLOAD_DIR"], a["image"]))
+        except OSError:
+            pass
+        flash("Card removed.", "ok")
+        return redirect(url_for("ads"))
 
     @app.route("/library", methods=["GET", "POST"])
     @need()
