@@ -989,3 +989,15 @@ def test_photo_width_and_multi_paragraph_size(app):
     html = c.get("/bulletins/1/preview").text
     assert "width:70%" in html
     assert "{18pt" not in html and html.count("font-size:18pt") >= 2
+
+
+def test_third_and_two_thirds_share_requested_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, body, area in ((9, "LEFTTHIRD", "left3"), (10, "RIGHTTWO", "right23")):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": body, "csrf": t})
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": area, "page_no": "8", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    pg = next(p for p in html.split('<section class="sheet') if "LEFTTHIRD" in p)
+    assert "RIGHTTWO" in pg

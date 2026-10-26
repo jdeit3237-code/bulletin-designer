@@ -793,6 +793,7 @@ def create_app(config=None):
         def page_wanted(r):
             return r["page_no"] or (2 if r["slug"] == "mass-intentions" else 0)
 
+        made = {}
         for r in sorted(halves, key=lambda r: (page_wanted(r) or 99, r["position"])):
             side, want = area_of(r), max(2, page_wanted(r))
             third = side.endswith("3")
@@ -810,7 +811,8 @@ def create_app(config=None):
                     and bool(pages[want - 1]["duo"].get("third")) == third and pages[want - 1]["duo"][side] is not None:
                 pages[want - 1]["duo"][side + "_more"].append(r)
                 continue
-            for k in range(max(1, want - 1) if page_wanted(r) else 1, len(pages)):
+            first = next((i for i, pg in enumerate(pages) if pg is made.get(want)), None) if page_wanted(r) else None
+            for k in range(first if first is not None else (max(1, want - 1) if page_wanted(r) else 1), len(pages)):
                 if pages[k].get("duo") is not None and fits(pages[k]["duo"]):
                     idx = k
                     break
@@ -822,6 +824,8 @@ def create_app(config=None):
                     at += 1
                 pages.insert(at, new)
                 idx = at
+                if page_wanted(r):
+                    made.setdefault(want, new)
             pages[idx]["duo"][side] = r
             d = pages[idx]["duo"]
             pages[idx]["row"] = next(d[k] for k in ("left", "right", "left3", "mid3", "right3", "left23", "right23") if d[k])
