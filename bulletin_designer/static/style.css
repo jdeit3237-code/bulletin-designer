@@ -276,3 +276,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .bl.b-arrow li::before { content: "\27A4"; }
 .sheet .bl.b-cross li::before { content: "\271D"; }
 .sheet .bl.b-star li::before { content: "\2605"; }
+.sheet .bl { margin-bottom: 0; }
+.sheet .bl + p.bp, .sheet .bl + .bl { margin-top: 0; }
+.sheet .bl li:last-child { margin-bottom: 0; }

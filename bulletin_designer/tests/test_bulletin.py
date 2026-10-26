@@ -884,3 +884,8 @@ def test_bullets(app):
     h = c.get("/bulletins/1/preview").text.replace("\n", "")
     assert 'class="bl b-check"><li>one</li><li>two</li></ul>' in h
     assert "After" in h and "Intro" in h
+
+
+def test_paragraph_after_bullets_has_no_gap():
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    assert ".bl + p.bp" in css and "margin-top: 0" in css.split(".bl + p.bp")[1][:80]
