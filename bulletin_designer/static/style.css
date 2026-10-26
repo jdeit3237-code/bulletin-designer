@@ -317,3 +317,9 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .y1 { border-color: #1fa3c4; background: #eaf8fc; } .y1 .ydate { background: #1fa3c4; }
 .y2 { border-color: #8e5bd4; background: #f4eefc; } .y2 .ydate { background: #8e5bd4; }
 .y3 { border-color: #2fa866; background: #eaf8f0; } .y3 .ydate { background: #2fa866; }
+
+/* Sections sharing one page: photos shrink to share the space */
+.sheet .shared figure img { max-height: var(--ph); }
+
+/* Photo-only page: use the whole page body */
+.sheet .sec.img-only figure img { max-height: 8.9in; }

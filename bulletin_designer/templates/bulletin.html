@@ -88,7 +88,7 @@
     <figure class="hdr-photo"><div class="crop" style="height:{{ b.hdr_h or (1.8 if side_by_side else 2.4) }}in"><img src="{{ url_for('uploads', name=himg) if himg else url_for('static', filename='church.jpg') }}" alt="{{ b.hdr_alt if himg else 'St. Peter the Fisherman Catholic Church: the pointed glass facade with the bronze statue of St. Peter casting his net' }}" style="object-position:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%;transform:scale({{ b.hdr_zoom or 1 }});transform-origin:{{ b.hdr_x if b.hdr_x is not none else 50 }}% {{ b.hdr_y if b.hdr_y is not none else 50 }}%"></div></figure>
     <div class="wave-bot"></div>
     </div>
-  {% set toc_html %}{% if b.toc_show is none or b.toc_show %}<div class="toc-box {{ 'custom-size' if b.toc_pt }} {{ 'fs-' ~ b.toc_style if b.toc_style }}"{% if b.toc_pt or b.toc_item_gap %} style="{% if b.toc_pt %}--fs: {{ b.toc_pt }}pt;{% endif %}{% if b.toc_item_gap %}--ig: {{ b.toc_item_gap }}in;{% endif %}"{% endif %}><h2{% if b.toc_title_gap %} style="margin-bottom:{{ b.toc_title_gap }}in"{% endif %}>{{ b.toc_title or 'In this issue' }}</h2>
+  {% set toc_html %}{% if b.toc_show is none or b.toc_show %}<div class="toc-box {{ 'custom-size' if b.toc_pt }} {{ 'fs-' ~ b.toc_style if b.toc_style }}"{% if b.toc_pt or b.toc_item_gap or b.toc_before %} style="{% if b.toc_before %}margin-top:calc({{ 0 if b.toc_before <= 0.001 else b.toc_before }}in - .15in);{% endif %}{% if b.toc_pt %}--fs: {{ b.toc_pt }}pt;{% endif %}{% if b.toc_item_gap %}--ig: {{ b.toc_item_gap }}in;{% endif %}"{% endif %}><h2{% if b.toc_title_gap or b.toc_before %} style="{% if b.toc_before %}margin-top:0;{% endif %}{% if b.toc_title_gap %}margin-bottom:{{ b.toc_title_gap }}in{% endif %}"{% endif %}>{{ b.toc_title or 'In this issue' }}</h2>
     <ol class="toc" aria-label="Table of contents"{% if (b.toc_cols or 1) > 1 %} style="column-count:{{ b.toc_cols }};column-gap:.25in"{% endif %}>
     {% for t in toc if t.page >= (b.toc_start or 2) %}<li><a href="#pg{{ t.page }}">{{ t.title }}</a><span class="dots" aria-hidden="true"></span><span>Page {{ t.page }}</span></li>{% endfor %}
     </ol></div>{% endif %}{% endset %}
@@ -99,7 +99,7 @@
     <div class="ad-grid" style="padding-top:{{ p.ad_gap }}in">{% for row in p.ad_rows %}<div class="ad-row" style="height:{{ row|map(attribute='h')|max }}in;margin-bottom:{{ p.ad_gap }}in">{% for a in row %}<img class="ad" src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="width:{{ a.w }}in;height:{{ a.h }}in">{% endfor %}</div>{% endfor %}</div>
     {% if p.ad_last %}<div class="ad-banner ad-contact"><strong>Advertise With Us!</strong><span>Contact Nancy in the Parish Office: (305) 872-2537 &middot; Email nancy@stpeterbpk.org</span></div>{% endif %}
   {% elif p.row %}
-    {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
+    {% set r = p.row %}<div id="pg{{ p.number }}" class="{{ 'shared' if p.photo_h }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}{{ '--ph:' ~ p.photo_h ~ 'in;' if p.photo_h }}">
     {% for m in p.above %}{{ render_row(m, {'part': 1}) }}{% endfor %}
     {% if side_by_side %}
     {% set place = b.toc_place or 'left' %}

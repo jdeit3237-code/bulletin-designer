@@ -1083,3 +1083,25 @@ def test_two_full_sections_same_page(app):
     html = c.get("/bulletins/1/preview").text
     pg = [x for x in html.split('class="sheet')[1:] if "Employment text" in x or "Souls text" in x]
     assert len(pg) == 1 and "Employment text" in pg[0] and "Souls text" in pg[0]
+
+
+def test_toc_space_before_setting(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/toc-settings", data={"toc_before": "0", "toc_start": "2", "toc_show": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "margin-top:calc(0in - .15in)" in html
+    assert 'name="toc_before"' in c.get("/bulletins/1").text
+
+
+def test_shared_page_photos_shrink(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, nm in ((9, "AAA"), (10, "BBB")):
+        c.post(f"/bulletins/1/section/{sid}", data={"csrf": t, "body": (nm + " text line. ") * 40, "img_pos": "below", "decorative": "1",
+               "image": (_card(1000, 500, "red"), "x.png")}, content_type="multipart/form-data")
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": "full", "page_no": "3", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert 'class="shared"' in html and "--ph:" in html

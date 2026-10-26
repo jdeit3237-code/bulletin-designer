@@ -165,7 +165,7 @@ def doc_text(path):
 
 
 BULLETIN_CARRY = ("footer", "hdr_image", "hdr_alt", "hdr_h", "hdr_zoom", "hdr_x", "hdr_y", "hdr_style",
-                  "toc_title", "toc_title_gap", "toc_item_gap", "toc_start", "toc_show", "toc_pt", "toc_style",
+                  "toc_title", "toc_before", "toc_title_gap", "toc_item_gap", "toc_start", "toc_show", "toc_pt", "toc_style",
                   "toc_place", "toc_cols", "no_stragglers", "no_underline")
 
 
@@ -260,6 +260,8 @@ def create_app(config=None):
                          ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
+        if "toc_before" not in bcols:
+            conn.execute("ALTER TABLE bulletins ADD COLUMN toc_before REAL DEFAULT 0")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
         for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0), ("min_h", 0)):
             if col not in have:
@@ -899,6 +901,12 @@ def create_app(config=None):
                 pages.append({"row": r, "part": 1, "of": 1})
             else:
                 target.setdefault("more" if area_of(r) == "below" else "above", []).append(r)
+        for pg in pages:
+            if pg.get("more") and pg.get("row") is not None and not pg.get("duo"):
+                share = [pg["row"]] + list(pg["more"])
+                text_in = sum(0.55 + 0.26 * sum(max(1, -(-len(x) // 85)) for x in (r["body"] or "").splitlines() if x.strip()) for r in share)
+                n_ph = sum(1 for r in share if r["image"]) or 1
+                pg["photo_h"] = round(max(1.2, min(5.0, (8.4 - text_in) / n_ph)), 2)
         toc = []
         for n, p in enumerate(pages, 1):
             p["number"] = n
@@ -1733,12 +1741,12 @@ def create_app(config=None):
             start, pt = 2, 0
         pt = pt if pt == 0 or 8 <= pt <= 16 else 0
         style = request.form.get("toc_style")
-        db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=?, toc_place=?, toc_cols=?, toc_title_gap=?, toc_item_gap=? WHERE id=?",
+        db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=?, toc_place=?, toc_cols=?, toc_title_gap=?, toc_item_gap=?, toc_before=? WHERE id=?",
                      (request.form.get("toc_title", "").strip()[:60], start, 1 if request.form.get("toc_show") else 0,
                       pt, style if style in FONT_STYLES else "",
                       request.form.get("toc_place") if request.form.get("toc_place") in ("left", "right", "full") else "left",
                       request.form.get("toc_cols") if request.form.get("toc_cols") in ("1", "2", "3", "4") else 1,
-                      gap_value(request.form.get("toc_title_gap")), gap_value(request.form.get("toc_item_gap")), bid))
+                      gap_value(request.form.get("toc_title_gap")), gap_value(request.form.get("toc_item_gap")), gap_value(request.form.get("toc_before")), bid))
         db().commit()
         flash("Contents settings saved.", "ok")
         return redirect(url_for("edit", bid=bid))
