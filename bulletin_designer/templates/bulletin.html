@@ -8,7 +8,8 @@
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
 {% macro render_row(r, p) %}<div class="sec sec-{{ r.slug }} {{ 'has-ig' if r.item_gap }} {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h or r.item_gap %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}{% if r.item_gap %}--ig: {{ r.item_gap }}in;{% endif %}"{% endif %}>
-    {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
+    {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
+    {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
       {% if cv.extra %}<p>{{ tight(cv.extra, b.no_stragglers) }}</p>{% endif %}

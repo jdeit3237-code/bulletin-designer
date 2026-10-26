@@ -221,3 +221,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .sheet.no-ul .intent h4 { border-bottom: 0; padding-bottom: 0; text-decoration: none; }
 .sheet.no-ul .staff-role, .sheet.no-ul .toc a, .sheet.no-ul h3, .sheet.no-ul h4, .sheet.no-ul a { text-decoration: none; }
+
+.sheet .sec-mass-schedule h2 { background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); color: #fff; border-radius: 4px;
+  border-bottom: 4px solid var(--gold-bright); padding: .06in .1in; text-align: center; overflow: hidden; -webkit-print-color-adjust: exact; }

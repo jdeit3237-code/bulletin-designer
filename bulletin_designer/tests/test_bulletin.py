@@ -682,3 +682,14 @@ def test_mass_notes_textarea(app):
     assert "Bring canned goods\nSecond collection" in c.get(f"/bulletins/1/section/{sid}").text
     html = c.get("/bulletins/1/preview").text
     assert "<p>Bring canned goods</p>" in html and "<p>Second collection</p>" in html
+
+
+def test_mass_schedule_heading_is_fitted_green_block(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
+           "m0_lectors": "Ann Kay", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert re.search(r'<h2 style="font-size:[\d.]+pt;white-space:(nowrap|normal)', html)
