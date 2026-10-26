@@ -1,4 +1,5 @@
 """St. Peter the Fisherman weekly bulletin designer (standalone Flask app)."""
+import hashlib
 import io
 import json
 import os
@@ -6,6 +7,7 @@ import re
 import secrets
 import sqlite3
 import shutil
+import smtplib
 import subprocess
 import tempfile
 import urllib.request
@@ -13,6 +15,7 @@ import zipfile
 from xml.etree import ElementTree
 import uuid
 from datetime import date, datetime, timedelta
+from email.message import EmailMessage
 from functools import wraps
 
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
@@ -227,6 +230,7 @@ def create_app(config=None):
             position INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY, asked_by TEXT, question TEXT, answer TEXT DEFAULT '',
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
+        CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
         CREATE TABLE IF NOT EXISTS event_titles(id INTEGER PRIMARY KEY, title TEXT UNIQUE);
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
@@ -260,6 +264,8 @@ def create_app(config=None):
                          ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
+        if "email" not in {r[1] for r in conn.execute("PRAGMA table_info(users)")}:
+            conn.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''")
         if "is_template" not in bcols:
             conn.execute("ALTER TABLE bulletins ADD COLUMN is_template INTEGER DEFAULT 0")
         if "toc_before" not in bcols:
@@ -346,7 +352,7 @@ def create_app(config=None):
             if not secrets.compare_digest(request.form.get("csrf", ""), session["csrf"]):
                 abort(400, "Invalid form token")
         if (g.user and g.user["must_reset"] and request.endpoint
-                not in ("password", "logout", "static")):
+                not in ("password", "logout", "static", "forgot", "reset_with_token", "register")):
             return redirect(url_for("password"))
 
     app.jinja_env.globals["csrf"] = lambda: session.get("csrf", "")
@@ -976,15 +982,120 @@ def create_app(config=None):
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
-            u = db().execute("SELECT * FROM users WHERE username=?",
-                             (request.form.get("username", "").strip().lower(),)).fetchone()
+            who = request.form.get("username", "").strip().lower()
+            u = db().execute("SELECT * FROM users WHERE username=? OR (email<>'' AND email=?)", (who, who)).fetchone()
             if u and check_password_hash(u["pw_hash"], request.form.get("password", "")):
                 session.clear()
                 session["uid"] = u["id"]
                 session["csrf"] = secrets.token_hex(16)
                 return redirect(safe_next(request.args.get("next")) or url_for("dashboard"))
-            flash("Incorrect username or password.", "error")
+            flash("Incorrect email or password.", "error")
         return render_template("login.html")
+
+    # ---------- email, registration and password recovery ----------
+    EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+    def send_mail(to, subject, body):
+        """Send through the SMTP account set in environment variables; returns True if sent."""
+        hook = app.config.get("MAIL_SENDER")
+        if hook:
+            return bool(hook(to, subject, body))
+        host = os.environ.get("SMTP_HOST")
+        if not host:
+            return False
+        msg = EmailMessage()
+        msg["To"], msg["Subject"] = to, subject
+        msg["From"] = os.environ.get("MAIL_FROM") or os.environ.get("SMTP_USER", "")
+        msg.set_content(body)
+        try:
+            with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587")), timeout=20) as sm:
+                sm.starttls()
+                if os.environ.get("SMTP_USER"):
+                    sm.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
+                sm.send_message(msg)
+            return True
+        except (OSError, smtplib.SMTPException):
+            return False
+
+    def make_token(uid, kind, hours):
+        raw = secrets.token_urlsafe(32)
+        conn = db()
+        conn.execute("DELETE FROM tokens WHERE user_id=? AND kind=?", (uid, kind))
+        conn.execute("INSERT INTO tokens(user_id,kind,token_hash,expires) VALUES(?,?,?,?)",
+                     (uid, kind, hashlib.sha256(raw.encode()).hexdigest(), (datetime.utcnow() + timedelta(hours=hours)).isoformat()))
+        conn.commit()
+        return raw
+
+    def find_token(raw, kinds):
+        row = db().execute("SELECT * FROM tokens WHERE token_hash=?", (hashlib.sha256((raw or "").encode()).hexdigest(),)).fetchone()
+        if not row or row["kind"] not in kinds or row["expires"] < datetime.utcnow().isoformat():
+            return None
+        return row
+
+    def invite_user(u):
+        """Email the registration link. Returns (sent, link)."""
+        link = url_for("register", token=make_token(u["id"], "invite", 24 * 7), _external=True)
+        body = ("Hello %s,\n\nAn account has been created for you on the St. Peter the Fisherman Bulletin Designer.\n"
+                "Open this link to choose your password and finish registering (good for 7 days):\n\n%s\n\n"
+                "Your sign-in is this email address.\n" % (u["display_name"] or u["username"], link))
+        return send_mail(u["email"], "Finish setting up your bulletin account", body), link
+
+    @app.route("/register/<token>", methods=["GET", "POST"])
+    def register(token):
+        t = find_token(token, ("invite",))
+        if not t:
+            flash("That registration link is invalid or has expired. Ask an administrator to send a new one.", "error")
+            return redirect(url_for("login"))
+        u = db().execute("SELECT * FROM users WHERE id=?", (t["user_id"],)).fetchone()
+        if request.method == "POST":
+            new = request.form.get("new", "")
+            if len(new) < 10 or new != request.form.get("again", ""):
+                flash("Type the same password twice, at least 10 characters.", "error")
+            else:
+                name = request.form.get("display_name", "").strip()
+                db().execute("UPDATE users SET pw_hash=?, must_reset=0, display_name=? WHERE id=?",
+                             (generate_password_hash(new), name or u["display_name"], u["id"]))
+                db().execute("DELETE FROM tokens WHERE user_id=?", (u["id"],))
+                db().commit()
+                session.clear()
+                session["uid"] = u["id"]
+                session["csrf"] = secrets.token_hex(16)
+                flash("Welcome! Your account is ready.", "ok")
+                return redirect(url_for("dashboard"))
+        return render_template("register.html", u=u, reset=False)
+
+    @app.route("/forgot", methods=["GET", "POST"])
+    def forgot():
+        if request.method == "POST":
+            who = request.form.get("email", "").strip().lower()
+            u = db().execute("SELECT * FROM users WHERE email<>'' AND (email=? OR username=?)", (who, who)).fetchone()
+            if u:
+                link = url_for("reset_with_token", token=make_token(u["id"], "reset", 2), _external=True)
+                send_mail(u["email"], "Reset your bulletin password",
+                          "Open this link to choose a new password (good for 2 hours):\n\n%s\n\n"
+                          "If you did not ask for this, ignore this email.\n" % link)
+            flash("If that email has an account, a reset link has been sent. Check your inbox.", "ok")
+            return redirect(url_for("login"))
+        return render_template("forgot.html")
+
+    @app.route("/reset/<token>", methods=["GET", "POST"])
+    def reset_with_token(token):
+        t = find_token(token, ("reset",))
+        if not t:
+            flash("That reset link is invalid or has expired. Ask for a new one.", "error")
+            return redirect(url_for("forgot"))
+        u = db().execute("SELECT * FROM users WHERE id=?", (t["user_id"],)).fetchone()
+        if request.method == "POST":
+            new = request.form.get("new", "")
+            if len(new) < 10 or new != request.form.get("again", ""):
+                flash("Type the same password twice, at least 10 characters.", "error")
+            else:
+                db().execute("UPDATE users SET pw_hash=?, must_reset=0 WHERE id=?", (generate_password_hash(new), u["id"]))
+                db().execute("DELETE FROM tokens WHERE user_id=?", (u["id"],))
+                db().commit()
+                flash("Password changed. Please sign in.", "ok")
+                return redirect(url_for("login"))
+        return render_template("register.html", u=u, reset=True)
 
     @app.route("/logout", methods=["POST"])
     def logout():
@@ -2143,21 +2254,42 @@ def create_app(config=None):
             action = request.form.get("action")
             if action == "create":
                 role = request.form.get("role")
-                name = request.form.get("username", "").strip().lower()
-                pw = request.form.get("password", "")
-                if role in ROLES and name and len(pw) >= 10:
+                email = request.form.get("username", "").strip().lower()
+                if role in ROLES and EMAIL_RE.match(email):
                     try:
-                        cur = conn.execute("""INSERT INTO users(username,display_name,pw_hash,role,must_reset)
-                            VALUES(?,?,?,?,1)""", (name, request.form.get("display_name", name),
-                                                  generate_password_hash(pw), role))
+                        cur = conn.execute("""INSERT INTO users(username,email,display_name,pw_hash,role,must_reset)
+                            VALUES(?,?,?,?,?,1)""", (email, email, request.form.get("display_name", "").strip() or email,
+                                                  generate_password_hash(secrets.token_urlsafe(24)), role))
                         if role == "contributor":
                             for sid in request.form.getlist("sections"):
                                 conn.execute("INSERT OR IGNORE INTO user_sections VALUES(?,?)",
                                              (cur.lastrowid, int(sid)))
+                        conn.commit()
+                        sent, link = invite_user(conn.execute("SELECT * FROM users WHERE id=?", (cur.lastrowid,)).fetchone())
+                        flash("Invitation emailed to %s." % email if sent else
+                              "Email is not set up on the server, so nothing was sent. Copy this link and send it to %s yourself: %s" % (email, link),
+                              "ok" if sent else "error")
                     except sqlite3.IntegrityError:
-                        flash("That username exists.", "error")
+                        flash("That email already has an account.", "error")
                 else:
-                    flash("Username, valid role and a 10+ character password are required.", "error")
+                    flash("Enter a valid email address and an access level.", "error")
+            elif action == "invite":
+                u = conn.execute("SELECT * FROM users WHERE id=?", (int(request.form["uid"]),)).fetchone()
+                if u and u["email"]:
+                    sent, link = invite_user(u)
+                    flash("Invitation emailed to %s." % u["email"] if sent else
+                          "Email is not set up, so copy this link and send it yourself: %s" % link, "ok" if sent else "error")
+                else:
+                    flash("That user has no email address. Add one first.", "error")
+            elif action == "setemail":
+                em = request.form.get("email", "").strip().lower()
+                if EMAIL_RE.match(em):
+                    try:
+                        conn.execute("UPDATE users SET email=? WHERE id=?", (em, int(request.form["uid"])))
+                    except sqlite3.IntegrityError:
+                        pass
+                else:
+                    flash("Enter a valid email address.", "error")
             elif action == "role":
                 uid = int(request.form["uid"])
                 if request.form.get("role") in ROLES and uid != g.user["id"]:

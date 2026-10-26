@@ -13,7 +13,23 @@ CSS = os.path.join(os.path.dirname(__file__), "..", "static", "style.css")
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
     monkeypatch.setenv("BULLETIN_ADMIN_PASSWORD", "temporary-pass-1")
-    return create_app({"DATABASE": str(tmp_path / "t.db"), "UPLOAD_DIR": str(tmp_path / "up")})
+    outbox = []
+    a = create_app({"DATABASE": str(tmp_path / "t.db"), "UPLOAD_DIR": str(tmp_path / "up"),
+                    "MAIL_SENDER": lambda to, subj, body: outbox.append((to, subj, body)) or True})
+    a.outbox = outbox
+    return a
+
+
+def register_user(app, admin, email, role, sections=None):
+    data = {"action": "create", "username": email, "role": role, "csrf": tok(admin, "/admin/users")}
+    if sections:
+        data["sections"] = sections
+    admin.post("/admin/users", data=data)
+    link = re.search(r"http\S*/register/\S+", app.outbox[-1][2]).group(0)
+    u = app.test_client()
+    path = "/register/" + link.rsplit("/", 1)[1]
+    u.post(path, data={"new": "another-password", "again": "another-password", "csrf": tok(u, path)})
+    return u
 
 
 def login(client, user="admin", pw="temporary-pass-1"):
@@ -79,19 +95,13 @@ def test_roles(app):
     c = setup_admin(app)
     create_bulletin(c)
     t = tok(c, "/admin/users")
-    for name, role in (("viewer1", "viewer"), ("contrib", "contributor")):
-        c.post("/admin/users", data={"action": "create", "username": name, "role": role,
-                                     "password": "password-12345", "csrf": t})
+    v = register_user(app, c, "viewer1@x.org", "viewer")
+    register_user(app, c, "contrib@x.org", "contributor")
     c.post("/admin/users", data={"action": "role", "uid": "3", "role": "contributor", "sections": "5", "csrf": t})
-    # contributor id 3 owns Welcome? section id 3 is mass? verify via behaviour below
-    v = app.test_client()
-    login(v, "viewer1", "password-12345")
-    v.post("/password", data={"current": "password-12345", "new": "another-password", "csrf": tok(v, "/password")})
     assert v.post("/bulletins/1/section/1", data={"body": "x", "csrf": tok(v, "/bulletins/1")}).status_code == 403
     assert v.get("/admin/users").status_code == 403
     k = app.test_client()
-    login(k, "contrib", "password-12345")
-    k.post("/password", data={"current": "password-12345", "new": "another-password", "csrf": tok(k, "/password")})
+    login(k, "contrib@x.org", "another-password")
     assert k.post("/bulletins/1/section/1", data={"body": "x", "csrf": tok(k, "/bulletins/1")}).status_code == 403
     assert k.post("/bulletins/1/section/5", data={"body": "Welcome!", "csrf": tok(k, "/bulletins/1")}).status_code == 302
     assert "Awaiting approval" in c.get("/bulletins/1").text
@@ -221,11 +231,7 @@ def test_group_user_for_section(app):
     page = c.get("/admin/users").text
     assert "Youth Group Calendar" in page
     sid = re.search(r'value="(\d+)">\s*Youth Group Calendar', page).group(1)
-    c.post("/admin/users", data={"action": "create", "username": "youth", "role": "contributor",
-           "password": "password-12345", "sections": sid, "csrf": tok(c, "/admin/users")})
-    y = app.test_client()
-    login(y, "youth", "password-12345")
-    y.post("/password", data={"current": "password-12345", "new": "another-password", "csrf": tok(y, "/password")})
+    y = register_user(app, c, "youth@x.org", "contributor", sid)
     ok = y.post(f"/bulletins/1/section/{sid}", data={"event_count": "1", "e0_date": "2026-10-30", "e0_time": "6pm", "e0_event": "Game night", "csrf": tok(y, "/bulletins/1")})
     assert ok.status_code == 302
     assert y.post("/bulletins/1/section/1", data={"body": "x", "csrf": tok(y, "/bulletins/1")}).status_code == 403
@@ -1127,3 +1133,26 @@ def test_duplicate_bulletin_and_template(app):
     assert "UNIQUEBODY" in c.get("/bulletins/2/section/9").text
     r = c.post("/bulletins/1/duplicate", data={"sunday": "2031-01-05", "csrf": t})
     assert r.status_code in (302, 303)
+
+
+def test_email_invite_and_password_recovery(app):
+    c = setup_admin(app)
+    t = tok(c, "/admin/users")
+    c.post("/admin/users", data={"action": "create", "username": "not-an-email", "role": "editor", "csrf": t})
+    assert not app.outbox
+    e = register_user(app, c, "Ed@Parish.org", "editor")
+    assert app.outbox[-1][0] == "ed@parish.org"
+    assert e.get("/").status_code == 200
+    out = app.test_client()
+    assert "Welcome" not in login(out, "ed@parish.org", "wrong-password-1").text
+    assert "Forgot your password" in out.get("/login").text
+    n = len(app.outbox)
+    out.post("/forgot", data={"email": "nobody@x.org", "csrf": tok(out, "/forgot")})
+    assert len(app.outbox) == n
+    out.post("/forgot", data={"email": "ed@parish.org", "csrf": tok(out, "/forgot")})
+    link = re.search(r"http\S*/reset/\S+", app.outbox[-1][2]).group(0)
+    path = "/reset/" + link.rsplit("/", 1)[1]
+    out.post(path, data={"new": "brand-new-password", "again": "brand-new-password", "csrf": tok(out, path)})
+    login(out, "ed@parish.org", "brand-new-password")
+    assert out.get("/").status_code == 200
+    assert out.get(path, follow_redirects=False).status_code == 302

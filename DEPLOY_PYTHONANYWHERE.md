@@ -52,3 +52,14 @@ Reload the web app and open `https://YOURUSERNAME.pythonanywhere.com/`. Sign in 
 2. Deploy the app on the new host (any Python 3.9+ host; set `SECRET_KEY`, `BULLETIN_DB`, `BULLETIN_UPLOADS`, install `weasyprint`).
 3. Sign in with the temporary admin password, then Admin > Users > **Restore backup** and choose the zip. Everything, including accounts and photos, is restored.
 All settings are environment variables and nothing depends on PythonAnywhere, so the same code runs on Railway, Render, a VPS, or Docker.
+
+## Email (invitations and password reset)
+Set these in the WSGI file (before the app is imported), using any SMTP account, e.g. Gmail with an App Password:
+
+    os.environ["SMTP_HOST"] = "smtp.gmail.com"
+    os.environ["SMTP_PORT"] = "587"
+    os.environ["SMTP_USER"] = "you@gmail.com"
+    os.environ["SMTP_PASSWORD"] = "app-password"
+    os.environ["MAIL_FROM"] = "you@gmail.com"
+
+Without these, no email is sent; the Users page shows the registration link to copy instead.

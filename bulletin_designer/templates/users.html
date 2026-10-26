@@ -6,6 +6,7 @@
 <form method="post">
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="role"><input type="hidden" name="uid" value="{{ u.id }}">
   <fieldset><legend>{{ u.display_name }} ({{ u.username }})</legend>
+    <p class="small">Email: {{ u.email or 'none yet' }}</p>
     <label for="role{{ u.id }}">Access level</label>
     <select id="role{{ u.id }}" name="role" {% if u.id == g.user.id %}disabled{% endif %}>
       {% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == u.role }}>{{ r|capitalize }}</option>{% endfor %}
@@ -16,6 +17,16 @@
   </fieldset>
 </form>
 {% endfor %}
+<h2>Add an email or resend an invitation</h2>
+{% for u in users %}
+<form method="post" style="margin-bottom:.5em">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="uid" value="{{ u.id }}">
+  <label for="em{{ u.id }}">{{ u.display_name }} email</label>
+  <input id="em{{ u.id }}" name="email" type="email" value="{{ u.email }}" style="max-width:20em">
+  <button class="btn secondary" name="action" value="setemail">Save email</button>
+  <button class="btn secondary" name="action" value="invite">Email registration link</button>
+</form>
+{% endfor %}
 <h2>Back up or move this site</h2>
 <p>The backup contains all bulletins, users, photos and documents. Restoring it on another server (for example a new host) recreates the site exactly; restoring replaces the current data.</p>
 <p><a class="btn secondary" href="{{ url_for('backup') }}">Download backup (.zip)</a></p>
@@ -24,16 +35,16 @@
   <label for="bk">Restore from a backup file</label><input id="bk" name="backup" type="file" accept=".zip" required>
   <p><button class="btn secondary" onclick="return confirm('This replaces all current data. Continue?')">Restore backup</button></p>
 </form>
-<h2>Add a user</h2>
+<h2>Invite a user</h2>
+<p>Type their email address. They get an email with a link to choose their own password. Their email is their sign-in.</p>
 <form method="post">
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="create">
-  <label for="nu">Username</label><input id="nu" name="username" type="text" required>
-  <label for="nd">Display name</label><input id="nd" name="display_name" type="text">
-  <label for="nr">Access level</label><select id="nr" name="role">{% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}</select>
-  <label for="np">Temporary password (10+ characters; user must change it)</label><input id="np" name="password" type="password" minlength="10" required>
+  <label for="nu">Email address</label><input id="nu" name="username" type="email" required>
+  <label for="nd">Name</label><input id="nd" name="display_name" type="text">
+  <label for="nr">Access level</label><select id="nr" name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == 'editor' }}>{{ r|capitalize }}</option>{% endfor %}</select>
   <fieldset><legend>Sections this user may submit (for the Contributor level, e.g. youth group leaders)</legend>
     {% for s in secs %}<label><input type="checkbox" name="sections" value="{{ s.id }}"> {{ s.title }}</label>{% endfor %}
   </fieldset>
-  <p><button class="btn">Add user</button></p>
+  <p><button class="btn">Send invitation</button></p>
 </form>
 {% endblock %}
