@@ -294,3 +294,11 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .galv figure.galv-i { margin: 0 0 .1in; text-align: center; }
 .sheet .galv figure.galv-i img { width: 100%; height: auto; display: block; }
 .sheet .galv .gal-cap { display: block; font-style: italic; font-size: 12pt; line-height: 1.2; margin-top: .03in; }
+
+.lgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr)); gap: .35em .6em; margin-bottom: .3em; }
+.lgrid .lf { display: flex; flex-direction: column; }
+.lgrid .lf label { font-size: .85em; margin: 0; }
+.lgrid .lf input, .lgrid .lf select { width: 100%; box-sizing: border-box; margin: 0; }
+.lgrid .lf .meta { font-size: .75em; line-height: 1.2; }
+.lgrid .lf:has(select[name="area"]), .lgrid .lf:has(select[name="font_style"]) { grid-column: span 2; }
+.lnote { margin: 0 0 .4em; }
