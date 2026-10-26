@@ -764,3 +764,5 @@ def test_inline_styling(app):
     t = app.jinja_env.globals["tight"]
     h = str(t("A **bold** and __under__ and {#ff0000|red} <b>x</b> word here.", True))
     assert "<strong>bold</strong>" in h and 'class="ul"' in h and 'color:#ff0000' in h and "&lt;b&gt;" in h
+    assert "2<sup>nd</sup>" in str(t("the 2nd collection and 1st one.", True)) and "<sup>st</sup>" in str(t("the 2nd collection and 1st one.", True))
+    assert 'font-size:18pt">big' in str(t("a {18pt|big} word here now.", True))

@@ -307,7 +307,9 @@ def create_app(config=None):
         for _ in range(3):
             s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s, flags=re.S)
             s = re.sub(r"__(.+?)__", r'<span class="ul">\1</span>', s, flags=re.S)
+            s = re.sub(r"\{(\d{1,2})pt\|(.+?)\}", lambda m: '<span style="font-size:%dpt">%s</span>' % (min(40, max(8, int(m.group(1)))), m.group(2)), s, flags=re.S)
             s = re.sub(r"\{(#[0-9a-fA-F]{6})\|(.+?)\}", r'<span style="color:\1">\2</span>', s, flags=re.S)
+        s = re.sub(r"(?<![\w#])(\d+)(st|nd|rd|th)\b", r"\1<sup>\2</sup>", s)
         return Markup(s)
 
     def tight(text, on=True):

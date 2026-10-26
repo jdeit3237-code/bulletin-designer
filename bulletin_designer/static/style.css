@@ -238,3 +238,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec.has-pg > p.bp { margin-top: 0; margin-bottom: var(--pg); }
 
 .sec span.ul { text-decoration: underline; }
+
+.sec sup { font-size: .65em; line-height: 0; vertical-align: super; }
