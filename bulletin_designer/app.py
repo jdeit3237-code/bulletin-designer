@@ -190,6 +190,67 @@ def gap_display(v):
     return "0" if v < 0.001 else ("%g" % v)
 
 
+def read_photo_meta(path):
+    """Pull size, EXIF, IPTC and XMP details from an image. Never raises; GPS location is deliberately not kept."""
+    out = {"keywords": [], "title": "", "description": "", "creator": "", "copyright": "", "taken": "", "camera": "", "size": ""}
+    try:
+        from PIL import Image
+        im = Image.open(path)
+        out["size"] = "%d x %d px" % im.size
+        try:
+            ex = im.getexif()
+            exif = dict(ex)
+            exif.update(dict(ex.get_ifd(0x8769)))
+        except Exception:
+            exif = {}
+        out["taken"] = str(exif.get(36867) or exif.get(306) or "").strip()[:19].replace(":", "-", 2)
+        out["camera"] = " ".join(str(exif.get(k, "")).strip() for k in (271, 272) if exif.get(k)).strip()
+        out["description"] = str(exif.get(270) or "").strip()
+        out["creator"] = str(exif.get(315) or "").strip()
+        out["copyright"] = str(exif.get(33432) or "").strip()
+        try:
+            from PIL import IptcImagePlugin
+            iptc = IptcImagePlugin.getiptcinfo(im) or {}
+
+            def txt(v):
+                v = v[0] if isinstance(v, list) else v
+                return v.decode("utf-8", "ignore").strip() if isinstance(v, bytes) else str(v or "").strip()
+            kw = iptc.get((2, 25))
+            for k in (kw if isinstance(kw, list) else [kw] if kw else []):
+                out["keywords"].append(txt(k))
+            out["title"] = out["title"] or txt(iptc.get((2, 5), ""))
+            out["description"] = out["description"] or txt(iptc.get((2, 120), ""))
+            out["creator"] = out["creator"] or txt(iptc.get((2, 80), ""))
+        except Exception:
+            pass
+        raw = b""
+        try:
+            with open(path, "rb") as fh:
+                raw = fh.read(2000000)
+        except OSError:
+            pass
+        i = raw.find(b"<x:xmpmeta")
+        if i >= 0:
+            xmp = raw[i:raw.find(b"</x:xmpmeta>", i) + 12].decode("utf-8", "ignore")
+
+            def bag(tag):
+                m = re.search(r"<%s>(.*?)</%s>" % (tag, tag), xmp, re.S)
+                return [re.sub(r"<[^>]+>", "", x).strip() for x in re.findall(r"<rdf:li[^>]*>(.*?)</rdf:li>", m.group(1), re.S)] if m else []
+            out["keywords"] += bag("dc:subject")
+            out["title"] = out["title"] or " ".join(bag("dc:title")[:1])
+            out["description"] = out["description"] or " ".join(bag("dc:description")[:1])
+            out["creator"] = out["creator"] or ", ".join(bag("dc:creator"))
+    except Exception:
+        pass
+    seen, kws = set(), []
+    for k in out["keywords"]:
+        if k and k.lower() not in seen:
+            seen.add(k.lower())
+            kws.append(k)
+    out["keywords"] = kws
+    return out
+
+
 def create_app(config=None):
     app = Flask(__name__)
     base = os.path.dirname(os.path.abspath(__file__))
@@ -265,6 +326,8 @@ def create_app(config=None):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+        if "meta" not in {r[1] for r in conn.execute("PRAGMA table_info(photos)")}:
+            conn.execute("ALTER TABLE photos ADD COLUMN meta TEXT DEFAULT ''")
         if "active" not in ucols:
             conn.execute("ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1")
         for col in ("email", "last_login", "last_seen"):
@@ -2123,20 +2186,37 @@ def create_app(config=None):
             alt = request.form.get("alt", "").strip()
             decorative = 1 if request.form.get("decorative") else 0
             ext = f.filename.rsplit(".", 1)[-1].lower() if f and f.filename and "." in f.filename else ""
-            if ext not in IMAGE_EXT or not title or not (alt or decorative):
-                flash("Choose a PNG, JPG, GIF or WebP image and give it a title and alternative text.", "error")
+            if ext not in IMAGE_EXT:
+                flash("Choose a PNG, JPG, GIF or WebP image.", "error")
                 return redirect(url_for("library"))
             name = f"{uuid.uuid4().hex}_{secure_filename(f.filename)}"
-            f.save(os.path.join(app.config["UPLOAD_DIR"], name))
-            conn.execute("INSERT INTO photos(filename,title,alt,tags,uploaded_by,decorative) VALUES(?,?,?,?,?,?)",
-                         (name, title, alt, request.form.get("tags", "").strip(), g.user["username"], decorative))
+            path = os.path.join(app.config["UPLOAD_DIR"], name)
+            f.save(path)
+            meta = read_photo_meta(path)
+            title = title or meta["title"] or os.path.splitext(secure_filename(f.filename))[0].replace("_", " ").replace("-", " ").strip().title()
+            alt = alt or meta["description"]
+            if not (alt or decorative):
+                os.remove(path)
+                flash("Describe the photo in the alternative text box (or tick Decorative). The photo had no description of its own.", "error")
+                return redirect(url_for("library"))
+            tags = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
+            have = {t.lower() for t in tags}
+            tags += [k for k in meta["keywords"] if k.lower() not in have]
+            conn.execute("INSERT INTO photos(filename,title,alt,tags,uploaded_by,decorative,meta) VALUES(?,?,?,?,?,?,?)",
+                         (name, title, alt, ", ".join(tags), g.user["username"], decorative, json.dumps(meta)))
             conn.commit()
             flash("Photo added to the library.", "ok")
             return redirect(url_for("library"))
         q = request.args.get("q", "").strip()
-        rows = conn.execute("SELECT * FROM photos WHERE title LIKE ? OR tags LIKE ? ORDER BY title",
-                            (f"%{q}%", f"%{q}%")).fetchall()
-        return render_template("library.html", photos=rows, q=q)
+        rows = conn.execute("SELECT * FROM photos WHERE title LIKE ? OR tags LIKE ? OR alt LIKE ? OR meta LIKE ? ORDER BY title",
+                            (f"%{q}%",) * 4).fetchall()
+        metas = {}
+        for r in rows:
+            try:
+                metas[r["id"]] = json.loads(r["meta"] or "{}")
+            except ValueError:
+                metas[r["id"]] = {}
+        return render_template("library.html", photos=rows, q=q, metas=metas)
 
     @app.route("/library/<int:pid>/delete", methods=["POST"])
     @need("admin", "editor")

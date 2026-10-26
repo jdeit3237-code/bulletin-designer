@@ -1202,3 +1202,25 @@ def test_help_covers_current_features(app):
     page = c.get("/help").text
     for word in ("Duplicate", "Undo / history", "Forgot your password", "Deactivate", "On page", "Unpublish"):
         assert word in page
+
+
+def test_library_reads_photo_metadata(app, tmp_path):
+    from PIL import Image
+    im = Image.new("RGB", (40, 30), "red")
+    ex = Image.Exif()
+    ex[270] = "A red test square"
+    ex[272] = "TestCam"
+    ex[315] = "Jane Photographer"
+    f = tmp_path / "pic.jpg"
+    im.save(f, exif=ex)
+    xmp = b'<x:xmpmeta><rdf:RDF><dc:subject><rdf:Bag><rdf:li>church</rdf:li><rdf:li>festival</rdf:li></rdf:Bag></dc:subject></rdf:RDF></x:xmpmeta>'
+    f.write_bytes(f.read_bytes() + xmp)
+    c = setup_admin(app)
+    t = tok(c, "/library")
+    c.post("/library", data={"csrf": t}, content_type="multipart/form-data", buffered=True) if False else None
+    with open(f, "rb") as fh:
+        c.post("/library", data={"csrf": t, "photo": (fh, "pic.jpg"), "tags": "mine"}, content_type="multipart/form-data")
+    page = c.get("/library").text
+    assert "Pic" in page and "festival" in page and "mine" in page and "TestCam" in page and "40 x 30" in page
+    assert "A red test square" in page
+    assert "church" in c.get("/library?q=church").text
