@@ -867,3 +867,11 @@ def test_bulletin_check(app):
     r = c.get("/bulletins/1/check")
     assert r.status_code == 200 and "2 pages" in r.text
     assert "Check my bulletin" in c.get("/bulletins/1").text
+
+
+def test_space_before_title(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/9", data={"body": "x", "space_before": "0.3", "csrf": tok(c, "/bulletins/1")})
+    assert "margin-top:0.3in" in c.get("/bulletins/1/preview").text
+    assert 'value="0.3"' in c.get("/bulletins/1/section/9").text.split('id="space_before"')[1][:200]
