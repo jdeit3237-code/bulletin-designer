@@ -227,6 +227,7 @@ def create_app(config=None):
             position INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY, asked_by TEXT, question TEXT, answer TEXT DEFAULT '',
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
+        CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
             PRIMARY KEY(user_id, section_id));
         CREATE TABLE IF NOT EXISTS bulletins(id INTEGER PRIMARY KEY, sunday TEXT UNIQUE,
@@ -302,6 +303,28 @@ def create_app(config=None):
         init_db()
 
     # ---------- auth helpers ----------
+    HISTORY_LABELS = {"layout": "Moved or resized a section", "reset-layout": "Reset layout", "section": "Saved a section",
+                      "add-section": "Added a section", "delete": "Deleted section content", "extra-pages": "Added or removed pages",
+                      "assistant": "Assistant changes", "approve": "Approved a section", "copy": "Copied a section", "keep": "Changed keep/weekly",
+                      "header": "Changed header", "footer": "Changed footer"}
+
+    def snapshot_bulletin(bid, label):
+        conn = db()
+        b = conn.execute("SELECT * FROM bulletins WHERE id=?", (bid,)).fetchone()
+        if not b:
+            return
+        snap = {"bulletin": dict(b),
+                "items": [dict(r) for r in conn.execute("SELECT * FROM items WHERE bulletin_id=?", (bid,))],
+                "sections": [dict(r) for r in conn.execute("SELECT * FROM sections WHERE bulletin_id=?", (bid,))]}
+        data = json.dumps(snap)
+        last = conn.execute("SELECT snapshot FROM history WHERE bulletin_id=? ORDER BY id DESC LIMIT 1", (bid,)).fetchone()
+        if last and last["snapshot"] == data:
+            return
+        conn.execute("INSERT INTO history(bulletin_id,label,snapshot,created,by) VALUES(?,?,?,?,?)",
+                     (bid, label, data, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), g.user["username"] if g.user else ""))
+        conn.execute("DELETE FROM history WHERE bulletin_id=? AND id NOT IN (SELECT id FROM history WHERE bulletin_id=? ORDER BY id DESC LIMIT 40)", (bid, bid))
+        conn.commit()
+
     @app.before_request
     def load_user():
         g.user = None
@@ -801,6 +824,24 @@ def create_app(config=None):
     PLAIN_SLUGS_EXCLUDED = ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff")
 
     # ---------- routes ----------
+    @app.before_request
+    def auto_history():
+        if request.method != "POST" or not g.get("user") or not request.view_args:
+            return
+        bid = request.view_args.get("bid")
+        path = request.path
+        if not bid or "/history" in path or "/check" in path:
+            return
+        label = "Changed the bulletin"
+        for key, text in HISTORY_LABELS.items():
+            if f"/{key}" in path:
+                label = text
+                break
+        try:
+            snapshot_bulletin(bid, label)
+        except Exception:
+            pass
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
@@ -1119,6 +1160,42 @@ def create_app(config=None):
                      (bid, cur.lastrowid, last + 1))
         conn.commit()
         return redirect(url_for("section", bid=bid, sid=cur.lastrowid))
+
+    @app.route("/bulletins/<int:bid>/history")
+    @need("admin", "editor")
+    def history_page(bid):
+        b = get_bulletin(bid)
+        rows = db().execute("SELECT id,label,created,by FROM history WHERE bulletin_id=? ORDER BY id DESC", (bid,)).fetchall()
+        return render_template("history.html", b=b, rows=rows)
+
+    @app.route("/bulletins/<int:bid>/history/<int:hid>/restore", methods=["POST"])
+    @need("admin", "editor")
+    def history_restore(bid, hid):
+        open_bulletin(bid)
+        conn = db()
+        row = conn.execute("SELECT snapshot FROM history WHERE id=? AND bulletin_id=?", (hid, bid)).fetchone()
+        if not row:
+            abort(404)
+        snapshot_bulletin(bid, "Before going back")
+        snap = json.loads(row["snapshot"])
+        keep = {"id", "sunday", "status"}
+        cols = [k for k in snap["bulletin"] if k not in keep]
+        if cols:
+            conn.execute("UPDATE bulletins SET " + ",".join(f"{k}=?" for k in cols) + " WHERE id=?",
+                         [snap["bulletin"][k] for k in cols] + [bid])
+        conn.execute("DELETE FROM items WHERE bulletin_id=?", (bid,))
+        have = {r["id"] for r in conn.execute("SELECT id FROM sections WHERE bulletin_id=?", (bid,))}
+        want = {r["id"] for r in snap["sections"]}
+        for sid in have - want:
+            conn.execute("DELETE FROM sections WHERE id=?", (sid,))
+        for sec in snap["sections"]:
+            if sec["id"] not in have:
+                conn.execute(f"INSERT INTO sections({','.join(sec)}) VALUES({','.join('?' * len(sec))})", list(sec.values()))
+        for it in snap["items"]:
+            conn.execute(f"INSERT INTO items({','.join(it)}) VALUES({','.join('?' * len(it))})", list(it.values()))
+        conn.commit()
+        flash("Went back to how the bulletin looked at that point.", "ok")
+        return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/reset-layout", methods=["POST"])
     @need("admin", "editor")

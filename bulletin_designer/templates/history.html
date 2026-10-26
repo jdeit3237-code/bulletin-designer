@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}Undo history{% endblock %}
+{% block content %}
+<h1>Undo / history</h1>
+<p>Each time you save or change something, the bulletin is remembered first. Choose "Go back to this" to return the whole bulletin (text, photos, spacing, order and pages) to how it looked <strong>before</strong> that change. The newest is at the top. Going back is itself saved, so you can undo it too.</p>
+{% if rows %}<table><thead><tr><th scope="col">When</th><th scope="col">What was changed</th><th scope="col">By</th><th scope="col"></th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.created }}</td><td>{{ r.label }}</td><td>{{ r.by }}</td><td>{% if b.status != 'published' %}<form class="inline" method="post" action="{{ url_for('history_restore', bid=b.id, hid=r.id) }}" onsubmit="return confirm('Put the whole bulletin back to how it was before this change?');"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Go back to this</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+{% else %}<p>No changes have been recorded yet.</p>{% endif %}
+<p><a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to the bulletin</a></p>
+{% endblock %}

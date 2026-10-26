@@ -889,3 +889,22 @@ def test_bullets(app):
 def test_paragraph_after_bullets_has_no_gap():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
     assert ".bl + p.bp" in css and "margin-top: 0" in css.split(".bl + p.bp")[1][:80]
+
+
+def test_history_undo(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "FIRST", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "SECOND", "csrf": t})
+    h = c.get("/bulletins/1/history").text
+    assert "Saved a section" in h
+    import re as _re
+    ids = [int(x) for x in _re.findall(r"history/(\d+)/restore", h)]
+    c.post(f"/bulletins/1/history/{min(ids) + 1}/restore", data={"csrf": t})
+    assert "FIRST" in c.get("/bulletins/1/section/9").text
+    c.post("/bulletins/1/layout/9", data={"pages": "3", "csrf": t})
+    page = c.get("/bulletins/1/history").text
+    newest = max(int(x) for x in _re.findall(r"history/(\d+)/restore", page))
+    c.post(f"/bulletins/1/history/{newest}/restore", data={"csrf": t})
+    assert "FIRST" in c.get("/bulletins/1/section/9").text
