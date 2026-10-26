@@ -141,7 +141,7 @@ def test_photo_library_reuse(app):
     c = setup_admin(app)
     create_bulletin(c)
     c.post("/library", data={"title": "Church", "alt": "The church", "csrf": tok(c, "/library"),
-           "photo": (io.BytesIO(b"\x89PNG"), "c.png")}, content_type="multipart/form-data")
+           "photo": (_card(60, 40, "red"), "c.png")}, content_type="multipart/form-data")
     assert "Church" in c.get("/library").text
     c.post("/bulletins/1/section/5", data={"body": "x", "library_id": "1", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
@@ -1224,3 +1224,51 @@ def test_library_reads_photo_metadata(app, tmp_path):
     assert "Pic" in page and "festival" in page and "mine" in page and "TestCam" in page and "40 x 30" in page
     assert "A red test square" in page
     assert "church" in c.get("/library?q=church").text
+
+
+def test_bulk_photos_resized_with_thumbnails(app, tmp_path):
+    import io, zipfile
+    from PIL import Image
+    c = setup_admin(app)
+
+    def jpg(w, h):
+        b = io.BytesIO()
+        Image.new("RGB", (w, h), "blue").save(b, "JPEG")
+        return b.getvalue()
+    z = io.BytesIO()
+    with zipfile.ZipFile(z, "w") as zf:
+        zf.writestr("big_one.jpg", jpg(4000, 3000))
+        zf.writestr("notes.txt", b"hi")
+    z.seek(0)
+    t = tok(c, "/library")
+    r = c.post("/library/bulk", data={"csrf": t, "tags": "event",
+               "photos": [(z, "set.zip"), (io.BytesIO(jpg(100, 80)), "small.jpg")]}, content_type="multipart/form-data")
+    assert r.status_code == 302
+    page = c.get("/library").text
+    assert "Big One" in page and "Small" in page and "needs-description" in page and "event" in page
+    assert "2400 x 1800 px" in page
+    up = os.listdir(app.config["UPLOAD_DIR"])
+    assert sum(n.startswith("thumb_") for n in up) == 2
+    big = [n for n in up if n.endswith("big_one.jpg") and not n.startswith("thumb_")][0]
+    assert max(Image.open(os.path.join(app.config["UPLOAD_DIR"], big)).size) == 2400
+    v = register_user(app, c, "v@x.org", "viewer")
+    assert v.post("/library/bulk", data={"csrf": tok(v, "/library")}).status_code == 403
+
+
+def test_photo_libraries_many_to_many(app):
+    c = setup_admin(app)
+    page = c.get("/library").text
+    assert "Church (0)" in page and "Logos (0)" in page and "Religious (0)" in page
+    t = tok(c, "/library")
+    c.post("/library/libraries", data={"action": "add", "name": "Youth", "csrf": t})
+    ids = {n: re.search(r'lib=(\d+)">%s \(' % n, c.get("/library").text).group(1) for n in ("Church", "Logos", "Youth")}
+    c.post("/library", data={"title": "Cross", "alt": "A cross", "csrf": t, "libs": [ids["Church"], ids["Logos"]],
+           "photo": (_card(60, 40, "red"), "x.png")}, content_type="multipart/form-data")
+    assert "Church (1)" in c.get("/library").text and "Logos (1)" in c.get("/library").text
+    assert "Cross" in c.get(f"/library?lib={ids['Logos']}").text
+    assert "Cross" not in c.get(f"/library?lib={ids['Youth']}").text
+    c.post("/library/1/libraries", data={"libs": [ids["Youth"]], "csrf": t})
+    assert "Cross" in c.get(f"/library?lib={ids['Youth']}").text
+    assert "Cross" not in c.get(f"/library?lib={ids['Church']}").text
+    c.post("/library/libraries", data={"action": "remove", "lib": ids["Youth"], "csrf": t})
+    assert "Cross" in c.get("/library?lib=none").text

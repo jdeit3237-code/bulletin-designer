@@ -236,7 +236,7 @@
     <input id="source" name="source" type="text" value="{{ item.source }}">
     {% if photos %}<label for="library_id">Choose from the photo library</label>
     <select id="library_id" name="library_id"><option value="">- none -</option>
-    {% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select>
+    {% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select>
     <p class="meta">Or upload a new one below. <a href="{{ url_for('library') }}">Manage library</a></p>{% endif %}
     <label for="image">Photo or graphic (PNG, JPG, GIF, WebP; shown without distortion)</label>
     <input id="image" name="image" type="file" accept="image/*">
@@ -268,7 +268,7 @@
       <label>Place <select name="gp_w_{{ loop.index0 }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select></label>
       <label><input type="checkbox" name="gp_rm_{{ loop.index0 }}" value="1"> Remove</label></div>{% endfor %}
     {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
-      {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select></label>{% endif %}
+      {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
       <label>Caption (shown under the photo in italics) <input name="ng_alt_{{ n }}"></label>
       <label>Place <select name="ng_w_{{ n }}"><option value="below">Below the text</option><option value="above">Above the text</option></select></label></div>{% endfor %}

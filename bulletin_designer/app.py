@@ -292,6 +292,8 @@ def create_app(config=None):
         CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY, asked_by TEXT, question TEXT, answer TEXT DEFAULT '',
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
+        CREATE TABLE IF NOT EXISTS libraries(id INTEGER PRIMARY KEY, name TEXT UNIQUE);
+        CREATE TABLE IF NOT EXISTS photo_libs(photo_id INTEGER, lib_id INTEGER, PRIMARY KEY(photo_id, lib_id));
         CREATE TABLE IF NOT EXISTS event_titles(id INTEGER PRIMARY KEY, title TEXT UNIQUE);
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
@@ -326,6 +328,9 @@ def create_app(config=None):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+        if not conn.execute("SELECT 1 FROM libraries").fetchone():
+            for nm in ("Church", "Logos", "Religious"):
+                conn.execute("INSERT OR IGNORE INTO libraries(name) VALUES(?)", (nm,))
         if "meta" not in {r[1] for r in conn.execute("PRAGMA table_info(photos)")}:
             conn.execute("ALTER TABLE photos ADD COLUMN meta TEXT DEFAULT ''")
         if "active" not in ucols:
@@ -1284,7 +1289,7 @@ def create_app(config=None):
                             (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", font_styles=FONT_STYLES, photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, secs=secs, total=len(pages), editable=editable,
+        return render_template("edit.html", font_styles=FONT_STYLES, photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable,
                                where=page_spans(secs, bid))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
@@ -1494,7 +1499,7 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=db().execute("SELECT * FROM photos ORDER BY title").fetchall(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_entries(item["body"]) + [dict(date="", time="", event="", lectors="", sacristans="", ministers="")] * 2,
@@ -2174,6 +2179,107 @@ def create_app(config=None):
         flash("Card removed.", "ok")
         return redirect(url_for("ads"))
 
+    MAX_SIDE, THUMB_SIDE = 2400, 400
+
+    def photo_choices():
+        libs = {}
+        for r in db().execute("SELECT pl.photo_id, l.name FROM photo_libs pl JOIN libraries l ON l.id=pl.lib_id ORDER BY l.name"):
+            libs.setdefault(r["photo_id"], []).append(r["name"])
+        return [dict(r, libs=", ".join(libs.get(r["id"], []))) for r in db().execute("SELECT * FROM photos ORDER BY title")]
+
+    def put_in_libraries(photo_id, lib_ids):
+        valid = {r["id"] for r in db().execute("SELECT id FROM libraries")}
+        for i in lib_ids:
+            if str(i).isdigit() and int(i) in valid:
+                db().execute("INSERT OR IGNORE INTO photo_libs VALUES(?,?)", (photo_id, int(i)))
+
+    def add_photo(data, filename, title="", alt="", decorative=0, extra_tags=(), allow_blank_alt=False, lib_ids=()):
+        """Save one image: read its metadata, shrink it for print and web, make a small thumbnail, add it to the library.
+        Returns (ok, message)."""
+        from PIL import Image, ImageOps
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in IMAGE_EXT:
+            return False, "not an image"
+        base = secure_filename(filename) or "photo." + ext
+        name = f"{uuid.uuid4().hex}_{base}"
+        path = os.path.join(app.config["UPLOAD_DIR"], name)
+        with open(path, "wb") as out:
+            out.write(data)
+        try:
+            meta = read_photo_meta(path)
+            with Image.open(path) as im:
+                im.load()
+                animated = getattr(im, "is_animated", False)
+                if not animated:
+                    im = ImageOps.exif_transpose(im)
+                    if max(im.size) > MAX_SIDE:
+                        im.thumbnail((MAX_SIDE, MAX_SIDE))
+                        kw = {"quality": 88, "optimize": True} if ext in ("jpg", "jpeg") else {}
+                        if ext in ("jpg", "jpeg") and im.mode not in ("RGB", "L"):
+                            im = im.convert("RGB")
+                        im.save(path, **kw)
+                        meta["size"] = "%d x %d px" % im.size
+                th = im.copy()
+                th.thumbnail((THUMB_SIDE, THUMB_SIDE))
+                if th.mode not in ("RGB", "RGBA", "L"):
+                    th = th.convert("RGB")
+                if th.mode == "RGBA" and ext in ("jpg", "jpeg"):
+                    th = th.convert("RGB")
+                th.save(os.path.join(app.config["UPLOAD_DIR"], "thumb_" + name), **({"quality": 80} if ext in ("jpg", "jpeg") else {}))
+        except Exception:
+            os.remove(path)
+            return False, "could not be read as an image"
+        title = title or meta["title"] or os.path.splitext(base)[0].replace("_", " ").replace("-", " ").strip().title()
+        alt = alt or meta["description"]
+        tags = [t.strip() for t in extra_tags if t and t.strip()]
+        have = {t.lower() for t in tags}
+        tags += [k for k in meta["keywords"] if k.lower() not in have]
+        if not (alt or decorative):
+            if not allow_blank_alt:
+                os.remove(path)
+                try:
+                    os.remove(os.path.join(app.config["UPLOAD_DIR"], "thumb_" + name))
+                except OSError:
+                    pass
+                return False, "needs a description"
+            alt = title
+            tags.append("needs-description")
+        cur = db().execute("INSERT INTO photos(filename,title,alt,tags,uploaded_by,decorative,meta) VALUES(?,?,?,?,?,?,?)",
+                           (name, title, alt, ", ".join(tags), g.user["username"], decorative, json.dumps(meta)))
+        put_in_libraries(cur.lastrowid, lib_ids)
+        db().commit()
+        return True, ""
+
+    @app.route("/library/bulk", methods=["POST"])
+    @need("admin", "editor")
+    def library_bulk():
+        files = [f for f in request.files.getlist("photos") if f and f.filename]
+        extra = [t for t in request.form.get("tags", "").split(",")]
+        added, skipped = 0, []
+        items = []
+        for f in files:
+            if f.filename.lower().endswith(".zip"):
+                try:
+                    z = zipfile.ZipFile(io.BytesIO(f.read()))
+                    for info in z.infolist()[:500]:
+                        base = os.path.basename(info.filename)
+                        if info.is_dir() or base.startswith(("._", ".")) or "__MACOSX" in info.filename or info.file_size > 40 * 1024 * 1024:
+                            continue
+                        items.append((base, z.read(info)))
+                except zipfile.BadZipFile:
+                    skipped.append("%s (not a valid zip)" % f.filename)
+            else:
+                items.append((f.filename, f.read()))
+        for fname, data in items[:500]:
+            ok, why = add_photo(data, fname, extra_tags=extra, allow_blank_alt=True, lib_ids=request.form.getlist("libs"))
+            if ok:
+                added += 1
+            else:
+                skipped.append("%s (%s)" % (fname, why))
+        flash("Added %d photo%s. They were resized for print and web and their keywords were read automatically. Photos tagged needs-description have no description of their own; search for that tag to fix them." % (added, "" if added == 1 else "s")
+              + ((" Skipped: " + "; ".join(skipped[:10])) if skipped else ""), "ok" if added else "error")
+        return redirect(url_for("library"))
+
     @app.route("/library", methods=["GET", "POST"])
     @need()
     def library():
@@ -2182,41 +2288,71 @@ def create_app(config=None):
             if g.user["role"] not in ("admin", "editor", "contributor"):
                 abort(403)
             f = request.files.get("photo")
-            title = request.form.get("title", "").strip()
-            alt = request.form.get("alt", "").strip()
-            decorative = 1 if request.form.get("decorative") else 0
-            ext = f.filename.rsplit(".", 1)[-1].lower() if f and f.filename and "." in f.filename else ""
-            if ext not in IMAGE_EXT:
-                flash("Choose a PNG, JPG, GIF or WebP image.", "error")
+            if not f or not f.filename:
+                flash("Choose an image file.", "error")
                 return redirect(url_for("library"))
-            name = f"{uuid.uuid4().hex}_{secure_filename(f.filename)}"
-            path = os.path.join(app.config["UPLOAD_DIR"], name)
-            f.save(path)
-            meta = read_photo_meta(path)
-            title = title or meta["title"] or os.path.splitext(secure_filename(f.filename))[0].replace("_", " ").replace("-", " ").strip().title()
-            alt = alt or meta["description"]
-            if not (alt or decorative):
-                os.remove(path)
-                flash("Describe the photo in the alternative text box (or tick Decorative). The photo had no description of its own.", "error")
+            ok, why = add_photo(f.read(), f.filename, request.form.get("title", "").strip(), request.form.get("alt", "").strip(),
+                                1 if request.form.get("decorative") else 0, request.form.get("tags", "").split(","),
+                                lib_ids=request.form.getlist("libs"))
+            if not ok:
+                flash("That photo was not added: %s. Choose a PNG, JPG, GIF or WebP image; if it has no description of its own, describe it in the alternative text box or tick Decorative." % why, "error")
                 return redirect(url_for("library"))
-            tags = [t.strip() for t in request.form.get("tags", "").split(",") if t.strip()]
-            have = {t.lower() for t in tags}
-            tags += [k for k in meta["keywords"] if k.lower() not in have]
-            conn.execute("INSERT INTO photos(filename,title,alt,tags,uploaded_by,decorative,meta) VALUES(?,?,?,?,?,?,?)",
-                         (name, title, alt, ", ".join(tags), g.user["username"], decorative, json.dumps(meta)))
-            conn.commit()
             flash("Photo added to the library.", "ok")
             return redirect(url_for("library"))
         q = request.args.get("q", "").strip()
-        rows = conn.execute("SELECT * FROM photos WHERE title LIKE ? OR tags LIKE ? OR alt LIKE ? OR meta LIKE ? ORDER BY title",
-                            (f"%{q}%",) * 4).fetchall()
+        lib = request.args.get("lib", "")
+        sql = "SELECT * FROM photos WHERE (title LIKE ? OR tags LIKE ? OR alt LIKE ? OR meta LIKE ?)"
+        args = [f"%{q}%"] * 4
+        if lib.isdigit():
+            sql += " AND id IN (SELECT photo_id FROM photo_libs WHERE lib_id=?)"
+            args.append(int(lib))
+        elif lib == "none":
+            sql += " AND id NOT IN (SELECT photo_id FROM photo_libs)"
+        rows = conn.execute(sql + " ORDER BY title", args).fetchall()
+        libs_all = conn.execute("SELECT l.*, (SELECT COUNT(*) FROM photo_libs WHERE lib_id=l.id) n FROM libraries l ORDER BY l.name").fetchall()
+        member = {}
+        for r in conn.execute("SELECT photo_id, lib_id FROM photo_libs"):
+            member.setdefault(r["photo_id"], set()).add(r["lib_id"])
         metas = {}
         for r in rows:
             try:
                 metas[r["id"]] = json.loads(r["meta"] or "{}")
             except ValueError:
                 metas[r["id"]] = {}
-        return render_template("library.html", photos=rows, q=q, metas=metas)
+        return render_template("library.html", photos=rows, q=q, metas=metas, libs=libs_all, member=member, lib=lib)
+
+    @app.route("/library/libraries", methods=["POST"])
+    @need("admin", "editor")
+    def library_libraries():
+        conn = db()
+        action = request.form.get("action")
+        if action == "add":
+            name = " ".join(request.form.get("name", "").split())[:60]
+            if name:
+                conn.execute("INSERT OR IGNORE INTO libraries(name) VALUES(?)", (name,))
+                flash("Library \"%s\" is ready." % name, "ok")
+        elif action == "rename" and request.form.get("name", "").strip():
+            try:
+                conn.execute("UPDATE libraries SET name=? WHERE id=?", (" ".join(request.form["name"].split())[:60], int(request.form["lib"])))
+            except sqlite3.IntegrityError:
+                flash("A library with that name already exists.", "error")
+        elif action == "remove":
+            lid = int(request.form["lib"])
+            conn.execute("DELETE FROM photo_libs WHERE lib_id=?", (lid,))
+            conn.execute("DELETE FROM libraries WHERE id=?", (lid,))
+            flash("Library removed. Its photos are still in the photo library.", "ok")
+        conn.commit()
+        return redirect(url_for("library"))
+
+    @app.route("/library/<int:pid>/libraries", methods=["POST"])
+    @need("admin", "editor")
+    def photo_libraries(pid):
+        conn = db()
+        conn.execute("SELECT 1 FROM photos WHERE id=?", (pid,)).fetchone() or abort(404)
+        conn.execute("DELETE FROM photo_libs WHERE photo_id=?", (pid,))
+        put_in_libraries(pid, request.form.getlist("libs"))
+        conn.commit()
+        return redirect(url_for("library", lib=request.form.get("back", "")))
 
     @app.route("/library/<int:pid>/delete", methods=["POST"])
     @need("admin", "editor")
@@ -2227,10 +2363,15 @@ def create_app(config=None):
         if in_use:
             flash("That photo is used in a bulletin and cannot be deleted.", "error")
         else:
+            conn.execute("DELETE FROM photo_libs WHERE photo_id=?", (pid,))
             conn.execute("DELETE FROM photos WHERE id=?", (pid,))
             conn.commit()
             try:
                 os.remove(os.path.join(app.config["UPLOAD_DIR"], p["filename"]))
+            except OSError:
+                pass
+            try:
+                os.remove(os.path.join(app.config["UPLOAD_DIR"], "thumb_" + p["filename"]))
             except OSError:
                 pass
         return redirect(url_for("library"))

@@ -12,16 +12,51 @@
   <label for="title">Title (optional)</label><input id="title" name="title" type="text">
   <label for="alt">Alternative text (describe the photo)</label><input id="alt" name="alt" type="text">
   <label><input type="checkbox" name="decorative" value="1"> Decorative (no alt text needed)</label>
+  {% if libs %}<fieldset><legend>Put it in these libraries (a photo can be in more than one)</legend>{% for l in libs %}<label><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if lib == l.id|string }}> {{ l.name }}</label> {% endfor %}</fieldset>{% endif %}
   <label for="tags">Extra tags (comma separated, e.g. church, pantry, youth)</label><input id="tags" name="tags" type="text">
   <p><button class="btn">Add to library</button></p>
 </form>
 {% endif %}
+{% if g.user.role in ('admin','editor') %}
+<h2>Bulk add photos</h2>
+<form method="post" action="{{ url_for('library_bulk') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <p class="small">Choose many photos at once, or one .zip file of photos. Each is shrunk to a size that prints and posts well, and its title, keywords and description are read from the photo automatically.</p>
+  <label for="bulk">Photos or a .zip file</label><input id="bulk" name="photos" type="file" accept="image/*,.zip" multiple required>
+  {% if libs %}<fieldset><legend>Put them in these libraries</legend>{% for l in libs %}<label><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if lib == l.id|string }}> {{ l.name }}</label> {% endfor %}</fieldset>{% endif %}
+  <label for="bt">Extra tags for all of them (optional, comma separated)</label><input id="bt" name="tags" type="text">
+  <p><button class="btn">Add all</button></p>
+</form>
+{% endif %}
+<h2>Libraries</h2>
+<p>
+  <a class="btn {{ '' if lib == '' else 'secondary' }}" href="{{ url_for('library') }}">All photos</a>
+  {% for l in libs %}<a class="btn {{ '' if lib == l.id|string else 'secondary' }}" href="{{ url_for('library', lib=l.id) }}">{{ l.name }} ({{ l.n }})</a> {% endfor %}
+  <a class="btn {{ '' if lib == 'none' else 'secondary' }}" href="{{ url_for('library', lib='none') }}">Not in a library</a>
+</p>
+{% if g.user.role in ('admin','editor') %}
+<form method="post" action="{{ url_for('library_libraries') }}" style="margin-bottom:.5em">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="add">
+  <label for="nl">New library (for example Church, Logos, Religious, Youth)</label><input id="nl" name="name" type="text" style="max-width:18em" required> <button class="btn">Create library</button>
+</form>
+{% for l in libs %}
+<form method="post" action="{{ url_for('library_libraries') }}" style="display:inline">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="lib" value="{{ l.id }}">
+  <input name="name" value="{{ l.name }}" aria-label="Library name" style="max-width:12em">
+  <button class="btn secondary" name="action" value="rename">Rename</button>
+  <button class="btn secondary" name="action" value="remove" onclick="return confirm('Remove the library {{ l.name }}? The photos stay in the photo library.')">Remove</button>
+</form><br>
+{% endfor %}
+{% endif %}
 <h2>Photos</h2>
 {% for p in photos %}
 <figure style="display:inline-block;width:230px;vertical-align:top;margin:.5em">
-  <img src="{{ url_for('uploads', name=p.filename) }}" alt="{{ p.alt }}" style="max-width:100%;height:auto">
+  <img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" style="max-width:100%;height:auto">
   <figcaption><strong>{{ p.title }}</strong><br>{{ p.tags }}
     {% set m = metas[p.id] %}{% if m %}<br><span class="small">{% for k in (m.size, m.taken, m.camera, m.creator, m.copyright) if k %}{{ k }}{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}</figcaption>
+  {% if g.user.role in ('admin','editor') and libs %}<form method="post" action="{{ url_for('photo_libraries', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="back" value="{{ lib }}">
+    {% for l in libs %}<label class="small"><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if l.id in member.get(p.id, ()) }}> {{ l.name }}</label> {% endfor %}
+    <button class="btn secondary">Save libraries</button></form>{% elif libs %}<span class="small">{% for l in libs if l.id in member.get(p.id, ()) %}{{ l.name }}{{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}
   {% if g.user.role in ('admin','editor') %}<form method="post" action="{{ url_for('library_delete', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary" onclick="return confirm('Delete this photo?')">Delete</button></form>{% endif %}
 </figure>
 {% else %}<p>No photos yet.</p>{% endfor %}
