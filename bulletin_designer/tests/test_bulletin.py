@@ -953,3 +953,11 @@ def test_add_section_top_and_bottom(app):
     create_bulletin(c)
     html = c.get("/bulletins/1").text
     assert 'id="nt_top"' in html and 'id="nt"' in html
+
+
+def test_docx_upload_returns_to_section(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    r = c.post("/bulletins/1/section/9", data={"body": "", "csrf": tok(c, "/bulletins/1"),
+               "document": (make_docx(["Hello docx"]), "m.docx")}, content_type="multipart/form-data", follow_redirects=True)
+    assert "Hello docx" in r.text and "review it" in r.text

@@ -1042,6 +1042,7 @@ def create_app(config=None):
                         lines.append(" | ".join(vals))
                 body = "\n".join(lines)
             doc = request.files.get("document")
+            doc_added = False
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
                 if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff"):
@@ -1065,7 +1066,11 @@ def create_app(config=None):
                 except (ValueError, zipfile.BadZipFile, KeyError, ElementTree.ParseError, subprocess.SubprocessError):
                     flash("Could not read that document. Please upload a valid .docx file (.docx, .doc or .txt).", "error")
                     return redirect(request.url)
+                if not text.strip():
+                    flash("No text was found in that document (text inside pictures cannot be read).", "error")
+                    return redirect(request.url)
                 body = (body.rstrip() + "\n\n" + text).strip() if body.strip() else text
+                doc_added = True
             image = item["image"]
             f = request.files.get("image")
             if f and f.filename:
@@ -1161,6 +1166,9 @@ def create_app(config=None):
                           gal_json,
                           status, g.user["username"], item["id"]))
             db().commit()
+            if doc_added:
+                flash("The document's text is now in the box below. Please review it, then press Save section when it looks right.", "ok")
+                return redirect(url_for("section", bid=bid, sid=sid))
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
