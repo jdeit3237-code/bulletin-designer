@@ -256,16 +256,21 @@
     {% set gal = gallery_data(item.gallery) %}
     <h3>More photos in this section</h3>
     <p class="meta">Add several photos, placed above the text and/or below the text. Photos in the same place sit side by side (up to 3 per row) at the same height, sized automatically.</p>
-    {% for gp in gal.photos %}<div class="gp"><img src="{{ url_for('uploads', name=gp.f) }}" alt="" style="height:.6in"> <label>Description <input name="gp_alt_{{ loop.index0 }}" value="{{ gp.alt }}"></label>
+    {% for gp in gal.photos %}<div class="gp"><img src="{{ url_for('uploads', name=gp.f) }}" alt="" style="height:.6in"> <label>Caption <input name="gp_alt_{{ loop.index0 }}" value="{{ gp.alt }}"></label>
       <label>Place <select name="gp_w_{{ loop.index0 }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select></label>
       <label><input type="checkbox" name="gp_rm_{{ loop.index0 }}" value="1"> Remove</label></div>{% endfor %}
     {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
-      <label>Description <input name="ng_alt_{{ n }}"></label>
+      <label>Caption (shown under the photo in italics) <input name="ng_alt_{{ n }}"></label>
       <label>Place <select name="ng_w_{{ n }}"><option value="below">Below the text</option><option value="above">Above the text</option></select></label></div>{% endfor %}
+    <label for="gal_align">Line the photos up</label>
+    <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
+    <label for="gal_gap">Space between photos in inches</label>
+    <input id="gal_gap" name="gal_gap" type="number" min="0" max="1" step="0.05" value="{{ gal.gap }}">
     <label for="gal_h">Tallest height of these photos in inches (photos shrink to fit the width, never cropped)</label>
     <input id="gal_h" name="gal_h" type="number" min="0.5" max="6" step="0.25" value="{{ gal.h }}">
+    <label><input type="checkbox" name="ocr" value="1"> This photo contains words that need to be read (OCR). Check this box and Save: the words found in the photo are put in the alternative text below.</label>
     <label for="alt">Alternative text (describe the image for screen readers)</label>
     <input id="alt" name="alt" type="text" value="{{ item.alt }}">
     <label><input type="checkbox" name="decorative" value="1" {{ 'checked' if item.decorative }}> Image is purely decorative (no alt text needed)</label>

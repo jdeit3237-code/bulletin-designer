@@ -409,6 +409,18 @@ def create_app(config=None):
         s = re.sub(r"(?<![\w#])(\d+)(st|nd|rd|th)\b", r"\1<sup>\2</sup>", s)
         return Markup(s)
 
+    def ocr_text(path):
+        """Read text from a picture with the tesseract program; None when it is not installed or fails."""
+        import shutil
+        exe = shutil.which("tesseract")
+        if not exe:
+            return None
+        try:
+            out = subprocess.run([exe, path, "stdout"], capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return " ".join(out.stdout.split()) if out.returncode == 0 else None
+
     def gallery_data(raw):
         try:
             d = json.loads(raw or "")
@@ -417,6 +429,8 @@ def create_app(config=None):
         if not isinstance(d, dict):
             d = {}
         d.setdefault("h", 1.5)
+        d["align"] = d.get("align") if d.get("align") in ("left", "right") else "center"
+        d["gap"] = d.get("gap", 0.15) if isinstance(d.get("gap"), (int, float)) else 0.15
         d["photos"] = [p for p in d.get("photos", []) if isinstance(p, dict) and p.get("f")]
         for p in d["photos"]:
             try:
@@ -1070,6 +1084,16 @@ def create_app(config=None):
                 image = ""
             decorative = 1 if request.form.get("decorative") else 0
             alt = request.form.get("alt", "").strip()
+            if request.form.get("ocr") and image:
+                found = ocr_text(os.path.join(app.config["UPLOAD_DIR"], image))
+                if found:
+                    alt = found[:2000]
+                    decorative = 0
+                    flash("The text in the photo was read and put in the alternative text. Please check it for mistakes.", "ok")
+                elif found is None:
+                    flash("Text reading (OCR) is not available on this server yet. Please type the words from the photo into the alternative text.", "error")
+                else:
+                    flash("No text was found in the photo.", "ok")
             if image and not decorative and not alt:
                 flash("Alternative text is required for images (or mark the image decorative).", "error")
                 return redirect(request.url)
@@ -1097,14 +1121,19 @@ def create_app(config=None):
                     galt = galt or glib["alt"] or ""
                 if fname:
                     if not galt:
-                        flash("Please describe each extra photo (alternative text).", "error")
+                        flash("Please type a caption for each extra photo (it also describes the photo for screen readers).", "error")
                         return redirect(request.url)
                     keep.append({"f": fname, "alt": galt, "w": "above" if request.form.get(f"ng_w_{n}") == "above" else "below"})
             try:
                 gal_h = max(0.5, min(6.0, float(request.form.get("gal_h") or gal["h"])))
             except ValueError:
                 gal_h = 1.5
-            gal_json = json.dumps({"h": gal_h, "photos": keep[:12]}) if keep else ""
+            try:
+                gal_gap = max(0.0, min(1.0, float(request.form.get("gal_gap") or 0.15)))
+            except ValueError:
+                gal_gap = 0.15
+            gal_align = request.form.get("gal_align") if request.form.get("gal_align") in ("left", "right") else "center"
+            gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "align": gal_align, "photos": keep[:12]}) if keep else ""
             status = "approved" if g.user["role"] in ("admin", "editor") else "pending"
             def num(key, lo, hi, default):
                 try:

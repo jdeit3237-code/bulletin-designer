@@ -22,6 +22,14 @@
 {% endif %}
 <p><label for="jump">Jump to section</label>
 <select id="jump" style="width:22em" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></p>
+{% if g.user.role in ('admin','editor') and b.status != 'published' %}
+<form method="post" action="{{ url_for('add_section', bid=b.id) }}" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="nt_top">New section title</label>
+  <input id="nt_top" name="title" type="text" required placeholder="e.g. Pumpkin Patch" style="width:18em">
+  <button class="btn">Add new section</button>
+</form>
+{% endif %}
 <table>
   <caption class="small">Sections in print order</caption>
   <thead><tr><th scope="col">Section</th><th scope="col">Printed on</th><th scope="col">Type</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>

@@ -918,7 +918,7 @@ def test_gallery_photos(app):
             "ng_file_0": (_card(200, 100, "red"), "a.png"), "ng_file_1": (_card(200, 100, "blue"), "b.png")}
     c.post("/bulletins/1/section/9", data=data, content_type="multipart/form-data")
     html = c.get("/bulletins/1/preview").text
-    assert 'alt="First pic"' in html and 'alt="Second pic"' in html
+    assert 'gal-cap">First pic' in html and 'gal-cap">Second pic' in html
     assert html.index("First pic") < html.index("Hello") < html.index("Second pic")
 
 
@@ -935,3 +935,21 @@ def test_full_width_bands_with_columns(app):
     pg = next(p for p in pages if "HALFLEFT" in p)
     assert "HALFRIGHT" in pg and "BANDTOP" in pg and "BANDBOTTOM" in pg
     assert pg.index("BANDTOP") < pg.index("HALFLEFT") < pg.index("HALFRIGHT") < pg.index("BANDBOTTOM")
+
+
+def test_ocr_checkbox(app):
+    import shutil
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    r = c.post("/bulletins/1/section/9", data={"csrf": t, "ocr": "1", "decorative": "1", "image": (_card(200, 100, "white"), "x.png")},
+               content_type="multipart/form-data", follow_redirects=True)
+    if not shutil.which("tesseract"):
+        assert "OCR) is not available" in r.text or "Alternative text is required" in r.text
+
+
+def test_add_section_top_and_bottom(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1").text
+    assert 'id="nt_top"' in html and 'id="nt"' in html
