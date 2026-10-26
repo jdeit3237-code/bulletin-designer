@@ -835,3 +835,12 @@ def test_soft_return(app):
     h = c.get("/bulletins/1/preview").text
     assert "line one<br>line two" in h.replace("\n", "")
     assert h.count("new para") >= 1
+
+
+def test_multi_page_section_text_not_repeated(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "UNIQUEWORDZ", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"pages": "2", "csrf": t})
+    assert c.get("/bulletins/1/preview").text.count("UNIQUEWORDZ") == 1
