@@ -13,7 +13,7 @@
     <a class="brand" href="{{ url_for('dashboard') }}"><img src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church - Bulletin Designer"></a>
     {% if g.user %}
       <a href="{{ url_for('dashboard') }}">Bulletins</a>
-      {% if g.user.role == 'admin' %}<a href="{{ url_for('users') }}">Users</a><a href="{{ url_for('sections_admin') }}">Sections</a>{% endif %}
+      {% if g.user.role in ('admin','editor') %}<a href="{{ url_for('users') }}">Users</a>{% endif %}{% if g.user.role == 'admin' %}<a href="{{ url_for('sections_admin') }}">Sections</a>{% endif %}
       <a href="{{ url_for('library') }}">Photo library</a>
       <a href="{{ url_for('ads') }}">Advertisements</a>
       <a href="{{ url_for('style_guide') }}">Style guide</a>

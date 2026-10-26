@@ -264,8 +264,10 @@ def create_app(config=None):
                          ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
-        if "email" not in {r[1] for r in conn.execute("PRAGMA table_info(users)")}:
-            conn.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''")
+        ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+        for col in ("email", "last_login", "last_seen"):
+            if col not in ucols:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ''")
         if "is_template" not in bcols:
             conn.execute("ALTER TABLE bulletins ADD COLUMN is_template INTEGER DEFAULT 0")
         if "toc_before" not in bcols:
@@ -351,6 +353,11 @@ def create_app(config=None):
         if request.method == "POST":
             if not secrets.compare_digest(request.form.get("csrf", ""), session["csrf"]):
                 abort(400, "Invalid form token")
+        if g.user and request.endpoint != "static":
+            now = datetime.utcnow()
+            if not g.user["last_seen"] or g.user["last_seen"] < (now - timedelta(seconds=60)).isoformat():
+                db().execute("UPDATE users SET last_seen=? WHERE id=?", (now.isoformat(), g.user["id"]))
+                db().commit()
         if (g.user and g.user["must_reset"] and request.endpoint
                 not in ("password", "logout", "static", "forgot", "reset_with_token", "register")):
             return redirect(url_for("password"))
@@ -988,6 +995,8 @@ def create_app(config=None):
                 session.clear()
                 session["uid"] = u["id"]
                 session["csrf"] = secrets.token_hex(16)
+                db().execute("UPDATE users SET last_login=?, last_seen=? WHERE id=?", ((datetime.utcnow().isoformat(),) * 2) + (u["id"],))
+                db().commit()
                 return redirect(safe_next(request.args.get("next")) or url_for("dashboard"))
             flash("Incorrect email or password.", "error")
         return render_template("login.html")
@@ -1060,6 +1069,8 @@ def create_app(config=None):
                 session.clear()
                 session["uid"] = u["id"]
                 session["csrf"] = secrets.token_hex(16)
+                db().execute("UPDATE users SET last_login=?, last_seen=? WHERE id=?", ((datetime.utcnow().isoformat(),) * 2) + (u["id"],))
+                db().commit()
                 flash("Welcome! Your account is ready.", "ok")
                 return redirect(url_for("dashboard"))
         return render_template("register.html", u=u, reset=False)
@@ -2247,11 +2258,24 @@ def create_app(config=None):
 
     # ---------- admin ----------
     @app.route("/admin/users", methods=["GET", "POST"])
-    @need("admin")
+    @need("admin", "editor")
     def users():
         conn = db()
+        mine = ROLES.index(g.user["role"])
+        allowed = ROLES[mine:]
+
+        def may_manage(uid):
+            row = conn.execute("SELECT role FROM users WHERE id=?", (uid,)).fetchone()
+            return bool(row) and row["role"] in allowed
+
         if request.method == "POST":
             action = request.form.get("action")
+            if action in ("invite", "setemail", "role") and not may_manage(int(request.form.get("uid", 0))):
+                abort(403)
+            if action == "create" and request.form.get("role") not in allowed:
+                abort(403)
+            if action == "role" and request.form.get("role") not in allowed:
+                abort(403)
             if action == "create":
                 role = request.form.get("role")
                 email = request.form.get("username", "").strip().lower()
@@ -2300,11 +2324,23 @@ def create_app(config=None):
             conn.commit()
             return redirect(url_for("users"))
         rows = conn.execute("SELECT * FROM users ORDER BY username").fetchall()
+        now = datetime.utcnow()
+        pend = {r["user_id"] for r in conn.execute("SELECT user_id FROM tokens WHERE kind='invite'")}
+        info = {}
+        for r in rows:
+            seen = r["last_seen"] or ""
+            online = bool(seen) and seen >= (now - timedelta(minutes=10)).isoformat()
+            if r["must_reset"]:
+                state = "Invited, not registered yet" if r["id"] in pend else "Must change password"
+            else:
+                state = "Registered"
+            info[r["id"]] = {"online": online, "state": state, "verified": not r["must_reset"],
+                             "last": (r["last_login"] or "")[:16].replace("T", " ") or "never"}
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL ORDER BY position").fetchall()
         assigned = {r["id"]: {x["section_id"] for x in conn.execute(
             "SELECT section_id FROM user_sections WHERE user_id=?", (r["id"],))} for r in rows}
         return render_template("users.html", users=rows, roles=ROLES, help=ROLE_HELP,
-                               secs=secs, assigned=assigned)
+                               secs=secs, assigned=assigned, info=info, allowed=allowed, can_manage=lambda role: role in allowed)
 
     @app.route("/admin/backup")
     @need("admin")

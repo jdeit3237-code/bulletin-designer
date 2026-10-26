@@ -41,6 +41,7 @@ TOPICS = [
     ("accounts", "Invite someone, or recover a forgotten password", "email invite register account password forgot reset editor user",
      ["Admin: open Users, fill in 'Invite a user' with their email and pick Editor, then Send invitation. They get an email with a link to choose their own password. Their email is their sign-in.",
       "Forgot a password? On the sign-in page press 'Forgot your password?', type your email, and use the link in the email (good for 2 hours).",
+      "The Users page lists everyone with their access level, whether they are verified (finished registering), whether they are online now, and their last sign-in. Editors can add and manage users at the Editor level or below; only the admin manages admins and backups.",
       "If the server cannot send email yet, the screen shows the link so you can send it yourself. Ask the admin to resend any time with 'Email registration link'."]),
     ("totalpages", "Set how many pages the bulletin has", "total pages number count 12 16 extra blank four multiple",
      ["On the overview, type the number in 'Total pages in this bulletin' (for example 12) and press Set.",

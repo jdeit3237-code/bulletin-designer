@@ -1156,3 +1156,20 @@ def test_email_invite_and_password_recovery(app):
     login(out, "ed@parish.org", "brand-new-password")
     assert out.get("/").status_code == 200
     assert out.get(path, follow_redirects=False).status_code == 302
+
+
+def test_editor_manages_users_at_or_below(app):
+    c = setup_admin(app)
+    e = register_user(app, c, "ed@x.org", "editor")
+    page = e.get("/admin/users")
+    assert page.status_code == 200 and "Download backup" not in page.text
+    assert "Who has an account" in page.text and "Online now" in page.text
+    t = tok(e, "/admin/users")
+    e.post("/admin/users", data={"action": "create", "username": "v@x.org", "role": "admin", "csrf": t})
+    assert not any(m[0] == "v@x.org" for m in app.outbox)
+    assert e.post("/admin/users", data={"action": "create", "username": "v@x.org", "role": "viewer", "csrf": t}).status_code == 302
+    assert any(m[0] == "v@x.org" for m in app.outbox)
+    assert e.post("/admin/users", data={"action": "role", "uid": "1", "role": "viewer", "csrf": t}).status_code == 403
+    assert "Invited, not registered yet" in c.get("/admin/users").text
+    v = register_user(app, c, "w@x.org", "viewer")
+    assert v.get("/admin/users").status_code == 403
