@@ -21,7 +21,7 @@ TOPICS = [
      ["Open the section. Choose a photo from the Photo library, or upload a new one (JPG or PNG).",
       "Use the Crop and zoom sliders; the picture is never stretched.",
       "'Where the photo goes' lets you put it below the text, above the title, beside the text, or Photo only (no text).",
-      "To make the photo bigger or smaller, type a number in 'Photo width'. It is a percent of the page width: 0 keeps the standard size, 60 or 70 makes it bigger, 100 is the full width. The height follows automatically, so the picture is never stretched.",
+      "To make the photo bigger or smaller, type a number in 'Photo width'. It is a percent of the page width: 0 keeps the standard size, 60 or 70 makes it bigger, 100 is the full width. If the photo is set to 'Inset at left/right, text wrapped', keep it at 60 or less so the words have room beside it (the app stops at 60). The height follows automatically, so the picture is never stretched.",
       "Add a short description of the picture for people who cannot see it (alt text), or tick Decorative."]),
     ("photorow", "Put several photos in a section", "several multiple photos row side by side equal same size height width align top bottom gap caption square tall wide",
      ["Open the section and look for 'More photos in this section'. Add each photo and choose whether it goes above or below the text.",

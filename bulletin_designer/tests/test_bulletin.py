@@ -984,7 +984,7 @@ def test_photo_width_and_multi_paragraph_size(app):
     c = setup_admin(app)
     create_bulletin(c)
     t = tok(c, "/bulletins/1/section/9")
-    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "{18pt|One\n\nTwo}", "img_w": "70", "img_pos": "inset-right", "decorative": "1",
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "{18pt|One\n\nTwo}", "img_w": "70", "img_pos": "above", "decorative": "1",
                                            "image": (_card(200, 200, "red"), "x.png")}, content_type="multipart/form-data")
     html = c.get("/bulletins/1/preview").text
     assert "width:70%" in html
