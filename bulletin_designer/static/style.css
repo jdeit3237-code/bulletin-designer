@@ -264,3 +264,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-foot.slim .foot-page { margin-left: auto; }
 .sheet .pg-body { position: relative; }
 .sheet .ad-contact { position: absolute; left: 0; right: 0; bottom: .05in; margin: 0; }
+.sheet .pg-foot.slim { padding: .01in .25in; line-height: 1.05; border-top-width: 2px; margin-top: 0; min-height: 0; }
+.sheet .pg-foot.slim .foot-row { line-height: 1.05; }
