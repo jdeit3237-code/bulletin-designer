@@ -758,3 +758,9 @@ def test_sentence_first_word_not_stranded(app):
     from bulletin_designer.app import create_app
     t = app.jinja_env.globals["tight"]
     assert "This&nbsp;information" in str(t("It is history. This information is here today.", True))
+
+
+def test_inline_styling(app):
+    t = app.jinja_env.globals["tight"]
+    h = str(t("A **bold** and __under__ and {#ff0000|red} <b>x</b> word here.", True))
+    assert "<strong>bold</strong>" in h and 'class="ul"' in h and 'color:#ff0000' in h and "&lt;b&gt;" in h

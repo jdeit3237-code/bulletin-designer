@@ -143,9 +143,17 @@
 <script>
 document.querySelectorAll('.sheet .pg-body').forEach(function (b) {
   if (b.scrollHeight > b.clientHeight + 2) {
+    var bottom = b.getBoundingClientRect().bottom, cut = [];
+    b.querySelectorAll('.sec').forEach(function (s) {
+      if (s.getBoundingClientRect().bottom > bottom + 2) {
+        s.classList.add('is-cut');
+        var h = s.querySelector('h2'); cut.push(h ? h.textContent.trim() : 'a section');
+      }
+    });
+    if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
     var w = document.createElement('p'); w.className = 'overflow-warn'; w.setAttribute('role', 'alert');
-    w.textContent = 'Warning: content is cut off on this page. Shorten it or give the section more pages.';
-    b.prepend(w);
+    w.textContent = 'Warning: cut off at the bottom' + (cut.length ? ' (' + cut.join(', ') + ')' : '') + '. Shorten it or give the section more pages.';
+    b.appendChild(w);
   }
 });
 </script>

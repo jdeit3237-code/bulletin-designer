@@ -185,8 +185,27 @@
     {% endfor %}
     </div>
     {% else %}
-    <label for="body">Text (blank line starts a new paragraph)</label>
+    <label for="body">Text (Enter starts a new paragraph)</label>
+    <div class="fmtbar" role="toolbar" aria-label="Text styling">
+      <span class="meta">Select words, then click:</span>
+      <button type="button" class="btn" data-fmt="b"><b>Bold</b></button>
+      <button type="button" class="btn" data-fmt="u"><u>Underline</u></button>
+      <label for="fmtcolor" class="meta">Color</label><input type="color" id="fmtcolor" value="#b00020" aria-label="Text color">
+      <button type="button" class="btn" data-fmt="c">Apply color</button>
+      <button type="button" class="btn" data-fmt="x">Remove styling</button>
+    </div>
     <textarea id="body" name="body">{{ item.body }}</textarea>
+    {% raw %}<script>
+    (function(){var t=document.getElementById('body');
+    function strip(s){var p;do{p=s;s=s.replace(/\*\*(.*?)\*\*/gs,'$1').replace(/__(.*?)__/gs,'$1').replace(/\{#[0-9a-fA-F]{6}\|(.*?)\}/gs,'$1');}while(s!==p);return s;}
+    document.querySelectorAll('[data-fmt]').forEach(function(b){b.addEventListener('click',function(){
+      var a=t.selectionStart,e=t.selectionEnd,sel=t.value.slice(a,e);if(a===e){t.focus();return;}
+      var k=b.getAttribute('data-fmt'),r;
+      if(k==='b')r='**'+sel+'**';else if(k==='u')r='__'+sel+'__';
+      else if(k==='c')r='{'+document.getElementById('fmtcolor').value+'|'+sel+'}';else r=strip(sel);
+      t.value=t.value.slice(0,a)+r+t.value.slice(e);t.focus();t.setSelectionRange(a,a+r.length);});});})();
+    </script>{% endraw %}
+    <p class="meta">Styling shows as ** ** (bold), __ __ (underline) and {% raw %}{#color|text}{% endraw %} in the box, and prints as styled text.</p>
     {% endif %}
     <label for="source">Source / attribution (e.g. usccb.org, miamiarch.org, stpeterbpk.org)</label>
     <input id="source" name="source" type="text" value="{{ item.source }}">

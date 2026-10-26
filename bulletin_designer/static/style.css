@@ -58,7 +58,8 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet img { max-width: 100%; max-height: 6in; width: auto; height: auto; object-fit: contain; }
 .sheet figcaption { font-size: 12pt; font-style: italic; }
 .sheet .src { font-size: 12pt; color: #444; }
-.sheet .overflow-warn { background: #fff3cd; color: #5c3b00; padding: .3em; font: bold 12pt Arial; }
+.sheet .overflow-warn { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; margin: 0; background: rgba(255,243,205,.92); color: #5c3b00; padding: .2em .4em; font: bold 12pt Arial; border-top: 2px solid #c0392b; }
+.sheet .sec.is-cut { outline: 2px dashed #c0392b; }
 .sheet.cover h1 { font-size: 26pt; text-align: center; margin: .2em; }
 .banner { display: flex; flex-wrap: wrap; align-items: center; color: #fff;
   background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 6px solid var(--gold-bright);
@@ -235,3 +236,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet figure.photo-above { margin-top: 0; }
 
 .sec.has-pg > p.bp { margin-top: 0; margin-bottom: var(--pg); }
+
+.sec span.ul { text-decoration: underline; }

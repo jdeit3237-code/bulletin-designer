@@ -300,21 +300,31 @@ def create_app(config=None):
 
     app.jinja_env.globals["iso_date"] = iso_date
 
+    def styled(esc):
+        import re
+        from markupsafe import Markup
+        s = str(esc)
+        for _ in range(3):
+            s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s, flags=re.S)
+            s = re.sub(r"__(.+?)__", r'<span class="ul">\1</span>', s, flags=re.S)
+            s = re.sub(r"\{(#[0-9a-fA-F]{6})\|(.+?)\}", r'<span style="color:\1">\2</span>', s, flags=re.S)
+        return Markup(s)
+
     def tight(text, on=True):
         """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
         from markupsafe import Markup, escape
         text = str(text or "")
         if on is not None and not on:
-            return escape(text)
+            return styled(escape(text))
         words = text.split(" ")
         if len(words) < 3:
-            return escape(text)
+            return styled(escape(text))
         out = escape(words[0])
         for i in range(1, len(words)):
             first_of_sentence = i >= 2 and words[i - 2][-1:] in ".!?"
             sep = Markup("&nbsp;") if (i == len(words) - 1 or first_of_sentence) else " "
             out += sep + escape(words[i])
-        return Markup(out)
+        return styled(out)
     app.jinja_env.globals["tight"] = tight
     app.jinja_env.globals["gap_display"] = gap_display
     app.jinja_env.globals["long_sunday"] = long_date
