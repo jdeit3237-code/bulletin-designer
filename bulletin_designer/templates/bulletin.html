@@ -7,9 +7,15 @@
   {% if g.user.role in ('admin','editor') %}<a class="btn secondary" href="{{ url_for('preview', bid=b.id, resize=(None if request.args.get('resize') else 1)) }}">{{ 'Turn off resize handles' if request.args.get('resize') else 'Resize sections (drag corners)' }}</a>{% endif %}
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}
+{% macro section_photo(r, p) %}{% if r.image and p.part == 1 %}
+      <figure class="photo-{{ r.img_pos or 'below' }}">{% if r.crop_h or (r.crop_zoom or 1) > 1 %}<div class="crop" style="height:{{ r.crop_h or 3 }}in"><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}" style="object-position:{{ r.crop_x }}% {{ r.crop_y }}%;transform:scale({{ r.crop_zoom }});transform-origin:{{ r.crop_x }}% {{ r.crop_y }}%"></div>{% else %}<img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">{% endif %}
+      {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
+{% endif %}{% endmacro %}
 {% macro render_row(r, p) %}<div class="sec sec-{{ r.slug }} {{ 'has-ig' if r.item_gap }} {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h or r.item_gap %} style="{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}{% if r.item_gap %}--ig: {{ r.item_gap }}in;{% endif %}"{% endif %}>
+    {% if r.img_pos == 'above' %}{{ section_photo(r, p) }}{% endif %}
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
     {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
+    {% if r.img_pos in ('inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
       {% if cv.extra %}<p>{{ tight(cv.extra, b.no_stragglers) }}</p>{% endif %}
@@ -49,10 +55,7 @@
     {% else %}
       {% for para in r.body.split('\n\n') %}{% if para.strip() %}<p>{{ tight(para.strip(), b.no_stragglers) }}</p>{% endif %}{% endfor %}
     {% endif %}
-    {% if r.image and p.part == 1 %}
-      <figure>{% if r.crop_h or (r.crop_zoom or 1) > 1 %}<div class="crop" style="height:{{ r.crop_h or 3 }}in"><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}" style="object-position:{{ r.crop_x }}% {{ r.crop_y }}%;transform:scale({{ r.crop_zoom }});transform-origin:{{ r.crop_x }}% {{ r.crop_y }}%"></div>{% else %}<img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">{% endif %}
-      {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
-    {% endif %}
+    {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
 </div>{% endmacro %}
 {% macro render_duo(p) %}{% if p.duo.third %}{% set cols = [('left23',2),('right3',1)] if p.duo.left23 else ([('left3',1),('right23',2)] if p.duo.right23 else [('left3',1),('mid3',1),('right3',1)]) %}

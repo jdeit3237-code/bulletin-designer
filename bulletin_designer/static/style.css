@@ -228,3 +228,8 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec.has-ig > :last-child, .sec.has-ig > .intent:last-child, .sec.has-ig > .mass:last-child { margin-bottom: 0; }
 .sec.has-ig .mass h3, .sec.has-ig .mass-head { margin: 0; padding: 0; line-height: 1.25; }
 .sec.has-ig.sec-mass-schedule .mass p { margin: 0; line-height: 1.25; }
+
+.sheet figure.photo-inset-left, .sheet figure.photo-inset-right { width: 45%; margin: .03in 0 .06in; }
+.sheet figure.photo-inset-left { float: left; margin-right: .15in; }
+.sheet figure.photo-inset-right { float: right; margin-left: .15in; }
+.sheet figure.photo-above { margin-top: 0; }

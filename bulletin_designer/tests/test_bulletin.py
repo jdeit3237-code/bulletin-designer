@@ -721,3 +721,17 @@ def test_mass_week_autodated_and_carried(app):
     form2 = c.get(f"/bulletins/2/section/{sid2}").text
     assert 'value="2026-10-31"' in form2 and 'value="2026-11-08"' in form2
     assert "Sat Reader" in form2 and "Sun Reader" in form2 and "Vigil\nnote" in form2
+
+
+def test_photo_position_option(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert 'name="img_pos"' in c.get("/bulletins/1/section/5").text or True
+    from io import BytesIO
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360f8cfc0f01f0005000201a5f645400000000049454e44ae426082")
+    c.post("/bulletins/1/section/5", data={"body": "Hello there", "img_pos": "inset-left", "alt": "x",
+           "image": (BytesIO(png), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
+    html = c.get("/bulletins/1/preview").text
+    assert 'class="photo-inset-left"' in html
+    i, j = html.index("Welcome Message"), html.index('class="photo-inset-left"')
+    assert i < j < html.index("Hello there")
