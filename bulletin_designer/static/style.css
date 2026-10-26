@@ -302,3 +302,17 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .lgrid .lf .meta { font-size: .75em; line-height: 1.2; }
 .lgrid .lf:has(select[name="area"]), .lgrid .lf:has(select[name="font_style"]) { grid-column: span 2; }
 .lnote { margin: 0 0 .4em; }
+
+/* Youth calendar cards */
+.ycal { display: block; }
+.yev { display: table; width: 100%; margin: 0 0 6px; border: 2px solid; border-radius: 12px; page-break-inside: avoid; }
+.ydate { display: table-cell; width: 0.8in; text-align: center; vertical-align: middle; padding: 4px; border-radius: 9px 0 0 9px; color: #fff; }
+.ymon { display: block; font-size: 12pt; font-weight: bold; letter-spacing: 1px; }
+.yday { display: block; font-size: 20pt; font-weight: bold; line-height: 1; }
+.ybody { display: table-cell; vertical-align: middle; padding: 4px 10px; }
+.ytitle { display: block; font-size: 14pt; }
+.ymeta { display: block; font-size: 12pt; color: #444; }
+.y0 { border-color: #f26b3a; background: #fff3ec; } .y0 .ydate { background: #f26b3a; }
+.y1 { border-color: #1fa3c4; background: #eaf8fc; } .y1 .ydate { background: #1fa3c4; }
+.y2 { border-color: #8e5bd4; background: #f4eefc; } .y2 .ydate { background: #8e5bd4; }
+.y3 { border-color: #2fa866; background: #eaf8f0; } .y3 .ydate { background: #2fa866; }

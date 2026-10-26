@@ -1022,3 +1022,19 @@ def test_three_sections_same_requested_page(app):
     html = c.get("/bulletins/1/preview").text
     pg = next(p for p in html.split('<section class="sheet') if "AAA1" in p)
     assert "BBB2" in pg and "CCC3" in pg
+
+
+def test_youth_calendar_location_and_carry_forward(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
+    page = c.get(f"/bulletins/1/section/{sid}").text
+    assert "e0_lectors" not in page and "e0_location" in page
+    c.post(f"/bulletins/1/section/{sid}", data={"event_count": "3", "e0_date": "2026-10-20", "e0_event": "Old Event", "e0_location": "Hall",
+           "e1_date": "2026-11-02", "e1_event": "Pizza Night", "e1_location": "Ministry Center",
+           "e2_date": "2026-10-25", "e2_event": "Today Event", "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "Ministry Center" in html and "yev" in html and "NOV" in html
+    c.post("/bulletins/new", data={"sunday": "2026-11-01", "csrf": tok(c)})
+    nxt = c.get(f"/bulletins/2/section/{sid}").text
+    assert "Pizza Night" in nxt and "Old Event" not in nxt and "Today Event" not in nxt

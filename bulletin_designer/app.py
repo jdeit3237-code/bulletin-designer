@@ -356,7 +356,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["calendar_rows"] = calendar_rows
 
-    CAL_MIN = ("lectors", "sacristans", "ministers")
+    CAL_MIN = ("lectors", "sacristans", "ministers", "location")
 
     def calendar_entries(body):
         """Calendar rows as dicts, with optional weekend Mass ministers (lectors, sacristans, Eucharistic ministers)."""
@@ -366,13 +366,28 @@ def create_app(config=None):
                 continue
             parts = [p.strip() for p in line.split("|")]
             if len(parts) >= 3:
-                parts = (parts + [""] * 6)[:6]
+                parts = (parts + [""] * 7)[:7]
                 out.append(dict(zip(("date", "time", "event") + CAL_MIN, parts)))
             else:
-                out.append(dict(zip(("date", "time", "event") + CAL_MIN, [parts[0], "", " ".join(parts[1:]), "", "", ""])))
+                out.append(dict(zip(("date", "time", "event") + CAL_MIN, [parts[0], "", " ".join(parts[1:]), "", "", "", ""])))
         return out
 
     app.jinja_env.globals["calendar_entries"] = calendar_entries
+
+    def youth_events(body):
+        """Youth calendar rows plus month/day/weekday pieces for the colourful cards."""
+        out = []
+        for i, ev in enumerate(calendar_entries(body)):
+            d = None
+            try:
+                d = date.fromisoformat(iso_date(ev["date"]))
+            except (ValueError, TypeError):
+                pass
+            ev = dict(ev, color=i % 4, month=f"{d:%b}".upper() if d else "", day=d.day if d else "", weekday=f"{d:%A}" if d else ev["date"])
+            out.append(ev)
+        return out
+
+    app.jinja_env.globals["youth_events"] = youth_events
 
     def long_date(iso):
         try:
@@ -639,6 +654,16 @@ def create_app(config=None):
         d = d or date.today()
         return d + timedelta(days=(6 - d.weekday()) % 7)
 
+    def upcoming_events(body, sunday):
+        """Keep calendar lines dated on or after the new issue's Sunday; lines with no readable date are kept."""
+        keep = []
+        for line in (body or "").splitlines():
+            iso = iso_date(line.split("|")[0])
+            if iso and iso < sunday:
+                continue
+            keep.append(line)
+        return "\n".join(keep)
+
     def week_free(body):
         """Drop the week-specific @date line so a carried cover does not repeat last week's date and title."""
         return "\n".join(l for l in (body or "").splitlines() if not l.strip().lower().startswith("@date"))
@@ -662,11 +687,12 @@ def create_app(config=None):
                 old = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?",
                                    (prev["id"], s["id"])).fetchone()
             pos, pages, cols = (old["position"], old["pages"], old["cols"]) if old else (s["position"], s["pages"], 1)
-            if old and not s["weekly"]:
+            carry_events = s["slug"] == "youth-calendar"
+            if old and (not s["weekly"] or carry_events):
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
                     position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap,area,page_no,font_pt,font_style,min_h,img_pos,para_gap,hide_title,space_before,bullet_style)
                     VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                             (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else old["body"], old["image"], old["alt"], old["decorative"],
+                             (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else (upcoming_events(old["body"], sunday) if carry_events else old["body"]), old["image"], old["alt"], old["decorative"],
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
                               old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"]))

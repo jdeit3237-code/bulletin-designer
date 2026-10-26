@@ -22,10 +22,14 @@
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
       {% if cv.extra %}<p>{{ tight(cv.extra, b.no_stragglers) }}</p>{% endif %}
-    {% elif r.slug in ('calendar', 'youth-calendar') %}
-      <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th></tr></thead><tbody>
+    {% elif r.slug == 'youth-calendar' %}
+      <div class="ycal">
+      {% for ev in youth_events(r.body) %}<div class="yev y{{ ev.color }}"><div class="ydate"><span class="ymon">{{ ev.month }}</span><span class="yday">{{ ev.day }}</span></div><div class="ybody"><strong class="ytitle">{{ ev.event }}</strong><span class="ymeta">{{ ev.weekday }}{% if ev.time %} &middot; {{ ev.time }}{% endif %}{% if ev.location %} &middot; {{ ev.location }}{% endif %}</span></div></div>{% endfor %}
+      </div>
+    {% elif r.slug == 'calendar' %}
+      <table class="cal"><thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Event</th>{% if r.slug == 'youth-calendar' %}<th scope="col">Location</th>{% endif %}</tr></thead><tbody>
       {% for ev in calendar_entries(r.body) %}<tr><td>{{ ev.date }}</td><td>{{ ev.time }}</td><td>{{ ev.event }}{% if ev.lectors or ev.sacristans or ev.ministers %}
-        <span class="ministers">{% if ev.lectors %}<span><strong>{{ 'Lectors' if ',' in ev.lectors else 'Lector' }}:</strong> {{ ev.lectors }}</span>{% endif %}{% if ev.sacristans %}<span><strong>{{ 'Sacristans' if ',' in ev.sacristans else 'Sacristan' }}:</strong> {{ ev.sacristans }}</span>{% endif %}{% if ev.ministers %}<span><strong>Eucharistic {{ 'Ministers' if ',' in ev.ministers else 'Minister' }}:</strong> {{ ev.ministers }}</span>{% endif %}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+        <span class="ministers">{% if ev.lectors %}<span><strong>{{ 'Lectors' if ',' in ev.lectors else 'Lector' }}:</strong> {{ ev.lectors }}</span>{% endif %}{% if ev.sacristans %}<span><strong>{{ 'Sacristans' if ',' in ev.sacristans else 'Sacristan' }}:</strong> {{ ev.sacristans }}</span>{% endif %}{% if ev.ministers %}<span><strong>Eucharistic {{ 'Ministers' if ',' in ev.ministers else 'Minister' }}:</strong> {{ ev.ministers }}</span>{% endif %}</span>{% endif %}</td>{% if r.slug == 'youth-calendar' %}<td>{{ ev.location }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
     {% elif r.slug == 'mass-intentions' %}
       {% set hd, days = intention_data(r.body) %}
       {% if hd and hd.strip().lower() != r.title.strip().lower() %}<h3>{{ hd }}</h3>{% endif %}
