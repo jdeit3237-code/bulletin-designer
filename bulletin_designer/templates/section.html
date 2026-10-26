@@ -253,6 +253,19 @@
       [z,x,y,h].forEach(function(e){e.addEventListener('input',up);});up();})();
       </script>
     {% endif %}
+    {% set gal = gallery_data(item.gallery) %}
+    <h3>More photos in this section</h3>
+    <p class="meta">Add several photos, placed above the text and/or below the text. Photos in the same place sit side by side (up to 3 per row) at the same height.</p>
+    {% for gp in gal.photos %}<div class="gp"><img src="{{ url_for('uploads', name=gp.f) }}" alt="" style="height:.6in"> <label>Description <input name="gp_alt_{{ loop.index0 }}" value="{{ gp.alt }}"></label>
+      <label>Place <select name="gp_w_{{ loop.index0 }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select></label>
+      <label><input type="checkbox" name="gp_rm_{{ loop.index0 }}" value="1"> Remove</label></div>{% endfor %}
+    {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
+      {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select></label>{% endif %}
+      <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
+      <label>Description <input name="ng_alt_{{ n }}"></label>
+      <label>Place <select name="ng_w_{{ n }}"><option value="below">Below the text</option><option value="above">Above the text</option></select></label></div>{% endfor %}
+    <label for="gal_h">Height of these photos in inches</label>
+    <input id="gal_h" name="gal_h" type="number" min="0.5" max="6" step="0.25" value="{{ gal.h }}">
     <label for="alt">Alternative text (describe the image for screen readers)</label>
     <input id="alt" name="alt" type="text" value="{{ item.alt }}">
     <label><input type="checkbox" name="decorative" value="1" {{ 'checked' if item.decorative }}> Image is purely decorative (no alt text needed)</label>

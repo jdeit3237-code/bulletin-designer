@@ -265,6 +265,8 @@ def create_app(config=None):
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "img_pos" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN img_pos TEXT DEFAULT ''")
+        if "gallery" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN gallery TEXT DEFAULT ''")
         if "bullet_style" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN bullet_style TEXT DEFAULT ''")
         if "space_before" not in have:
@@ -406,6 +408,19 @@ def create_app(config=None):
             s = re.sub(r"\{(#[0-9a-fA-F]{6})\|(.+?)\}", r'<span style="color:\1">\2</span>', s, flags=re.S)
         s = re.sub(r"(?<![\w#])(\d+)(st|nd|rd|th)\b", r"\1<sup>\2</sup>", s)
         return Markup(s)
+
+    def gallery_data(raw):
+        try:
+            d = json.loads(raw or "")
+        except ValueError:
+            d = {}
+        if not isinstance(d, dict):
+            d = {}
+        d.setdefault("h", 1.5)
+        d["photos"] = [p for p in d.get("photos", []) if isinstance(p, dict) and p.get("f")]
+        return d
+
+    app.jinja_env.globals["gallery_data"] = gallery_data
 
     def tight(text, on=True):
         """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
@@ -618,6 +633,7 @@ def create_app(config=None):
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
                               old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"]))
+                conn.execute("UPDATE items SET gallery=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", bulletin_id, s["id"]))
             else:
                 conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
@@ -680,7 +696,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1042,6 +1058,38 @@ def create_app(config=None):
             if image and not decorative and not alt:
                 flash("Alternative text is required for images (or mark the image decorative).", "error")
                 return redirect(request.url)
+            gal = gallery_data(item["gallery"])
+            keep = []
+            for n, p in enumerate(gal["photos"]):
+                if request.form.get(f"gp_rm_{n}"):
+                    continue
+                p["alt"] = request.form.get(f"gp_alt_{n}", p.get("alt", "")).strip()[:300]
+                p["w"] = "above" if request.form.get(f"gp_w_{n}") == "above" else "below"
+                keep.append(p)
+            for n in range(4):
+                gf = request.files.get(f"ng_file_{n}")
+                glib = db().execute("SELECT * FROM photos WHERE id=?", (request.form.get(f"ng_lib_{n}"),)).fetchone() if request.form.get(f"ng_lib_{n}") else None
+                galt = request.form.get(f"ng_alt_{n}", "").strip()[:300]
+                fname = ""
+                if gf and gf.filename:
+                    if gf.filename.rsplit(".", 1)[-1].lower() not in IMAGE_EXT:
+                        flash("Images must be PNG, JPG, GIF or WebP.", "error")
+                        return redirect(request.url)
+                    fname = f"{uuid.uuid4().hex}_{secure_filename(gf.filename)}"
+                    gf.save(os.path.join(app.config["UPLOAD_DIR"], fname))
+                elif glib:
+                    fname = glib["filename"]
+                    galt = galt or glib["alt"] or ""
+                if fname:
+                    if not galt:
+                        flash("Please describe each extra photo (alternative text).", "error")
+                        return redirect(request.url)
+                    keep.append({"f": fname, "alt": galt, "w": "above" if request.form.get(f"ng_w_{n}") == "above" else "below"})
+            try:
+                gal_h = max(0.5, min(6.0, float(request.form.get("gal_h") or gal["h"])))
+            except ValueError:
+                gal_h = 1.5
+            gal_json = json.dumps({"h": gal_h, "photos": keep[:12]}) if keep else ""
             status = "approved" if g.user["role"] in ("admin", "editor") else "pending"
             def num(key, lo, hi, default):
                 try:
@@ -1050,7 +1098,7 @@ def create_app(config=None):
                     return default
             new_title = request.form.get("section_title", s["title"]).strip()[:120]
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
-                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
@@ -1062,6 +1110,7 @@ def create_app(config=None):
                           1 if request.form.get("hide_title") else 0,
                           gap_value(request.form.get("space_before")),
                           request.form.get("bullet_style") if request.form.get("bullet_style") in BULLETS else "",
+                          gal_json,
                           status, g.user["username"], item["id"]))
             db().commit()
             flash("Saved." if status == "approved" else "Saved - waiting for editor approval.", "ok")
@@ -1076,7 +1125,7 @@ def create_app(config=None):
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style")
+    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -1121,7 +1170,7 @@ def create_app(config=None):
         if not can_edit_section(sid) or b["status"] == "published":
             abort(403)
         conn = db()
-        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', carried=0, updated_by=? "
+        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', gallery='', carried=0, updated_by=? "
                      "WHERE bulletin_id=? AND section_id=?", (g.user["username"], bid, sid))
         conn.commit()
         flash("Section content deleted.", "ok")

@@ -908,3 +908,15 @@ def test_history_undo(app):
     newest = max(int(x) for x in _re.findall(r"history/(\d+)/restore", page))
     c.post(f"/bulletins/1/history/{newest}/restore", data={"csrf": t})
     assert "FIRST" in c.get("/bulletins/1/section/9").text
+
+
+def test_gallery_photos(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    data = {"csrf": t, "body": "Hello", "ng_alt_0": "First pic", "ng_w_0": "above", "ng_alt_1": "Second pic", "ng_w_1": "below",
+            "ng_file_0": (_card(200, 100, "red"), "a.png"), "ng_file_1": (_card(200, 100, "blue"), "b.png")}
+    c.post("/bulletins/1/section/9", data=data, content_type="multipart/form-data")
+    html = c.get("/bulletins/1/preview").text
+    assert 'alt="First pic"' in html and 'alt="Second pic"' in html
+    assert html.index("First pic") < html.index("Hello") < html.index("Second pic")

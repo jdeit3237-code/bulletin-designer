@@ -11,12 +11,14 @@
       <figure class="photo-{{ r.img_pos or 'below' }}">{% if r.crop_h or (r.crop_zoom or 1) > 1 %}<div class="crop" style="height:{{ r.crop_h or 3 }}in"><img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}" style="object-position:{{ r.crop_x }}% {{ r.crop_y }}%;transform:scale({{ r.crop_zoom }});transform-origin:{{ r.crop_x }}% {{ r.crop_y }}%"></div>{% else %}<img src="{{ url_for('uploads', name=r.image) }}" alt="{{ '' if r.decorative else r.alt }}">{% endif %}
       {% if r.caption %}<figcaption>{{ r.caption }}</figcaption>{% endif %}</figure>
 {% endif %}{% endmacro %}
+{% macro gallery_row(r, where) %}{% set gd = gallery_data(r.gallery) %}{% set gp = gd.photos|selectattr('w', 'equalto', where)|list %}{% if gp %}{% set per = [gp|length, 3]|min %}<div class="gal">{% for ph in gp %}<figure class="gal-i" style="width:{{ (100 / per - 2)|round(1) }}%"><img src="{{ url_for('uploads', name=ph.f) }}" alt="{{ ph.alt }}" style="height:{{ gd.h }}in"></figure>{% endfor %}</div>{% endif %}{% endmacro %}
 {% macro render_row(r, p) %}<div class="sec sec-{{ r.slug }} {{ 'has-ig' if r.item_gap }} {{ 'has-pg' if r.para_gap }} {{ 'hide-title' if r.hide_title }} {{ 'img-only' if r.img_pos == 'only' and r.image }} {{ 'custom-size' if r.font_pt }} {{ 'fs-' ~ r.font_style if r.font_style }}" data-sid="{{ r.id }}"{% if r.font_pt or r.min_h or r.item_gap or r.para_gap or r.space_before %} style="{% if r.space_before %}margin-top:{{ r.space_before }}in;{% endif %}{% if r.font_pt %}--fs: {{ r.font_pt }}pt;{% endif %}{% if r.min_h %}min-height:{{ r.min_h }}in;{% endif %}{% if r.item_gap %}--ig: {{ r.item_gap }}in;{% endif %}{% if r.para_gap %}--pg: {{ r.para_gap }}in;{% endif %}"{% endif %}>
     {% if r.img_pos == 'above' %}{{ section_photo(r, p) }}{% endif %}
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
     {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
     {% if p.part == 1 %}
     {% if r.img_pos in ('inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
+    {{ gallery_row(r, 'above') }}
     {% if r.slug == 'cover' %}
       {% set cv = cover_data(r.body) %}
       {% if cv.extra %}<p>{{ tight(cv.extra, b.no_stragglers) }}</p>{% endif %}
@@ -56,6 +58,7 @@
       {% for para in soft_paras(r.body) %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}
     {% endif %}
     {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
+    {{ gallery_row(r, 'below') }}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
     {% endif %}
 </div>{% endmacro %}
