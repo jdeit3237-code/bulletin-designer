@@ -418,6 +418,13 @@ def create_app(config=None):
             d = {}
         d.setdefault("h", 1.5)
         d["photos"] = [p for p in d.get("photos", []) if isinstance(p, dict) and p.get("f")]
+        for p in d["photos"]:
+            try:
+                from PIL import Image
+                with Image.open(os.path.join(app.config["UPLOAD_DIR"], p["f"])) as im:
+                    p["ar"] = max(0.2, min(5.0, im.width / im.height))
+            except Exception:
+                p["ar"] = 1.5
         return d
 
     app.jinja_env.globals["gallery_data"] = gallery_data

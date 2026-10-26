@@ -280,6 +280,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .bl + p.bp, .sheet .bl + .bl { margin-top: 0; }
 .sheet .bl li:last-child { margin-bottom: 0; }
 
-.sheet .gal { text-align: center; margin: .06in 0; font-size: 0; }
-.sheet .gal figure.gal-i { display: inline-block; margin: 0 1%; vertical-align: top; }
-.sheet .gal figure.gal-i img { width: 100%; object-fit: cover; display: block; }
+.sheet .gal { text-align: center; margin: .06in auto; font-size: 0; }
+.sheet .gal figure.gal-i { display: inline-block; margin: 0 .5%; vertical-align: top; }
+.sheet .gal figure.gal-i img { width: 100%; height: auto; display: block; }
