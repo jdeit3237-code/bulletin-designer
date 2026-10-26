@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}Bulletin check{% endblock %}
+{% block content %}
+<h1>Bulletin check</h1>
+<p>A quick look for things people often miss. Nothing here changes your bulletin.</p>
+{% if issues %}<ul>{% for sid, name, what, fix in issues %}<li><a href="{{ url_for('section', bid=b.id, sid=sid) }}"><strong>{{ name }}</strong></a>: {{ what }} <em>{{ fix }}</em></li>{% endfor %}</ul>
+{% else %}<p>Nothing needs attention.</p>{% endif %}
+<p>Also: open <a href="{{ url_for('preview', bid=b.id) }}">Preview</a> and look for red warning bars. Then have one more person proofread names, dates and times.</p>
+<p><a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to the bulletin</a> <a class="btn secondary" href="{{ url_for('help_page') }}">Help</a></p>
+{% endblock %}

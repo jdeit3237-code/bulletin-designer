@@ -844,3 +844,26 @@ def test_multi_page_section_text_not_repeated(app):
     c.post("/bulletins/1/section/9", data={"body": "UNIQUEWORDZ", "csrf": t})
     c.post("/bulletins/1/layout/9", data={"pages": "2", "csrf": t})
     assert c.get("/bulletins/1/preview").text.count("UNIQUEWORDZ") == 1
+
+
+def test_help_page_and_questions(app):
+    c = setup_admin(app)
+    r = c.get("/help")
+    assert r.status_code == 200 and "Hide a section" in r.text
+    r = c.post("/help", data={"question": "how do I add a photo", "csrf": tok(c, "/help")})
+    assert "Add a photo to a section" in r.text
+    r = c.post("/help", data={"question": "zzzz qqqq", "csrf": tok(c, "/help")})
+    assert "sent to the editors" in r.text and "zzzz qqqq" in c.get("/help").text
+    c.post("/help/answer/2", data={"answer": "Call the office", "csrf": tok(c, "/help")})
+    assert "Call the office" in c.get("/help").text
+
+
+def test_bulletin_check(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "x", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"pages": "2", "csrf": t})
+    r = c.get("/bulletins/1/check")
+    assert r.status_code == 200 and "2 pages" in r.text
+    assert "Check my bulletin" in c.get("/bulletins/1").text

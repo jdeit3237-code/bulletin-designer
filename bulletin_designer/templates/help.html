@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% block title %}Help and how-to guide{% endblock %}
+{% block content %}
+<h1>How to use the Bulletin Designer</h1>
+<p>No design experience needed. Pick a topic below, or ask a question.</p>
+
+<section id="ask" aria-labelledby="askh">
+<h2 id="askh">Ask a question</h2>
+<form method="post" action="{{ url_for('help_page') }}#ask">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="question">Type your question in your own words (for example: how do I add a photo?)</label>
+  <input id="question" name="question" type="text" maxlength="500" value="{{ q }}">
+  <p><button class="btn">Ask</button></p>
+</form>
+{% if q %}
+  {% if found %}<p>These topics should help:</p>
+    {% for t in topics if t[0] in found %}<h3>{{ t[1] }}</h3><ol>{% for st in t[3] %}<li>{{ st }}</li>{% endfor %}</ol>{% endfor %}
+    <p class="meta">Not what you needed? Your question was also sent to the editors, who will answer below.</p>
+  {% else %}<p>I did not find a matching topic, so your question was sent to the editors. Their answer will appear under "Answers to your questions" on this page.</p>{% endif %}
+{% endif %}
+</section>
+
+{% if mine %}<section id="answers"><h2>Answers to your questions</h2>
+{% for m in mine %}<p><strong>{{ m.question }}</strong><br>{{ m.answer }} <span class="meta">- {{ m.answered_by }}</span></p>{% endfor %}</section>{% endif %}
+
+<h2>Topics</h2>
+<ul>{% for t in topics %}<li><a href="#t-{{ t[0] }}">{{ t[1] }}</a></li>{% endfor %}</ul>
+{% for t in topics %}<section id="t-{{ t[0] }}"><h3>{{ t[1] }}</h3><ol>{% for st in t[3] %}<li>{{ st }}</li>{% endfor %}</ol></section>{% endfor %}
+
+{% if g.user.role in ('admin', 'editor') %}
+<section id="questions"><h2>Questions waiting for an answer</h2>
+{% for o in open_q %}<form method="post" action="{{ url_for('help_answer', qid=o.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <p><strong>{{ o.question }}</strong> <span class="meta">{{ o.asked_by }}, {{ o.created }}</span></p>
+  <label for="a{{ o.id }}">Your answer</label><input id="a{{ o.id }}" name="answer" type="text" maxlength="2000"> <button class="btn">Send answer</button></form>
+{% else %}<p>No open questions.</p>{% endfor %}</section>
+{% endif %}
+{% endblock %}

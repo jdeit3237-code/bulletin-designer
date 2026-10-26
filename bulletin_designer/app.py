@@ -26,9 +26,10 @@ def generate_password_hash(pw):
 from werkzeug.utils import secure_filename
 
 try:
-    from . import liturgy
+    from . import liturgy, help_content
 except ImportError:  # run as a script
     import liturgy
+    import help_content
 
 ROLES = ("admin", "editor", "contributor", "viewer")
 ROLE_HELP = {
@@ -222,6 +223,8 @@ def create_app(config=None):
             tags TEXT DEFAULT '', uploaded_by TEXT, decorative INTEGER DEFAULT 0);
         CREATE TABLE IF NOT EXISTS ads(id INTEGER PRIMARY KEY, name TEXT, image TEXT, w INTEGER, h INTEGER,
             position INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
+        CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY, asked_by TEXT, question TEXT, answer TEXT DEFAULT '',
+            answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
             PRIMARY KEY(user_id, section_id));
         CREATE TABLE IF NOT EXISTS bulletins(id INTEGER PRIMARY KEY, sunday TEXT UNIQUE,
@@ -1707,6 +1710,67 @@ def create_app(config=None):
     @need()
     def uploads(name):
         return send_from_directory(app.config["UPLOAD_DIR"], name)
+
+    def help_match(q):
+        words = {w for w in re.findall(r"[a-z0-9]+", q.lower()) if len(w) > 2}
+        scored = []
+        for tid, title, kw, steps in help_content.TOPICS:
+            hay = set(re.findall(r"[a-z0-9]+", (kw + " " + title).lower()))
+            n = len(words & hay)
+            if n:
+                scored.append((n, tid))
+        scored.sort(reverse=True)
+        return [t for _, t in scored[:3]]
+
+    @app.route("/bulletins/<int:bid>/check")
+    @need()
+    def bulletin_check(bid):
+        get_bulletin(bid)
+        rows = db().execute("""SELECT s.id sid, s.title, i.body, i.image, i.status, i.pages, i.font_pt, i.item_gap, i.para_gap, i.title_gap, i.min_h, i.hide_title, i.carried
+            FROM items i JOIN sections s ON s.id=i.section_id WHERE i.bulletin_id=? ORDER BY i.position""", (bid,)).fetchall()
+        issues = []
+        for r in rows:
+            name = r["title"]
+            filled = bool((r["body"] or "").strip() or r["image"])
+            if r["status"] == "pending":
+                issues.append((r["sid"], name, "Waiting for approval, so it will not print yet.", "An editor should open it and approve it."))
+            if filled and (r["pages"] or 1) > 1:
+                issues.append((r["sid"], name, "Set to take %d pages. Its text prints only on the first page." % r["pages"], "Set Pages back to 1 unless you really want blank follow-on pages."))
+            if r["font_pt"] and r["font_pt"] < 12:
+                issues.append((r["sid"], name, "Text size is %s pt, which is hard to read." % r["font_pt"], "Use 12 pt or larger."))
+            if max(r["item_gap"] or 0, r["para_gap"] or 0, r["title_gap"] or 0) > 0.4:
+                issues.append((r["sid"], name, "A spacing value is very large.", "Use Reset layout to standard on this section."))
+            if r["carried"] and filled:
+                issues.append((r["sid"], name, "Text was carried over from last week.", "Check dates, names and amounts are updated."))
+        return render_template("check.html", b=get_bulletin(bid), issues=issues)
+
+    @app.route("/help", methods=["GET", "POST"])
+    @need()
+    def help_page():
+        conn = db()
+        q, found = "", []
+        if request.method == "POST":
+            q = request.form.get("question", "").strip()[:500]
+            if q:
+                found = help_match(q)
+                conn.execute("INSERT INTO questions(asked_by,question,created) VALUES(?,?,?)",
+                             (g.user["username"], q, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                conn.commit()
+        mine = conn.execute("SELECT * FROM questions WHERE asked_by=? AND answer!='' ORDER BY id DESC LIMIT 10",
+                            (g.user["username"],)).fetchall()
+        open_q = conn.execute("SELECT * FROM questions WHERE answer='' ORDER BY id DESC LIMIT 50").fetchall() \
+            if g.user["role"] in ("admin", "editor") else []
+        return render_template("help.html", topics=help_content.TOPICS, q=q, found=found, mine=mine, open_q=open_q)
+
+    @app.route("/help/answer/<int:qid>", methods=["POST"])
+    @need("admin", "editor")
+    def help_answer(qid):
+        ans = request.form.get("answer", "").strip()[:2000]
+        if ans:
+            db().execute("UPDATE questions SET answer=?, answered_by=? WHERE id=?", (ans, g.user["display_name"] or g.user["username"], qid))
+            db().commit()
+            flash("Answer saved.", "ok")
+        return redirect(url_for("help_page") + "#questions")
 
     @app.route("/style-guide")
     def style_guide():
