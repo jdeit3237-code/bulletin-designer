@@ -309,7 +309,12 @@ def create_app(config=None):
         words = text.split(" ")
         if len(words) < 3:
             return escape(text)
-        return Markup(escape(" ".join(words[:-1])) + Markup("&nbsp;") + escape(words[-1]))
+        out = escape(words[0])
+        for i in range(1, len(words)):
+            first_of_sentence = i >= 2 and words[i - 2][-1:] in ".!?"
+            sep = Markup("&nbsp;") if (i == len(words) - 1 or first_of_sentence) else " "
+            out += sep + escape(words[i])
+        return Markup(out)
     app.jinja_env.globals["tight"] = tight
     app.jinja_env.globals["gap_display"] = gap_display
     app.jinja_env.globals["long_sunday"] = long_date

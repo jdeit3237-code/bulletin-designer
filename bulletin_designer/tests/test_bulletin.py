@@ -752,3 +752,9 @@ def test_enter_starts_paragraph_and_gap(app):
                                            "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert html.count('<p class="bp">') >= 2 and "--pg:" in html
+
+
+def test_sentence_first_word_not_stranded(app):
+    from bulletin_designer.app import create_app
+    t = app.jinja_env.globals["tight"]
+    assert "This&nbsp;information" in str(t("It is history. This information is here today.", True))
