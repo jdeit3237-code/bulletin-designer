@@ -742,3 +742,13 @@ def test_jump_to_section_dropdown(app):
     create_bulletin(c)
     html = c.get("/bulletins/1").text
     assert 'id="jump"' in html and 'value="sec2"' in html and 'id="sec2"' in html
+
+
+def test_enter_starts_paragraph_and_gap(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    clear_mass_week(c)
+    c.post("/bulletins/1/section/9", data={"body": "First line\nSecond line", "para_gap": "0",
+                                           "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert html.count('<p class="bp">') >= 2 and "--pg:" in html

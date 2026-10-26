@@ -233,3 +233,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet figure.photo-inset-left { float: left; margin-right: .15in; }
 .sheet figure.photo-inset-right { float: right; margin-left: .15in; }
 .sheet figure.photo-above { margin-top: 0; }
+
+.sec.has-pg > p.bp { margin-top: 0; margin-bottom: var(--pg); }
