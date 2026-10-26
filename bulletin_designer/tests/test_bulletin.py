@@ -1195,3 +1195,10 @@ def test_deactivate_and_delete_user(app):
     assert login(u, "gone@x.org", "another-password") and u.get("/").status_code == 200
     c.post("/admin/users", data={"action": "delete", "uid": "2", "csrf": t})
     assert "1 user." in c.get("/admin/users").text
+
+
+def test_help_covers_current_features(app):
+    c = setup_admin(app)
+    page = c.get("/help").text
+    for word in ("Duplicate", "Undo / history", "Forgot your password", "Deactivate", "On page", "Unpublish"):
+        assert word in page
