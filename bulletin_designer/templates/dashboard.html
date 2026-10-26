@@ -15,8 +15,18 @@
   <thead><tr><th scope="col">Sunday</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
   <tbody>
   {% for b in bulletins %}
-    <tr><td>{{ b.sunday }}</td><td>{{ b.status|capitalize }}</td>
-        <td><a href="{{ url_for('edit', bid=b.id) }}">Sections</a> &middot; <a href="{{ url_for('preview', bid=b.id) }}">Preview / print</a></td></tr>
+    <tr><td>{{ b.sunday }}{% if b.is_template %} <strong>(Template)</strong>{% endif %}</td><td>{{ b.status|capitalize }}</td>
+        <td><a href="{{ url_for('edit', bid=b.id) }}">Sections</a> &middot; <a href="{{ url_for('preview', bid=b.id) }}">Preview / print</a>
+          {% if g.user.role in ('admin','editor') %}
+          <form method="post" action="{{ url_for('duplicate_bulletin', bid=b.id) }}" style="display:inline">
+            <input type="hidden" name="csrf" value="{{ csrf() }}">
+            <label class="small" for="dup{{ b.id }}">Copy to Sunday</label>
+            <input id="dup{{ b.id }}" name="sunday" type="date" value="{{ suggested }}" required style="max-width:11em">
+            <button class="btn">Duplicate</button></form>
+          <form method="post" action="{{ url_for('toggle_template', bid=b.id) }}" style="display:inline">
+            <input type="hidden" name="csrf" value="{{ csrf() }}">
+            <button class="btn">{{ 'Unmark template' if b.is_template else 'Mark as template' }}</button></form>
+          {% endif %}</td></tr>
   {% else %}<tr><td colspan="3">No bulletins yet.</td></tr>{% endfor %}
   </tbody>
 </table>

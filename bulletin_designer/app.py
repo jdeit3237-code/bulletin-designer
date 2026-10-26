@@ -260,6 +260,8 @@ def create_app(config=None):
                          ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
+        if "is_template" not in bcols:
+            conn.execute("ALTER TABLE bulletins ADD COLUMN is_template INTEGER DEFAULT 0")
         if "toc_before" not in bcols:
             conn.execute("ALTER TABLE bulletins ADD COLUMN toc_before REAL DEFAULT 0")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -1029,6 +1031,45 @@ def create_app(config=None):
         conn.commit()
         ensure_items(b["id"], sunday)
         return redirect(url_for("edit", bid=b["id"]))
+
+    @app.route("/bulletins/<int:bid>/duplicate", methods=["POST"])
+    @need("admin", "editor")
+    def duplicate_bulletin(bid):
+        src = get_bulletin(bid)
+        try:
+            sunday = date.fromisoformat(request.form.get("sunday", "")).isoformat()
+        except ValueError:
+            flash("Enter a valid date for the copy.", "error")
+            return redirect(url_for("dashboard"))
+        conn = db()
+        if conn.execute("SELECT 1 FROM bulletins WHERE sunday=?", (sunday,)).fetchone():
+            flash("A bulletin already exists for that date. Pick a different date.", "error")
+            return redirect(url_for("dashboard"))
+        cols = [c for c in src.keys() if c not in ("id", "sunday", "status", "is_template")]
+        conn.execute("INSERT INTO bulletins(sunday, status, " + ", ".join(cols) + ") VALUES(?, 'draft', " + ", ".join("?" * len(cols)) + ")",
+                     [sunday] + [src[c] for c in cols])
+        new = conn.execute("SELECT id FROM bulletins WHERE sunday=?", (sunday,)).fetchone()["id"]
+        smap = {}
+        for sec in conn.execute("SELECT * FROM sections WHERE bulletin_id=?", (bid,)).fetchall():
+            slug = "%s-copy%d" % (sec["slug"], new)
+            cur = conn.execute("INSERT INTO sections(slug,title,weekly,pages,position,hint,bulletin_id) VALUES(?,?,?,?,?,?,?)",
+                               (slug, sec["title"], sec["weekly"], sec["pages"], sec["position"], sec["hint"], new))
+            smap[sec["id"]] = cur.lastrowid
+        for it in conn.execute("SELECT * FROM items WHERE bulletin_id=?", (bid,)).fetchall():
+            ic = [c for c in it.keys() if c not in ("id", "bulletin_id", "section_id")]
+            conn.execute("INSERT INTO items(bulletin_id, section_id, " + ", ".join(ic) + ") VALUES(?, ?, " + ", ".join("?" * len(ic)) + ")",
+                         [new, smap.get(it["section_id"], it["section_id"])] + [it[c] for c in ic])
+        conn.commit()
+        flash("Copied. This is a full copy of every section, photo and layout.", "ok")
+        return redirect(url_for("edit", bid=new))
+
+    @app.route("/bulletins/<int:bid>/template", methods=["POST"])
+    @need("admin", "editor")
+    def toggle_template(bid):
+        b = get_bulletin(bid)
+        db().execute("UPDATE bulletins SET is_template=? WHERE id=?", (0 if b["is_template"] else 1, bid))
+        db().commit()
+        return redirect(url_for("dashboard"))
 
     def get_bulletin(bid):
         b = db().execute("SELECT * FROM bulletins WHERE id=?", (bid,)).fetchone()

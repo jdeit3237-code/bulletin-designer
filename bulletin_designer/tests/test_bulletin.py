@@ -1113,3 +1113,17 @@ def test_photo_without_text_fills_page(app):
     c.post("/bulletins/1/section/9", data={"csrf": tok(c, "/bulletins/1/section/9"), "body": "", "img_pos": "below", "decorative": "1",
            "image": (_card(600, 900, "orange"), "p.png")}, content_type="multipart/form-data")
     assert "img-only" in c.get("/bulletins/1/preview").text
+
+
+def test_duplicate_bulletin_and_template(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "UNIQUEBODY", "csrf": t})
+    c.post("/bulletins/1/template", data={"csrf": t})
+    assert "(Template)" in c.get("/").text
+    r = c.post("/bulletins/1/duplicate", data={"sunday": "2031-01-05", "csrf": t})
+    assert r.status_code in (302, 303)
+    assert "UNIQUEBODY" in c.get("/bulletins/2/section/9").text
+    r = c.post("/bulletins/1/duplicate", data={"sunday": "2031-01-05", "csrf": t})
+    assert r.status_code in (302, 303)
