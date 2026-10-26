@@ -429,6 +429,8 @@ def create_app(config=None):
         if not isinstance(d, dict):
             d = {}
         d.setdefault("h", 1.5)
+        d["dir"] = "stack" if d.get("dir") == "stack" else "row"
+        d["wrap"] = d.get("wrap") if d.get("wrap") in ("left", "right") else ""
         d["align"] = d.get("align") if d.get("align") in ("left", "right") else "center"
         d["gap"] = d.get("gap", 0.15) if isinstance(d.get("gap"), (int, float)) else 0.15
         d["photos"] = [p for p in d.get("photos", []) if isinstance(p, dict) and p.get("f")]
@@ -1133,7 +1135,9 @@ def create_app(config=None):
             except ValueError:
                 gal_gap = 0.15
             gal_align = request.form.get("gal_align") if request.form.get("gal_align") in ("left", "right") else "center"
-            gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "align": gal_align, "photos": keep[:12]}) if keep else ""
+            gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "align": gal_align,
+                                   "dir": "stack" if request.form.get("gal_dir") == "stack" else "row",
+                                   "wrap": request.form.get("gal_wrap") if request.form.get("gal_wrap") in ("left", "right") else "", "photos": keep[:12]}) if keep else ""
             status = "approved" if g.user["role"] in ("admin", "editor") else "pending"
             def num(key, lo, hi, default):
                 try:

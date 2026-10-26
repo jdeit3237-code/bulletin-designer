@@ -264,6 +264,10 @@
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
       <label>Caption (shown under the photo in italics) <input name="ng_alt_{{ n }}"></label>
       <label>Place <select name="ng_w_{{ n }}"><option value="below">Below the text</option><option value="above">Above the text</option></select></label></div>{% endfor %}
+    <label for="gal_dir">Arrange the photos</label>
+    <select id="gal_dir" name="gal_dir"><option value="row">Side by side, left to right</option><option value="stack" {{ 'selected' if gal.dir == 'stack' }}>Stacked, top to bottom</option></select>
+    <label for="gal_wrap">If stacked: let the text wrap around them (photos placed above the text only)</label>
+    <select id="gal_wrap" name="gal_wrap"><option value="">No wrap (photos on their own lines)</option><option value="left" {{ 'selected' if gal.wrap == 'left' }}>Photos on the left, text wraps on the right</option><option value="right" {{ 'selected' if gal.wrap == 'right' }}>Photos on the right, text wraps on the left</option></select>
     <label for="gal_align">Line the photos up</label>
     <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
     <label for="gal_gap">Space between photos in inches</label>
