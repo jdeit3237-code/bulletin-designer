@@ -247,7 +247,12 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec.hide-title > h2 { display: none; }
 
 .sheet .ad-title { text-align: center; font: bold 13pt Arial, sans-serif; color: #1f6b4d; margin: .1in 0 .1in; }
-.sheet .ad-grid { height: 8.3in; }
+.sheet .ad-grid { height: 7.4in; }
+.sheet .ad-banner { text-align: center; color: #fff; background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 3px solid var(--gold-bright); border-bottom: 3px solid var(--gold-bright); border-radius: 4px; padding: .08in .2in; margin: .05in 0; -webkit-print-color-adjust: exact; }
+.sheet .ad-banner strong { display: block; font: bold 18pt Georgia, serif; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-bright); }
+.sheet .ad-banner span { display: block; font: 14pt Arial, sans-serif; }
+.sheet .ad-contact { background: #fbf6e4; color: #14573d; border-color: #c9a84c; }
+.sheet .ad-contact strong { color: #1f6b4d; }
 .sheet .ad-row { text-align: center; font-size: 0; line-height: 0; white-space: nowrap; }
 .sheet .ad-grid img.ad { display: inline-block; vertical-align: middle; margin: 0 .125in; max-width: none; max-height: none; object-fit: contain; border: .5pt solid #bbb; background: #fff; }
 
@@ -257,3 +262,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-foot.slim .foot-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .sheet .pg-foot.slim .foot-addr { margin: 0 auto; }
 .sheet .pg-foot.slim .foot-page { margin-left: auto; }
+.sheet .pg-body { position: relative; }
+.sheet .ad-contact { position: absolute; left: 0; right: 0; bottom: .05in; margin: 0; }

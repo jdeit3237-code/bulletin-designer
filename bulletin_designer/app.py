@@ -70,7 +70,7 @@ DEFAULT_SECTIONS = [
 ]
 
 
-AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 8.2, 0.25, 0.22
+AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 7.3, 0.25, 0.22
 
 
 def pack_ads(cards, scale):
@@ -737,7 +737,7 @@ def create_app(config=None):
             pages.append({"row": None, "number": cur})
             cur += 1
         for k, pg_ in enumerate(ad_pg):
-            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_first": k == 0, "number": cur})
+            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_first": k == 0, "ad_last": k == len(ad_pg) - 1, "number": cur})
             if k == 0:
                 toc.append({"title": "Our Advertisers", "page": cur, "pos": 99999})
             cur += 1
