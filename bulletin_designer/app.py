@@ -227,6 +227,7 @@ def create_app(config=None):
             position INTEGER DEFAULT 0, active INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY, asked_by TEXT, question TEXT, answer TEXT DEFAULT '',
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
+        CREATE TABLE IF NOT EXISTS event_titles(id INTEGER PRIMARY KEY, title TEXT UNIQUE);
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
             PRIMARY KEY(user_id, section_id));
@@ -1677,6 +1678,25 @@ def create_app(config=None):
                 db().commit()
                 flash(f"Added to {sec['title']}. Review and edit it there.", "ok")
         return redirect(url_for("suggestions", bid=bid))
+
+    YOUTH_TITLES = ["Special Event", "Edge Night", "Rock the Universe", "Ash Wednesday", "End of Year Party"]
+
+    def youth_titles():
+        return YOUTH_TITLES + [r["title"] for r in db().execute("SELECT title FROM event_titles ORDER BY title") if r["title"] not in YOUTH_TITLES]
+
+    app.jinja_env.globals["youth_titles"] = youth_titles
+
+    @app.route("/bulletins/<int:bid>/section/<int:sid>/event-titles", methods=["POST"])
+    @need("admin", "editor", "contributor")
+    def event_titles(bid, sid):
+        title = " ".join((request.form.get("title") or "").split())[:80]
+        if request.form.get("action") == "remove":
+            db().execute("DELETE FROM event_titles WHERE title=?", (title,))
+        elif title and title not in YOUTH_TITLES:
+            db().execute("INSERT OR IGNORE INTO event_titles(title) VALUES(?)", (title,))
+        db().commit()
+        flash("Event list updated. Save your section first if you have unsaved changes.", "ok")
+        return redirect(url_for("section", bid=bid, sid=sid))
 
     @app.route("/bulletins/<int:bid>/toc-settings", methods=["POST"])
     @need("admin", "editor")

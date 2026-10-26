@@ -1038,3 +1038,15 @@ def test_youth_calendar_location_and_carry_forward(app):
     c.post("/bulletins/new", data={"sunday": "2026-11-01", "csrf": tok(c)})
     nxt = c.get(f"/bulletins/2/section/{sid}").text
     assert "Pizza Night" in nxt and "Old Event" not in nxt and "Today Event" not in nxt
+
+
+def test_youth_event_titles_list(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
+    page = c.get(f"/bulletins/1/section/{sid}").text
+    assert "Edge Night" in page and "Rock the Universe" in page
+    c.post(f"/bulletins/1/section/{sid}/event-titles", data={"title": "Lock-In", "action": "add", "csrf": tok(c, f"/bulletins/1/section/{sid}")})
+    assert "Lock-In" in c.get(f"/bulletins/1/section/{sid}").text
+    c.post(f"/bulletins/1/section/{sid}/event-titles", data={"title": "Lock-In", "action": "remove", "csrf": tok(c, f"/bulletins/1/section/{sid}")})
+    assert "Lock-In" not in c.get(f"/bulletins/1/section/{sid}").text
