@@ -280,11 +280,11 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .bl + p.bp, .sheet .bl + .bl { margin-top: 0; }
 .sheet .bl li:last-child { margin-bottom: 0; }
 
-.sheet table.gal { width: 100%; table-layout: fixed; border-collapse: collapse; margin: .06in auto; }
+.sheet table.gal { table-layout: auto; border-collapse: collapse; margin: .06in auto; }
 .sheet table.gal-left { margin-left: 0; margin-right: auto; }
 .sheet table.gal-right { margin-left: auto; margin-right: 0; }
-.sheet table.gal td { vertical-align: top; text-align: center; }
-.sheet table.gal img { width: 100%; height: auto; display: block; }
+.sheet table.gal td { text-align: center; }
+.sheet table.gal img { display: block; margin: 0 auto; }
 .sheet table.gal .gal-cap { display: block; font-style: italic; font-size: 12pt; line-height: 1.2; margin-top: .03in; }
 .sheet .galv { width: 45%; margin: .06in auto; }
 .sheet .galv-left { margin-left: 0; margin-right: auto; }

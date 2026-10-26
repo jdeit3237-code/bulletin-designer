@@ -268,11 +268,15 @@
     <select id="gal_dir" name="gal_dir"><option value="row">Side by side, left to right</option><option value="stack" {{ 'selected' if gal.dir == 'stack' }}>Stacked, top to bottom</option></select>
     <label for="gal_wrap">If stacked: let the text wrap around them (photos placed above the text only)</label>
     <select id="gal_wrap" name="gal_wrap"><option value="">No wrap (photos on their own lines)</option><option value="left" {{ 'selected' if gal.wrap == 'left' }}>Photos on the left, text wraps on the right</option><option value="right" {{ 'selected' if gal.wrap == 'right' }}>Photos on the right, text wraps on the left</option></select>
-    <label for="gal_align">Line the photos up</label>
+    <label for="gal_size">Make the photos in a row</label>
+    <select id="gal_size" name="gal_size"><option value="height">All the same height (widths differ)</option><option value="width" {{ 'selected' if gal.size == 'width' }}>All the same width (heights differ)</option></select>
+    <label for="gal_valign">If the photos are different heights, line them up at the</label>
+    <select id="gal_valign" name="gal_valign"><option value="top">Top</option><option value="middle" {{ 'selected' if gal.valign == 'middle' }}>Middle</option><option value="bottom" {{ 'selected' if gal.valign == 'bottom' }}>Bottom</option></select>
+    <label for="gal_align">Place the group of photos on the page</label>
     <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
     <label for="gal_gap">Space between photos in inches</label>
     <input id="gal_gap" name="gal_gap" type="number" min="0" max="1" step="0.05" value="{{ gal.gap }}">
-    <label for="gal_h">Tallest height of these photos in inches (photos shrink to fit the width, never cropped)</label>
+    <label for="gal_h">Height of the photos in inches (applies to all of them; they shrink only if they would not fit the page width)</label>
     <input id="gal_h" name="gal_h" type="number" min="0.5" max="6" step="0.25" value="{{ gal.h }}">
     <label><input type="checkbox" name="ocr" value="1"> This photo contains words that need to be read (OCR). Check this box and Save: the words found in the photo are put in the alternative text below.</label>
     <label for="alt">Alternative text (describe the image for screen readers)</label>
