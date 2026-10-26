@@ -453,10 +453,12 @@ def create_app(config=None):
                             (sunday,)).fetchone()
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL OR bulletin_id=? ORDER BY position",
                             (bulletin_id,)).fetchall()
+        fresh = False
         for s in secs:
             if conn.execute("SELECT 1 FROM items WHERE bulletin_id=? AND section_id=?",
                             (bulletin_id, s["id"])).fetchone():
                 continue
+            fresh = True
             old = None
             if prev and s["bulletin_id"] is None:
                 old = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?",
@@ -475,7 +477,42 @@ def create_app(config=None):
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
                               old["font_pt"] if old else 0, old["font_style"] if old else "", old["title"] if old else "",
                               old["title_gap"] if old else 0, old["item_gap"] if old else 0, old["min_h"] if old else 0))
+        if fresh:
+            fill_mass_week(conn, bulletin_id, sunday, prev)
         conn.commit()
+
+    def fill_mass_week(conn, bulletin_id, sunday, prev):
+        """Date the weekly Mass schedule: Saturday before the issue through the following Sunday.
+        The previous issue's last Saturday and Sunday (with their names and notes) become the first two days."""
+        item = conn.execute("""SELECT i.id, i.body FROM items i JOIN sections s ON s.id=i.section_id
+                               WHERE i.bulletin_id=? AND s.slug='mass-schedule'""", (bulletin_id,)).fetchone()
+        if not item or (item["body"] or "").strip():
+            return
+        try:
+            sun = date.fromisoformat(sunday)
+        except ValueError:
+            return
+        head, old = "", {}
+        if prev:
+            pb = conn.execute("""SELECT i.body FROM items i JOIN sections s ON s.id=i.section_id
+                                 WHERE i.bulletin_id=? AND s.slug='mass-schedule'""", (prev["id"],)).fetchone()
+            for line in ((pb["body"] if pb else "") or "").splitlines():
+                if line.startswith("#"):
+                    head = line[1:].strip()
+                elif line.strip():
+                    parts = [x.strip() for x in line.split("|")]
+                    parts = (parts + [""] * 7)[:7]
+                    d = iso_date(parts[1])
+                    if d:
+                        old[d] = parts
+        lines = ["# " + head] if head else []
+        for n in range(-1, 8):
+            d = sun + timedelta(days=n)
+            parts = old.get(d.isoformat()) if n in (-1, 0) else None
+            parts = list(parts) if parts else ["", long_date(d.isoformat()), "", "", "", "", ""]
+            parts[0] = ""
+            lines.append(" | ".join(parts))
+        conn.execute("UPDATE items SET body=? WHERE id=?", ("\n".join(lines), item["id"]))
 
     def area_of(r):
         """Where a section sits: full page width, or the left/right half. Mass Intentions defaults to a left half."""

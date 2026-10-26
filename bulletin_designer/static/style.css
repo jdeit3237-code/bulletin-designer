@@ -224,3 +224,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .sheet .sec-mass-schedule h2 { background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); color: #fff; border-radius: 4px;
   border-bottom: 4px solid var(--gold-bright); padding: .06in .1in; text-align: center; overflow: hidden; -webkit-print-color-adjust: exact; }
+.sec + .sec.has-ig { margin-top: var(--ig); }
+.sec.has-ig > :last-child, .sec.has-ig > .intent:last-child, .sec.has-ig > .mass:last-child { margin-bottom: 0; }
+.sec.has-ig .mass h3, .sec.has-ig .mass-head { margin: 0; padding: 0; line-height: 1.25; }
+.sec.has-ig.sec-mass-schedule .mass p { margin: 0; line-height: 1.25; }

@@ -246,9 +246,16 @@ def test_mass_times_section(app):
     assert html.index("Mass &amp; Service Times") < html.index("Welcome Message") if "Welcome Message" in html else True
 
 
+def clear_mass_week(c):
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "0", "csrf": tok(c, "/bulletins/1")})
+
+
 def test_page_numbers_shown(app):
     c = setup_admin(app)
     create_bulletin(c)
+    clear_mass_week(c)
     c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
     page = c.get("/bulletins/1").text
     assert "Printed on" in page and "Page 1" in page and "would start on page" in page
@@ -258,6 +265,7 @@ def test_page_numbers_shown(app):
 def test_mass_intentions_section(app):
     c = setup_admin(app)
     create_bulletin(c)
+    clear_mass_week(c)
     assert "Intention for" in c.get("/bulletins/1/section/2").text
     c.post("/bulletins/1/section/1", data={"extra": "Cover", "csrf": tok(c, "/bulletins/1")})
     c.post("/bulletins/1/section/2", data={"group_count": "2", "header": "Mass Intentions Week",
@@ -421,6 +429,7 @@ def test_section_on_page_one(app):
 def test_stack_below_and_same_column(app):
     c = setup_admin(app)
     create_bulletin(c)
+    clear_mass_week(c)
     t = tok(c, "/bulletins/1")
     c.post("/bulletins/1/section/5", data={"body": "Welcome text", "csrf": t})
     c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
@@ -693,3 +702,22 @@ def test_mass_schedule_heading_is_fitted_green_block(app):
            "m0_lectors": "Ann Kay", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert re.search(r'<h2 style="font-size:[\d.]+pt;white-space:(nowrap|normal)', html)
+
+
+def test_mass_week_autodated_and_carried(app):
+    c = setup_admin(app)
+    create_bulletin(c, "2026-10-25")
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    form = c.get(f"/bulletins/1/section/{sid}").text
+    for d in ("2026-10-24", "2026-10-25", "2026-11-01"):
+        assert f'value="{d}"' in form
+    assert 'value="2026-11-02"' not in form and 'value="2026-10-23"' not in form
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "9", "csrf": tok(c, "/bulletins/1"),
+           "m7_date": "2026-10-31", "m7_lectors": "Sat Reader", "m7_notes": "Vigil\nnote",
+           "m8_date": "2026-11-01", "m8_lectors": "Sun Reader"})
+    create_bulletin(c, "2026-11-01")
+    sid2 = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', c.get("/bulletins/2").text, re.S).group(1)
+    form2 = c.get(f"/bulletins/2/section/{sid2}").text
+    assert 'value="2026-10-31"' in form2 and 'value="2026-11-08"' in form2
+    assert "Sat Reader" in form2 and "Sun Reader" in form2 and "Vigil\nnote" in form2
