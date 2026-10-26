@@ -907,7 +907,7 @@ def create_app(config=None):
                           num("crop_zoom", 1, 4, 1), num("crop_x", 0, 100, 50), num("crop_y", 0, 100, 50), num("crop_h", 0, 9, 0),
                           "" if new_title == s["title"] else new_title,
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")),
-                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right") else "",
+                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "only") else "",
                           gap_value(request.form.get("para_gap")),
                           status, g.user["username"], item["id"]))
             db().commit()

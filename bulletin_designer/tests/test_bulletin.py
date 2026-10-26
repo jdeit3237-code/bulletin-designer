@@ -766,3 +766,11 @@ def test_inline_styling(app):
     assert "<strong>bold</strong>" in h and 'class="ul"' in h and 'color:#ff0000' in h and "&lt;b&gt;" in h
     assert "2<sup>nd</sup>" in str(t("the 2nd collection and 1st one.", True)) and "<sup>st</sup>" in str(t("the 2nd collection and 1st one.", True))
     assert 'font-size:18pt">big' in str(t("a {18pt|big} word here now.", True))
+
+
+def test_photo_only_option(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    import os
+    here = os.path.dirname(__file__)
+    assert "Photo only" in open(os.path.join(here, "..", "templates", "section.html")).read()

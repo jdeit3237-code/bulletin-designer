@@ -240,3 +240,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sec span.ul { text-decoration: underline; }
 
 .sec sup { font-size: .65em; line-height: 0; vertical-align: super; }
+
+.sec.img-only > :not(figure) { display: none; }
+.sec.img-only figure { margin: 0; }
