@@ -821,10 +821,18 @@ def create_app(config=None):
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):
                 pages.extend(blocks(r))
+        full_on = {}
         for r in sorted((r for r in fulls if r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"),
                         key=lambda r: (r["page_no"], r["position"])):
+            host = full_on.get(r["page_no"])
+            if host is not None and r["pages"] == 1 and host["row"]["pages"] == 1:
+                host.setdefault("more", []).append(r)
+                continue
             at = max(1, min(r["page_no"] - 1, len(pages)))
-            pages[at:at] = blocks(r)
+            new_blocks = blocks(r)
+            pages[at:at] = new_blocks
+            if new_blocks:
+                full_on[r["page_no"]] = new_blocks[0]
         if not pages:
             pages.append({"row": None})
         halves = [r for r in printed if area_of(r) in ("left", "right", "left3", "mid3", "right3", "left23", "right23") and r not in p1_all]
@@ -875,6 +883,10 @@ def create_app(config=None):
             return (min(ps), max(ps)) if ps else None
         for r in sorted((r for r in printed if area_of(r) in ("below", "above") and r not in p1_all), key=lambda r: r["position"]):
             target = None
+            if r["page_no"] and 2 <= r["page_no"] <= len(pages) and pages[r["page_no"] - 1].get("row") is not None:
+                target = pages[r["page_no"] - 1]
+                target.setdefault("more" if area_of(r) == "below" else "above", []).append(r)
+                continue
             for k, pg in enumerate(pages):
                 bp = band_pos(pg)
                 if bp is None or pg.get("row") is None:

@@ -1070,3 +1070,16 @@ def test_youth_event_pick_select(app):
     create_bulletin(c)
     sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
     assert 'class="evpick"' in c.get(f"/bulletins/1/section/{sid}").text
+
+
+def test_two_full_sections_same_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, txt in ((9, "Employment text"), (10, "Souls text")):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": txt, "csrf": t})
+    for sid in (9, 10):
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": "full", "page_no": "3", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    pg = [x for x in html.split('class="sheet')[1:] if "Employment text" in x or "Souls text" in x]
+    assert len(pg) == 1 and "Employment text" in pg[0] and "Souls text" in pg[0]
