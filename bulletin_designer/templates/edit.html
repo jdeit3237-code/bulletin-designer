@@ -8,6 +8,10 @@
   <a class="btn secondary" href="{{ url_for('download', bid=b.id, kind='print') }}">Print PDF</a>
   <a class="btn secondary" href="{{ url_for('suggestions', bid=b.id) }}">Liturgical suggestions &amp; graphics</a></p>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
+<form class="inline" method="post" action="{{ url_for('total_pages', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="tp">Total pages in this bulletin</label> <input id="tp" name="total_pages" type="number" min="0" max="60" value="{{ b.total_pages or 0 }}" style="width:5em">
+  <button class="btn secondary">Set</button> <span class="meta">0 = automatic (fills to a multiple of 4). Now {{ total }} pages{% if b.total_pages and total > b.total_pages %}; your content needs {{ total }}, so shorten it to reach {{ b.total_pages }}{% endif %}.</span>
+</form>
 <form class="inline" method="post" action="{{ url_for('extra_pages', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
   <button class="btn secondary" name="do" value="add">+ Add 4 pages</button>
   {% if b.extra_pages %}<button class="btn secondary" name="do" value="remove">&minus; Remove 4 added pages</button> <span class="meta">{{ b.extra_pages }} extra pages added (blank notes pages at the end).</span>{% endif %}

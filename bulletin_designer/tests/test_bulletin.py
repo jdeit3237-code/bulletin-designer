@@ -1001,3 +1001,12 @@ def test_third_and_two_thirds_share_requested_page(app):
     html = c.get("/bulletins/1/preview").text
     pg = next(p for p in html.split('<section class="sheet') if "LEFTTHIRD" in p)
     assert "RIGHTTWO" in pg
+
+
+def test_total_pages_setting(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/total-pages", data={"total_pages": "12", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert html.count('<section class="sheet') == 12

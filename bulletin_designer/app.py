@@ -256,7 +256,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
@@ -857,11 +857,13 @@ def create_app(config=None):
                     toc.append({"title": r["title"], "page": p["number"], "pos": r["position"]})
         toc.sort(key=lambda t: (t["page"], t["pos"]))
         cur = len(pages) + 1
-        extra = db().execute("SELECT extra_pages FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
-        extra = (extra["extra_pages"] or 0) if extra else 0
+        brow = db().execute("SELECT extra_pages, total_pages FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
+        extra = (brow["extra_pages"] or 0) if brow else 0
+        total_want = (brow["total_pages"] or 0) if brow else 0
         ads = [dict(r) for r in db().execute("SELECT name,image,w,h FROM ads WHERE active=1 ORDER BY position, id").fetchall()]
         ad_pg = ad_pages(ads)
-        for _ in range(((-(len(pages) + len(ad_pg))) % 4 if pages else 4) + extra):
+        blanks = max(0, total_want - len(pages) - len(ad_pg)) if total_want else ((-(len(pages) + len(ad_pg))) % 4 if pages else 4) + extra
+        for _ in range(blanks):
             pages.append({"row": None, "number": cur})
             cur += 1
         for k, pg_ in enumerate(ad_pg):
@@ -1695,6 +1697,19 @@ def create_app(config=None):
         db().execute("UPDATE bulletins SET extra_pages=? WHERE id=?", (new, bid))
         db().commit()
         flash(f"{new} extra pages added." if new else "Extra pages removed.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/total-pages", methods=["POST"])
+    @need("admin", "editor")
+    def total_pages(bid):
+        open_bulletin(bid)
+        try:
+            n = max(0, min(60, int(request.form.get("total_pages") or 0)))
+        except ValueError:
+            n = 0
+        db().execute("UPDATE bulletins SET total_pages=? WHERE id=?", (n, bid))
+        db().commit()
+        flash(f"The bulletin will have {n} pages." if n else "The app will fill the bulletin to a multiple of 4 pages.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/header-text", methods=["POST"])
