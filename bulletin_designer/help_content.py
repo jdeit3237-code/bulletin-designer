@@ -32,7 +32,7 @@ TOPICS = [
       "To reset every section at once, use 'Reset layout of all sections' on the bulletin overview."]),
     ("order", "Move sections, columns and pages", "move order position column columns pages width half left right page number reorder",
      ["On the overview, each section row has Pages, Columns, Width, Order and On page.",
-      "Order sets position (1 = first). Width Left half / Right half puts two sections side by side. To mix widths on one page, set Width to \"Full width, above...\" or \"Full width, below...\" on a section whose Order number is just before (above) or after (below) the half or third sections it should go with.",
+      "Order sets position (1 = first). Width Left half / Right half puts two sections side by side. To put a full-width section over or under side-by-side sections, choose Width \"Full width, over the sections below it\" or \"Full width, under the sections above it\" and give it an Order number next to those sections.",
       "Pages makes a section take more than one page. Its text prints on the first page; the others are left for photos or notes.",
       "Change one thing at a time and check the Preview. If it gets confusing, use Reset layout."]),
     ("cutoff", "Text is cut off (red warning)", "cut off overflow red warning too long does not fit page full trim shorten",
