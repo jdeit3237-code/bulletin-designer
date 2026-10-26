@@ -922,6 +922,23 @@ def test_gallery_photos(app):
     assert html.index("First pic") < html.index("Hello") < html.index("Second pic")
 
 
+def test_gallery_equal_presence(app):
+    import re
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    data = {"csrf": t, "body": "Hi", "gal_size": "area", "gal_h": "2", "gal_gap": "0.1",
+            "ng_alt_0": "a", "ng_w_0": "above", "ng_alt_1": "b", "ng_w_1": "above", "ng_alt_2": "c", "ng_w_2": "above",
+            "ng_file_0": (_card(200, 200, "red"), "a.png"), "ng_file_1": (_card(400, 100, "blue"), "b.png"),
+            "ng_file_2": (_card(100, 300, "green"), "c.png")}
+    c.post("/bulletins/1/section/9", data=data, content_type="multipart/form-data")
+    html = c.get("/bulletins/1/preview").text
+    ws = [float(x) for x in re.findall(r'<img src="[^"]+" alt="" style="width:([\d.]+)in', html)]
+    assert len(ws) == 3
+    areas = [ws[0] ** 2, ws[1] ** 2 / 4, ws[2] ** 2 * 3]
+    assert max(areas) - min(areas) < 0.02, ws
+
+
 def test_full_width_bands_with_columns(app):
     import re
     c = setup_admin(app)

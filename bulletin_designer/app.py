@@ -429,7 +429,7 @@ def create_app(config=None):
         if not isinstance(d, dict):
             d = {}
         d.setdefault("h", 1.5)
-        d["size"] = "width" if d.get("size") == "width" else "height"
+        d["size"] = d.get("size") if d.get("size") in ("width", "area") else "height"
         d["valign"] = d.get("valign") if d.get("valign") in ("middle", "bottom") else "top"
         d["dir"] = "stack" if d.get("dir") == "stack" else "row"
         d["wrap"] = d.get("wrap") if d.get("wrap") in ("left", "right") else ""
@@ -1144,7 +1144,7 @@ def create_app(config=None):
             gal_align = request.form.get("gal_align") if request.form.get("gal_align") in ("left", "right") else "center"
             gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "align": gal_align,
                                    "dir": "stack" if request.form.get("gal_dir") == "stack" else "row",
-                                   "size": "width" if request.form.get("gal_size") == "width" else "height",
+                                   "size": request.form.get("gal_size") if request.form.get("gal_size") in ("width", "area") else "height",
                                    "valign": request.form.get("gal_valign") if request.form.get("gal_valign") in ("middle", "bottom") else "top",
                                    "wrap": request.form.get("gal_wrap") if request.form.get("gal_wrap") in ("left", "right") else "", "photos": keep[:12]}) if keep else ""
             status = "approved" if g.user["role"] in ("admin", "editor") else "pending"

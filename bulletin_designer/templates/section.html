@@ -269,7 +269,7 @@
     <label for="gal_wrap">If stacked: let the text wrap around them (photos placed above the text only)</label>
     <select id="gal_wrap" name="gal_wrap"><option value="">No wrap (photos on their own lines)</option><option value="left" {{ 'selected' if gal.wrap == 'left' }}>Photos on the left, text wraps on the right</option><option value="right" {{ 'selected' if gal.wrap == 'right' }}>Photos on the right, text wraps on the left</option></select>
     <label for="gal_size">Make the photos in a row</label>
-    <select id="gal_size" name="gal_size"><option value="height">All the same height (widths differ)</option><option value="width" {{ 'selected' if gal.size == 'width' }}>All the same width (heights differ)</option></select>
+    <select id="gal_size" name="gal_size"><option value="height">All the same height (widths differ)</option><option value="area" {{ 'selected' if gal.size == 'area' }}>Equal presence (square, wide and tall look the same size)</option><option value="width" {{ 'selected' if gal.size == 'width' }}>All the same width (heights differ)</option></select>
     <label for="gal_valign">If the photos are different heights, line them up at the</label>
     <select id="gal_valign" name="gal_valign"><option value="top">Top</option><option value="middle" {{ 'selected' if gal.valign == 'middle' }}>Middle</option><option value="bottom" {{ 'selected' if gal.valign == 'bottom' }}>Bottom</option></select>
     <label for="gal_align">Place the group of photos on the page</label>
