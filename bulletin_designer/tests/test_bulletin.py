@@ -1173,3 +1173,10 @@ def test_editor_manages_users_at_or_below(app):
     assert "Invited, not registered yet" in c.get("/admin/users").text
     v = register_user(app, c, "w@x.org", "viewer")
     assert v.get("/admin/users").status_code == 403
+
+
+def test_invite_existing_user_saves_typed_email(app):
+    c = setup_admin(app)
+    t = tok(c, "/admin/users")
+    c.post("/admin/users", data={"action": "invite", "uid": "1", "email": "boss@x.org", "csrf": t})
+    assert app.outbox[-1][0] == "boss@x.org"

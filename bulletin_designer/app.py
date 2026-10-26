@@ -2298,6 +2298,13 @@ def create_app(config=None):
                 else:
                     flash("Enter a valid email address and an access level.", "error")
             elif action == "invite":
+                em = request.form.get("email", "").strip().lower()
+                if EMAIL_RE.match(em):
+                    try:
+                        conn.execute("UPDATE users SET email=? WHERE id=?", (em, int(request.form["uid"])))
+                        conn.commit()
+                    except sqlite3.IntegrityError:
+                        flash("Another account already uses that email.", "error")
                 u = conn.execute("SELECT * FROM users WHERE id=?", (int(request.form["uid"]),)).fetchone()
                 if u and u["email"]:
                     sent, link = invite_user(u)
