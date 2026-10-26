@@ -243,3 +243,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .sec.img-only > :not(figure) { display: none; }
 .sec.img-only figure { margin: 0; }
+
+.sec.hide-title > h2 { display: none; }

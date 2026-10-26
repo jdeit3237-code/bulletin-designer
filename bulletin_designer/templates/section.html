@@ -30,6 +30,7 @@
     <input id="title_gap" name="title_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.title_gap) }}" placeholder="default">
     <label for="item_gap">Space between the items in this section, in inches (blank = default; 0 = no space; for example 0.05 tight, 0.15 loose)</label>
     <input id="item_gap" name="item_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.item_gap) }}" placeholder="default">
+    <p><label><input type="checkbox" name="hide_title" value="1" {{ 'checked' if item.hide_title }}> Hide this section's title in the bulletin</label></p>
     <label for="para_gap">Space between paragraphs, in inches (blank = default; 0 = no space). Press Enter in the text box to start a new paragraph.</label>
     <input id="para_gap" name="para_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.para_gap) }}" placeholder="default">
     {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover', 'staff') %}

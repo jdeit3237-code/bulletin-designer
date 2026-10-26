@@ -768,6 +768,14 @@ def test_inline_styling(app):
     assert 'font-size:18pt">big' in str(t("a {18pt|big} word here now.", True))
 
 
+def test_hide_title(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/9", data={"body": "x", "hide_title": "1", "csrf": tok(c, "/bulletins/1")})
+    assert "hide-title" in c.get("/bulletins/1/preview").text
+    assert "checked" in c.get("/bulletins/1/section/9").text.split('name="hide_title"')[1][:40]
+
+
 def test_photo_only_option(app):
     c = setup_admin(app)
     create_bulletin(c)
