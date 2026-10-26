@@ -265,6 +265,8 @@ def create_app(config=None):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+        if "active" not in ucols:
+            conn.execute("ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1")
         for col in ("email", "last_login", "last_seen"):
             if col not in ucols:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT ''")
@@ -348,6 +350,9 @@ def create_app(config=None):
         uid = session.get("uid")
         if uid:
             g.user = db().execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+            if g.user is None or g.user["active"] == 0:
+                g.user = None
+                session.clear()
         if not session.get("csrf"):
             session["csrf"] = secrets.token_hex(16)
         if request.method == "POST":
@@ -991,6 +996,9 @@ def create_app(config=None):
         if request.method == "POST":
             who = request.form.get("username", "").strip().lower()
             u = db().execute("SELECT * FROM users WHERE username=? OR (email<>'' AND email=?)", (who, who)).fetchone()
+            if u and u["active"] == 0:
+                flash("This account is deactivated. Ask an administrator.", "error")
+                return render_template("login.html")
             if u and check_password_hash(u["pw_hash"], request.form.get("password", "")):
                 session.clear()
                 session["uid"] = u["id"]
@@ -1010,7 +1018,9 @@ def create_app(config=None):
         if hook:
             return bool(hook(to, subject, body))
         host = os.environ.get("SMTP_HOST")
+        app.config["MAIL_ERROR"] = ""
         if not host:
+            app.config["MAIL_ERROR"] = "no email settings (SMTP_HOST) found on the server - check the WSGI file and press Reload"
             return False
         msg = EmailMessage()
         msg["To"], msg["Subject"] = to, subject
@@ -1023,7 +1033,8 @@ def create_app(config=None):
                     sm.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASSWORD", ""))
                 sm.send_message(msg)
             return True
-        except (OSError, smtplib.SMTPException):
+        except (OSError, smtplib.SMTPException) as exc:
+            app.config["MAIL_ERROR"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
             return False
 
     def make_token(uid, kind, hours):
@@ -2270,7 +2281,7 @@ def create_app(config=None):
 
         if request.method == "POST":
             action = request.form.get("action")
-            if action in ("invite", "setemail", "role") and not may_manage(int(request.form.get("uid", 0))):
+            if action in ("invite", "setemail", "role", "deactivate", "activate", "delete") and not may_manage(int(request.form.get("uid", 0))):
                 abort(403)
             if action == "create" and request.form.get("role") not in allowed:
                 abort(403)
@@ -2291,7 +2302,7 @@ def create_app(config=None):
                         conn.commit()
                         sent, link = invite_user(conn.execute("SELECT * FROM users WHERE id=?", (cur.lastrowid,)).fetchone())
                         flash("Invitation emailed to %s." % email if sent else
-                              "Email is not set up on the server, so nothing was sent. Copy this link and send it to %s yourself: %s" % (email, link),
+                              "Email was not sent (" + (app.config.get("MAIL_ERROR") or "unknown reason") + "). Copy this link and send it to %s yourself: %s" % (email, link),
                               "ok" if sent else "error")
                     except sqlite3.IntegrityError:
                         flash("That email already has an account.", "error")
@@ -2309,9 +2320,28 @@ def create_app(config=None):
                 if u and u["email"]:
                     sent, link = invite_user(u)
                     flash("Invitation emailed to %s." % u["email"] if sent else
-                          "Email is not set up, so copy this link and send it yourself: %s" % link, "ok" if sent else "error")
+                          "Email was not sent (" + (app.config.get("MAIL_ERROR") or "unknown reason") + "). Copy this link and send it yourself: %s" % link, "ok" if sent else "error")
                 else:
                     flash("That user has no email address. Add one first.", "error")
+            elif action in ("deactivate", "activate", "delete"):
+                uid = int(request.form["uid"])
+                target = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+                others = conn.execute("SELECT COUNT(*) FROM users WHERE role='admin' AND active<>0 AND id<>?", (uid,)).fetchone()[0]
+                if uid == g.user["id"]:
+                    flash("You cannot deactivate or delete your own account.", "error")
+                elif action != "activate" and target["role"] == "admin" and not others:
+                    flash("There must be at least one active administrator.", "error")
+                elif action == "activate":
+                    conn.execute("UPDATE users SET active=1 WHERE id=?", (uid,))
+                    flash("%s can sign in again." % target["display_name"], "ok")
+                elif action == "deactivate":
+                    conn.execute("UPDATE users SET active=0 WHERE id=?", (uid,))
+                    flash("%s is deactivated and cannot sign in. You can turn them back on any time." % target["display_name"], "ok")
+                else:
+                    conn.execute("DELETE FROM user_sections WHERE user_id=?", (uid,))
+                    conn.execute("DELETE FROM tokens WHERE user_id=?", (uid,))
+                    conn.execute("DELETE FROM users WHERE id=?", (uid,))
+                    flash("%s was deleted." % target["display_name"], "ok")
             elif action == "setemail":
                 em = request.form.get("email", "").strip().lower()
                 if EMAIL_RE.match(em):
@@ -2337,11 +2367,13 @@ def create_app(config=None):
         for r in rows:
             seen = r["last_seen"] or ""
             online = bool(seen) and seen >= (now - timedelta(minutes=10)).isoformat()
-            if r["must_reset"]:
+            if r["active"] == 0:
+                state = "Deactivated"
+            elif r["must_reset"]:
                 state = "Invited, not registered yet" if r["id"] in pend else "Must change password"
             else:
                 state = "Registered"
-            info[r["id"]] = {"online": online, "state": state, "verified": not r["must_reset"],
+            info[r["id"]] = {"active": r["active"] != 0, "online": online, "state": state, "verified": not r["must_reset"],
                              "last": (r["last_login"] or "")[:16].replace("T", " ") or "never"}
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL ORDER BY position").fetchall()
         assigned = {r["id"]: {x["section_id"] for x in conn.execute(

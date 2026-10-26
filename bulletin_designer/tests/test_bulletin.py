@@ -1180,3 +1180,18 @@ def test_invite_existing_user_saves_typed_email(app):
     t = tok(c, "/admin/users")
     c.post("/admin/users", data={"action": "invite", "uid": "1", "email": "boss@x.org", "csrf": t})
     assert app.outbox[-1][0] == "boss@x.org"
+
+
+def test_deactivate_and_delete_user(app):
+    c = setup_admin(app)
+    u = register_user(app, c, "gone@x.org", "editor")
+    t = tok(c, "/admin/users")
+    c.post("/admin/users", data={"action": "deactivate", "uid": "2", "csrf": t})
+    assert u.get("/", follow_redirects=False).status_code == 302
+    assert "deactivated" in login(app.test_client(), "gone@x.org", "another-password").text
+    c.post("/admin/users", data={"action": "deactivate", "uid": "1", "csrf": t})
+    assert c.get("/").status_code == 200
+    c.post("/admin/users", data={"action": "activate", "uid": "2", "csrf": t})
+    assert login(u, "gone@x.org", "another-password") and u.get("/").status_code == 200
+    c.post("/admin/users", data={"action": "delete", "uid": "2", "csrf": t})
+    assert "1 user." in c.get("/admin/users").text

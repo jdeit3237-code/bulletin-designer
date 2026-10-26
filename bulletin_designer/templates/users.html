@@ -9,7 +9,7 @@
   <tbody>{% for u in users %}
     <tr><td>{{ u.display_name }}</td><td>{{ u.email or u.username }}</td><td>{{ u.role|capitalize }}</td>
       <td>{{ 'Yes' if info[u.id].verified else 'No' }}</td>
-      <td>{{ '● Online now' if info[u.id].online else 'Offline' }} &middot; {{ info[u.id].state }}</td>
+      <td>{{ '● Online now' if info[u.id].online and info[u.id].active else 'Offline' }} &middot; {{ info[u.id].state }}</td>
       <td>{{ info[u.id].last }}</td></tr>
   {% endfor %}</tbody>
 </table>
@@ -36,6 +36,11 @@
   <input id="em{{ u.id }}" name="email" type="email" value="{{ u.email }}" style="max-width:20em">
   <button class="btn secondary" name="action" value="setemail">Save email</button>
   <button class="btn secondary" name="action" value="invite">Email registration link</button>
+  {% if u.id != g.user.id %}
+  {% if info[u.id].active %}<button class="btn secondary" name="action" value="deactivate" onclick="return confirm('Deactivate {{ u.display_name }}? They will not be able to sign in.')">Deactivate</button>
+  {% else %}<button class="btn secondary" name="action" value="activate">Reactivate</button>{% endif %}
+  <button class="btn secondary" name="action" value="delete" onclick="return confirm('Permanently delete {{ u.display_name }}? This cannot be undone.')">Delete</button>
+  {% endif %}
 </form>
 {% endfor %}
 {% if g.user.role == 'admin' %}
