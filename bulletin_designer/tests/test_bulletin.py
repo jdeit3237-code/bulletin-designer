@@ -248,7 +248,7 @@ def test_mass_times_section(app):
 
 def clear_mass_week(c):
     page = c.get("/bulletins/1").text
-    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "0", "csrf": tok(c, "/bulletins/1")})
 
 
@@ -283,7 +283,7 @@ def test_this_week_ministers(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     form = c.get(f"/bulletins/1/section/{sid}").text
     assert "Lector(s)" in form and "Eucharistic Ministers" in form
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "Ministers This Week",
@@ -684,7 +684,7 @@ def test_mass_notes_textarea(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     assert "Notes for this Mass" in c.get(f"/bulletins/1/section/{sid}").text
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
            "m0_notes": "Bring canned goods\nSecond collection", "csrf": tok(c, "/bulletins/1")})
@@ -697,7 +697,7 @@ def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
            "m0_lectors": "Ann Kay", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
@@ -708,7 +708,7 @@ def test_mass_week_autodated_and_carried(app):
     c = setup_admin(app)
     create_bulletin(c, "2026-10-25")
     page = c.get("/bulletins/1").text
-    sid = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     form = c.get(f"/bulletins/1/section/{sid}").text
     for d in ("2026-10-24", "2026-10-25", "2026-11-01"):
         assert f'value="{d}"' in form
@@ -717,7 +717,7 @@ def test_mass_week_autodated_and_carried(app):
            "m7_date": "2026-10-31", "m7_lectors": "Sat Reader", "m7_notes": "Vigil\nnote",
            "m8_date": "2026-11-01", "m8_lectors": "Sun Reader"})
     create_bulletin(c, "2026-11-01")
-    sid2 = re.search(r'This Week in Our Parish: Lectors.*?/section/(\d+)', c.get("/bulletins/2").text, re.S).group(1)
+    sid2 = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', c.get("/bulletins/2").text, re.S).group(1)
     form2 = c.get(f"/bulletins/2/section/{sid2}").text
     assert 'value="2026-10-31"' in form2 and 'value="2026-11-08"' in form2
     assert "Sat Reader" in form2 and "Sun Reader" in form2 and "Vigil\nnote" in form2
@@ -735,3 +735,10 @@ def test_photo_position_option(app):
     assert 'class="photo-inset-left"' in html
     i, j = html.index("Welcome Message"), html.index('class="photo-inset-left"')
     assert i < j < html.index("Hello there")
+
+
+def test_jump_to_section_dropdown(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1").text
+    assert 'id="jump"' in html and 'value="sec2"' in html and 'id="sec2"' in html

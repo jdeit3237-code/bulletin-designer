@@ -19,12 +19,14 @@
   {% else %}<button class="btn">Publish</button>{% endif %}
 </form>
 {% endif %}
+<p><label for="jump">Jump to section</label>
+<select id="jump" style="width:22em" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></p>
 <table>
   <caption class="small">Sections in print order</caption>
   <thead><tr><th scope="col">Section</th><th scope="col">Printed on</th><th scope="col">Type</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>
   <tbody>
   {% for s in secs %}
-    <tr>
+    <tr id="sec{{ s.id }}">
       <th scope="row">{{ s.title }}<br><span class="meta">{{ s.hint }}</span></th>
       {% set w = where[s.id] %}
       <td>{% if w[2] %}{{ 'Page ' ~ w[0] if w[0] == w[1] else 'Pages ' ~ w[0] ~ '-' ~ w[1] }}{% else %}<span class="meta">Empty - would start on page {{ w[0] }}</span>{% endif %}</td>
