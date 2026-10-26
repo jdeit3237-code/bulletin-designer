@@ -70,7 +70,7 @@ DEFAULT_SECTIONS = [
 ]
 
 
-AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 7.3, 0.25, 0.22
+AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 8.0, 0.25, 0.2
 
 
 def pack_ads(cards, scale):
@@ -108,12 +108,12 @@ def ad_pages(cards):
     """Fit all cards on the last two pages (largest uniform scale that works); more pages only if it cannot fit."""
     if not cards:
         return []
-    for scale in (1.0, 0.95, 0.9, 0.85, 0.8, 0.75):
+    for scale in [round(1.0 - 0.01 * k, 2) for k in range(0, 51)]:
         pages = pack_ads(cards, scale)
         if len(pages) <= 2:
             break
     else:
-        pages = pack_ads(cards, 0.85)
+        pages = pack_ads(cards, 0.5)
     if len(pages) == 1 and len(pages[0]) > 1:
         rows = pages[0]
         mid = (len(rows) + 1) // 2
