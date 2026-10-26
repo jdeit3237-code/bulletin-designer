@@ -699,6 +699,18 @@ def test_mass_notes_textarea(app):
     assert "<p>Bring canned goods</p>" in html and "<p>Second collection</p>" in html
 
 
+def test_delete_mass_subsection(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "", "m0_date": "2026-10-24",
+           "m0_lectors": "Anna Keep", "m1_date": "2026-10-25", "m1_lectors": "Bob Gone", "m1_remove": "1",
+           "csrf": tok(c, "/bulletins/1")})
+    html = c.get(f"/bulletins/1/section/{sid}").text
+    assert "Anna Keep" in html and "Bob Gone" not in html
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)

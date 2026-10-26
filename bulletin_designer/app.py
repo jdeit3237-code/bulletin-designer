@@ -1309,6 +1309,8 @@ def create_app(config=None):
                 if head:
                     lines.append("# " + head)
                 for i in range(min(int(request.form.get("mass_count", 0)), 40)):
+                    if request.form.get(f"m{i}_remove"):
+                        continue
                     vals = form_vals("m", i, MASS_FIELDS)
                     if any(vals):
                         lines.append(" | ".join(vals))
