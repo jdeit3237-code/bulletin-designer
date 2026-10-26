@@ -357,7 +357,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["calendar_rows"] = calendar_rows
 
-    CAL_MIN = ("lectors", "sacristans", "ministers", "location")
+    CAL_MIN = ("lectors", "sacristans", "ministers", "location", "end_date")
 
     def calendar_entries(body):
         """Calendar rows as dicts, with optional weekend Mass ministers (lectors, sacristans, Eucharistic ministers)."""
@@ -367,10 +367,10 @@ def create_app(config=None):
                 continue
             parts = [p.strip() for p in line.split("|")]
             if len(parts) >= 3:
-                parts = (parts + [""] * 7)[:7]
+                parts = (parts + [""] * 8)[:8]
                 out.append(dict(zip(("date", "time", "event") + CAL_MIN, parts)))
             else:
-                out.append(dict(zip(("date", "time", "event") + CAL_MIN, [parts[0], "", " ".join(parts[1:]), "", "", "", ""])))
+                out.append(dict(zip(("date", "time", "event") + CAL_MIN, [parts[0], "", " ".join(parts[1:]), "", "", "", "", ""])))
         return out
 
     app.jinja_env.globals["calendar_entries"] = calendar_entries
@@ -384,7 +384,17 @@ def create_app(config=None):
                 d = date.fromisoformat(iso_date(ev["date"]))
             except (ValueError, TypeError):
                 pass
-            ev = dict(ev, color=i % 4, month=f"{d:%b}".upper() if d else "", day=d.day if d else "", weekday=f"{d:%A}" if d else ev["date"])
+            month, day, weekday = (f"{d:%b}".upper() if d else ""), (d.day if d else ""), (f"{d:%A}" if d else ev["date"])
+            try:
+                e = date.fromisoformat(iso_date(ev["end_date"]))
+            except (ValueError, TypeError):
+                e = None
+            if d and e and e > d:
+                same = (e.year, e.month) == (d.year, d.month)
+                month = month if same else f"{month}-{e:%b}".upper()
+                day = f"{d.day}-{e.day}"
+                weekday = f"{d:%A} to {e:%A}"
+            ev = dict(ev, color=i % 4, month=month, day=day, weekday=weekday)
             out.append(ev)
         return out
 
@@ -659,7 +669,8 @@ def create_app(config=None):
         """Keep calendar lines dated on or after the new issue's Sunday; lines with no readable date are kept."""
         keep = []
         for line in (body or "").splitlines():
-            iso = iso_date(line.split("|")[0])
+            cols = [c.strip() for c in line.split("|")]
+            iso = (len(cols) > 7 and iso_date(cols[7])) or iso_date(cols[0])
             if iso and iso < sunday:
                 continue
             keep.append(line)
@@ -1074,6 +1085,7 @@ def create_app(config=None):
                 for i in range(min(int(request.form.get("event_count", 0)), 300)):
                     vals = [request.form.get(f"e{i}_{k}", "").replace("|", "/").strip() for k in ("date", "time", "event") + CAL_MIN]
                     vals[0] = long_date(vals[0]) or request.form.get(f"e{i}_old", "").replace("|", "/").strip()
+                    vals[-1] = long_date(vals[-1]) if s["slug"] == "youth-calendar" else ""
                     if any(vals):
                         lines.append(" | ".join(vals).rstrip(" |"))
                 body = "\n".join(lines)

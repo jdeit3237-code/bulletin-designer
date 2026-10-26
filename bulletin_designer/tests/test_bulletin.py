@@ -1050,3 +1050,16 @@ def test_youth_event_titles_list(app):
     assert "Lock-In" in c.get(f"/bulletins/1/section/{sid}").text
     c.post(f"/bulletins/1/section/{sid}/event-titles", data={"title": "Lock-In", "action": "remove", "csrf": tok(c, f"/bulletins/1/section/{sid}")})
     assert "Lock-In" not in c.get(f"/bulletins/1/section/{sid}").text
+
+
+def test_youth_multi_day_event(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
+    assert "e0_end_date" in c.get(f"/bulletins/1/section/{sid}").text
+    c.post(f"/bulletins/1/section/{sid}", data={"event_count": "1", "e0_date": "2026-11-06", "e0_end_date": "2026-11-08", "e0_event": "Retreat",
+           "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1/preview").text
+    assert "6-8" in html and "Friday to Sunday" in html
+    c.post("/bulletins/new", data={"sunday": "2026-11-08", "csrf": tok(c)})
+    assert "Retreat" in c.get(f"/bulletins/2/section/{sid}").text

@@ -36,6 +36,7 @@ TOPICS = [
     ("youthcal", "Youth Group Calendar", "youth group calendar events location cards colorful fun",
      ["Each event shows as a colorful card with a big date badge, the event name, the day, time and location. Colors rotate automatically.",
       "Fill in Date, Time, Event and Location for each event, then Save section. Use '+ Add another event' for more.",
+      "For an event that lasts several days, also choose 'Last day'. The card then shows a range such as NOV 6-8 and 'Friday to Sunday'. Leave it empty for a one-day event.",
       "Click in the Event box to pick a regular event (Special Event, Edge Night, Rock the Universe, Ash Wednesday, End of Year Party) or type your own. At the bottom of the page, 'Add a regular or yearly event' adds a new name to the list for good.",
       "When you start the next bulletin, events that already happened are dropped and upcoming ones carry over."]),
     ("hidetitle", "Hide a section's title", "hide title heading remove title",
