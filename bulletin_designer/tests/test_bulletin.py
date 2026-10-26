@@ -814,3 +814,24 @@ def test_ads_none_means_no_ad_pages(app):
     c = setup_admin(app)
     create_bulletin(c)
     assert "ad-grid" not in c.get("/bulletins/1/preview").text.replace(".ad-grid", "")
+
+
+def test_reset_layout(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "keep me", "hide_title": "1", "item_gap": "0.5", "csrf": t})
+    c.post("/bulletins/1/reset-layout", data={"sid": "9", "csrf": t})
+    page = c.get("/bulletins/1/section/9").text
+    assert "checked" not in page.split('name="hide_title"')[1][:40]
+    assert "keep me" in page
+    assert c.post("/bulletins/1/reset-layout", data={"csrf": t}).status_code in (200, 302)
+
+
+def test_soft_return(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/9", data={"body": "line one//\nline two\nnew para", "csrf": tok(c, "/bulletins/1")})
+    h = c.get("/bulletins/1/preview").text
+    assert "line one<br>line two" in h.replace("\n", "")
+    assert h.count("new para") >= 1

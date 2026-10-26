@@ -125,6 +125,7 @@
   <input id="theme" name="theme" type="text" maxlength="120" value="{{ b.theme }}">
   <p><button class="btn">Save header date and title</button></p>
 </form>
+{% if b.status != 'published' %}<form method="post" action="{{ url_for('reset_layout', bid=b.id) }}" onsubmit="return confirm('Reset the layout of ALL sections to the standard settings? Text and photos are kept.');"><input type="hidden" name="csrf" value="{{ csrf() }}"><p><button class="btn secondary">Reset layout of all sections</button></p></form>{% endif %}
 <form method="post" action="{{ url_for('set_footer', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="footer">Text shown in the footer of every page (the page number is added automatically)</label>

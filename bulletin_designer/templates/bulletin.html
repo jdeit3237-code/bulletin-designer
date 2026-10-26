@@ -52,7 +52,7 @@
         {% for line in m.notes.split('\n') if line.strip() %}<p>{{ line }}</p>{% endfor %}</div>
       {% endfor %}
     {% else %}
-      {% for para in r.body.split('\n') %}{% if para.strip() %}<p class="bp">{{ tight(para.strip(), b.no_stragglers) }}</p>{% endif %}{% endfor %}
+      {% for para in soft_paras(r.body) %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endfor %}
     {% endif %}
     {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}

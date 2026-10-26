@@ -389,6 +389,26 @@ def create_app(config=None):
             sep = Markup("&nbsp;") if (i == len(words) - 1 or first_of_sentence) else " "
             out += sep + escape(words[i])
         return styled(out)
+    def soft_paras(body):
+        """Split text into paragraphs; a line ending in // is a soft return (line break, no paragraph gap)."""
+        out, cur = [], []
+        for line in (body or "").split("\n"):
+            t = line.strip()
+            if t.endswith("//"):
+                t = t[:-2].rstrip()
+                if t:
+                    cur.append(t)
+                continue
+            if t:
+                cur.append(t)
+            if cur:
+                out.append(cur)
+                cur = []
+        if cur:
+            out.append(cur)
+        return out
+
+    app.jinja_env.globals["soft_paras"] = soft_paras
     app.jinja_env.globals["tight"] = tight
     app.jinja_env.globals["gap_display"] = gap_display
     app.jinja_env.globals["long_sunday"] = long_date
@@ -1078,6 +1098,28 @@ def create_app(config=None):
                      (bid, cur.lastrowid, last + 1))
         conn.commit()
         return redirect(url_for("section", bid=bid, sid=cur.lastrowid))
+
+    @app.route("/bulletins/<int:bid>/reset-layout", methods=["POST"])
+    @need("admin", "editor")
+    def reset_layout(bid):
+        open_bulletin(bid)
+        conn = db()
+        try:
+            sid = int(request.form.get("sid") or 0)
+        except ValueError:
+            sid = 0
+        sql = ("UPDATE items SET position=(SELECT position FROM sections WHERE id=items.section_id), "
+               "pages=(SELECT pages FROM sections WHERE id=items.section_id), cols=1, area='', page_no=0, font_pt=0, "
+               "font_style='', min_h=0, title_gap=0, item_gap=0, para_gap=0, img_pos='', hide_title=0, "
+               "crop_zoom=1, crop_x=50, crop_y=50, crop_h=0 WHERE bulletin_id=?")
+        args = [bid]
+        if sid:
+            sql += " AND section_id=?"
+            args.append(sid)
+        conn.execute(sql, args)
+        conn.commit()
+        flash("Layout reset to the standard settings. Your text and photos were not changed.", "ok")
+        return redirect(url_for("section", bid=bid, sid=sid) if sid else url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/layout/<int:sid>", methods=["POST"])
     @need("admin", "editor")
