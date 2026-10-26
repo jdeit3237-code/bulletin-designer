@@ -1063,3 +1063,10 @@ def test_youth_multi_day_event(app):
     assert "6-8" in html and "Friday to Sunday" in html
     c.post("/bulletins/new", data={"sunday": "2026-11-08", "csrf": tok(c)})
     assert "Retreat" in c.get(f"/bulletins/2/section/{sid}").text
+
+
+def test_youth_event_pick_select(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    sid = [r for r in range(1, 20) if "Youth Group Calendar" in c.get(f"/bulletins/1/section/{r}").text][0]
+    assert 'class="evpick"' in c.get(f"/bulletins/1/section/{sid}").text

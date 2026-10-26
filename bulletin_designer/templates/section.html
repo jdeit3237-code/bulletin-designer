@@ -137,6 +137,7 @@
     <fieldset data-event><legend>Event {{ loop.index }}</legend>
       <label for="e{{ n }}_date">Date (choose from the calendar)</label><input id="e{{ n }}_date" name="e{{ n }}_date" type="date" value="{{ iso_date(d) }}">{% if s.slug == 'youth-calendar' %}<label for="e{{ n }}_end_date">Last day, if the event runs several days (optional)</label><input id="e{{ n }}_end_date" name="e{{ n }}_end_date" type="date" value="{{ iso_date(ev.end_date) }}">{% endif %}{% if d and not iso_date(d) %}<p>Previously entered: {{ d }}. Choose a date to replace it.</p><input type="hidden" name="e{{ n }}_old" value="{{ d }}">{% endif %}
       <label for="e{{ n }}_time">Time (for Mass, choose or type)</label><input id="e{{ n }}_time" name="e{{ n }}_time" type="text" list="mass-times-list" value="{{ ev.time }}">
+      {% if s.slug == 'youth-calendar' %}<label for="e{{ n }}_pick">Pick a regular event (or type your own below)</label><select id="e{{ n }}_pick" class="evpick"><option value="">- Choose -</option>{% for t in youth_titles() %}<option>{{ t }}</option>{% endfor %}</select>{% endif %}
       <label for="e{{ n }}_event">Event</label><input id="e{{ n }}_event" name="e{{ n }}_event" type="text"{% if s.slug == 'youth-calendar' %} list="youth-titles"{% endif %} value="{{ ev.event }}">
       {% if s.slug == 'youth-calendar' %}<label for="e{{ n }}_location">Location</label><input id="e{{ n }}_location" name="e{{ n }}_location" type="text" value="{{ ev.location }}">{% else %}
       <div class="weekend-only"><p class="meta">Saturday and Sunday: add the Mass ministers if wanted (several names allowed, separated by commas).</p>
@@ -155,11 +156,14 @@
       var day=new Date(d.value+'T12:00:00').getDay();w.hidden=!(day===0||day===6||has);}
     document.querySelectorAll('#events fieldset').forEach(function(fs){
       weekendToggle(fs);fs.querySelector('input[type=date]').addEventListener('change',function(){weekendToggle(fs);});});
+    var PICKOPTS='<option value="">- Choose -</option>'{% for t in youth_titles() %}+'<option>{{ t|e }}</option>'{% endfor %};
+    document.addEventListener('change',function(e){var t=e.target;if(t.classList&&t.classList.contains('evpick')&&t.value){
+      t.closest('fieldset').querySelector('input[name$="_event"]').value=t.value;t.value='';}});
     document.getElementById('add-event').onclick=function(){
       var box=document.getElementById('events'),n=box.querySelectorAll('fieldset').length,c=document.querySelector('input[name=event_count]'),
       fs=document.createElement('fieldset');fs.setAttribute('data-event','');
       function f(k,label,type,extra){var id='e'+n+'_'+k;return '<label for="'+id+'">'+label+'</label><input id="'+id+'" name="'+id+'" type="'+(type||'text')+'"'+(extra||'')+'>';}
-      fs.innerHTML='<legend>Event '+(n+1)+'</legend>'+f('date','Date (choose from the calendar)','date')+({{ 'true' if s.slug == 'youth-calendar' else 'false' }}?f('end_date','Last day, if the event runs several days (optional)','date'):'')+f('time','Time (for Mass, choose or type)','text',' list="mass-times-list"')+f('event','Event','text',{% if s.slug == 'youth-calendar' %}' list="youth-titles"'{% else %}''{% endif %})
+      fs.innerHTML='<legend>Event '+(n+1)+'</legend>'+f('date','Date (choose from the calendar)','date')+({{ 'true' if s.slug == 'youth-calendar' else 'false' }}?f('end_date','Last day, if the event runs several days (optional)','date'):'')+f('time','Time (for Mass, choose or type)','text',' list="mass-times-list"')+({{ 'true' if s.slug == 'youth-calendar' else 'false' }}?'<label for="e'+n+'_pick">Pick a regular event (or type your own below)</label><select id="e'+n+'_pick" class="evpick">'+PICKOPTS+'</select>':'')+f('event','Event','text',{% if s.slug == 'youth-calendar' %}' list="youth-titles"'{% else %}''{% endif %})
         +({{ 'true' if s.slug == 'youth-calendar' else 'false' }}?f('location','Location'):'<div class="weekend-only"><p class="meta">Saturday and Sunday: add the Mass ministers if wanted (several names allowed, separated by commas).</p>'+f('lectors','Lectors')+f('sacristans','Sacristans')+f('ministers','Eucharistic Ministers')+'</div>');
       box.appendChild(fs);c.value=n+1;weekendToggle(fs);
       fs.querySelector('input[type=date]').addEventListener('change',function(){weekendToggle(fs);});
