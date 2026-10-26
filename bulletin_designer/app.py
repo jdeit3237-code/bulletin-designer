@@ -265,6 +265,8 @@ def create_app(config=None):
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "img_pos" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN img_pos TEXT DEFAULT ''")
+        if "img_w" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN img_w REAL DEFAULT 0")
         if "gallery" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN gallery TEXT DEFAULT ''")
         if "bullet_style" not in have:
@@ -464,8 +466,18 @@ def create_app(config=None):
         return styled(out)
     def soft_paras(body):
         """Split text into paragraphs; a line ending in // is a soft return (line break, no paragraph gap)."""
+        import re
+
+        def per_line(m):
+            op, inner, cl = m.group(1), m.group(2), m.group(3)
+            if "\n" not in inner:
+                return m.group(0)
+            return "\n".join(op + ln + cl if ln.strip() else ln for ln in inner.split("\n"))
+        body = body or ""
+        for pat in (r"(\{\d{1,2}pt\|)(.+?)(\})", r"(\{#[0-9a-fA-F]{6}\|)(.+?)(\})", r"(\*\*)(.+?)(\*\*)", r"(~~)(.+?)(~~)", r"(__)(.+?)(__)"):
+            body = re.sub(pat, per_line, body, flags=re.S)
         out, cur = [], []
-        for line in (body or "").split("\n"):
+        for line in body.split("\n"):
             t = line.strip()
             if t[:2] in ("- ", "* ", "\u2022 "):
                 if cur:
@@ -658,7 +670,7 @@ def create_app(config=None):
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
                               old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"]))
-                conn.execute("UPDATE items SET gallery=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", bulletin_id, s["id"]))
+                conn.execute("UPDATE items SET gallery=?, img_w=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, bulletin_id, s["id"]))
             else:
                 conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
@@ -721,7 +733,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1155,7 +1167,7 @@ def create_app(config=None):
                     return default
             new_title = request.form.get("section_title", s["title"]).strip()[:120]
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
-                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
@@ -1167,7 +1179,7 @@ def create_app(config=None):
                           1 if request.form.get("hide_title") else 0,
                           gap_value(request.form.get("space_before")),
                           request.form.get("bullet_style") if request.form.get("bullet_style") in BULLETS else "",
-                          gal_json,
+                          gal_json, num("img_w", 0, 100, 0),
                           status, g.user["username"], item["id"]))
             db().commit()
             if doc_added:
@@ -1185,7 +1197,7 @@ def create_app(config=None):
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery")
+    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -1230,7 +1242,7 @@ def create_app(config=None):
         if not can_edit_section(sid) or b["status"] == "published":
             abort(403)
         conn = db()
-        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', gallery='', carried=0, updated_by=? "
+        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', gallery='', img_w=0, carried=0, updated_by=? "
                      "WHERE bulletin_id=? AND section_id=?", (g.user["username"], bid, sid))
         conn.commit()
         flash("Section content deleted.", "ok")

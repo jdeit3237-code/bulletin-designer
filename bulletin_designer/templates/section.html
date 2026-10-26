@@ -242,6 +242,8 @@
       <input id="crop_zoom" name="crop_zoom" type="range" min="1" max="4" step="0.1" value="{{ item.crop_zoom or 1 }}">
       <label for="crop_x">Move left / right</label><input id="crop_x" name="crop_x" type="range" min="0" max="100" step="1" value="{{ item.crop_x if item.crop_x is not none else 50 }}">
       <label for="crop_y">Move up / down</label><input id="crop_y" name="crop_y" type="range" min="0" max="100" step="1" value="{{ item.crop_y if item.crop_y is not none else 50 }}">
+      <label for="img_w">Photo width: % of the page width (0 = standard; 45 for an inset, 100 for full width). Bigger number = bigger photo.</label>
+      <input id="img_w" name="img_w" type="number" min="0" max="100" step="5" value="{{ item.img_w|int if item.img_w else 0 }}">
       <label for="img_pos">Where the photo goes</label>
       <select id="img_pos" name="img_pos">{% for k, v in (('', 'Below the section text'), ('above', 'Above the section (title under the photo)'), ('inset-left', 'Inset at left, text wrapped, just under the title'), ('inset-right', 'Inset at right, text wrapped, just under the title'), ('only', 'Photo only (hide the title and text)')) %}<option value="{{ k }}" {{ 'selected' if (item.img_pos or '') == k }}>{{ v }}</option>{% endfor %}</select>
       <label for="crop_h">Frame height in inches (0 = show whole picture; zoom alone uses 3 in)</label>
