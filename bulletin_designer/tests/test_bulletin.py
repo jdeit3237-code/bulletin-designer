@@ -1105,3 +1105,11 @@ def test_shared_page_photos_shrink(app):
         c.post(f"/bulletins/1/layout/{sid}", data={"area": "full", "page_no": "3", "pages": "1", "cols": "1", "csrf": t})
     html = c.get("/bulletins/1/preview").text
     assert 'class="shared"' in html and "--ph:" in html
+
+
+def test_photo_without_text_fills_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/9", data={"csrf": tok(c, "/bulletins/1/section/9"), "body": "", "img_pos": "below", "decorative": "1",
+           "image": (_card(600, 900, "orange"), "p.png")}, content_type="multipart/form-data")
+    assert "img-only" in c.get("/bulletins/1/preview").text
