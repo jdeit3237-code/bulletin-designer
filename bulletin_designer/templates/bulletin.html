@@ -96,6 +96,7 @@
     {% if p.ad_last %}<div class="ad-banner ad-contact"><strong>Advertise With Us!</strong><span>Contact Nancy in the Parish Office: (305) 872-2537 &middot; Email nancy@stpeterbpk.org</span></div>{% endif %}
   {% elif p.row %}
     {% set r = p.row %}<div id="pg{{ p.number }}" style="{{ 'column-count:2;column-gap:.35in;' if r.cols == 2 else '' }}">
+    {% for m in p.above %}{{ render_row(m, {'part': 1}) }}{% endfor %}
     {% if side_by_side %}
     {% set place = b.toc_place or 'left' %}
     {% if p.p1_full %}{{ toc_html }}{% if p.duo %}{{ render_duo(p) }}{% else %}{{ render_row(r, p) }}{% endif %}

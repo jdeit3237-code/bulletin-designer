@@ -920,3 +920,18 @@ def test_gallery_photos(app):
     html = c.get("/bulletins/1/preview").text
     assert 'alt="First pic"' in html and 'alt="Second pic"' in html
     assert html.index("First pic") < html.index("Hello") < html.index("Second pic")
+
+
+def test_full_width_bands_with_columns(app):
+    import re
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid, body, area in ((9, "BANDTOP", "above"), (10, "HALFLEFT", "left"), (11, "HALFRIGHT", "right"), (12, "BANDBOTTOM", "below")):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": body, "csrf": t})
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": area, "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    pages = html.split('<section class="sheet')
+    pg = next(p for p in pages if "HALFLEFT" in p)
+    assert "HALFRIGHT" in pg and "BANDTOP" in pg and "BANDBOTTOM" in pg
+    assert pg.index("BANDTOP") < pg.index("HALFLEFT") < pg.index("HALFRIGHT") < pg.index("BANDBOTTOM")
