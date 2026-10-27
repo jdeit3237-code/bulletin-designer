@@ -342,6 +342,8 @@
         im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';im.style.transformOrigin=x.value+'% '+y.value+'%';}
       [sh,z,x,y].forEach(function(e){e.addEventListener('input',up);});up();});
     </script>
+    <label for="gal_align">Alignment of the extra photos with the title: left, centered or right (applies to the whole group above)</label>
+    <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
     {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
@@ -355,8 +357,6 @@
     <select id="gal_size" name="gal_size"><option value="height">All the same height (widths differ)</option><option value="area" {{ 'selected' if gal.size == 'area' }}>Equal presence (square, wide and tall look the same size)</option><option value="width" {{ 'selected' if gal.size == 'width' }}>All the same width (heights differ)</option></select>
     <label for="gal_valign">If the photos are different heights, line them up at the</label>
     <select id="gal_valign" name="gal_valign"><option value="top">Top</option><option value="middle" {{ 'selected' if gal.valign == 'middle' }}>Middle</option><option value="bottom" {{ 'selected' if gal.valign == 'bottom' }}>Bottom</option></select>
-    <label for="gal_align">Line the extra photos up with the title: left, centered or right</label>
-    <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
     <label for="gal_gap">Space between photos in inches</label>
     <input id="gal_gap" name="gal_gap" type="number" min="0" max="1" step="0.05" value="{{ gal.gap }}">
     <label for="gal_h">Height of the photos in inches (applies to all of them; they shrink only if they would not fit the page width)</label>
