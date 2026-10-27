@@ -1425,3 +1425,12 @@ def test_photo_libraries_many_to_many(app):
     assert "Cross" not in c.get(f"/library?lib={ids['Church']}").text
     c.post("/library/libraries", data={"action": "remove", "lib": ids["Youth"], "csrf": t})
     assert "Cross" in c.get("/library?lib=none").text
+
+
+def test_header_date_setting_updates_cover(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/header-text", data={"hdr_date": "2026-11-08", "theme": "Test", "csrf": tok(c, "/bulletins/1")})
+    h = c.get("/bulletins/1/preview").text
+    assert 'class="head-date">Sunday, November 8, 2026' in h or "head-date" in h and "November 8, 2026" in h.split("head-date")[1][:200]
+    assert "October 25" not in h.split("head-date")[1][:200]

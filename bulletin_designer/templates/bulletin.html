@@ -188,7 +188,7 @@ document.querySelectorAll('.sheet .pg-body').forEach(function (b) {
     if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
     var w = document.createElement('p'); w.className = 'overflow-warn'; w.setAttribute('role', 'alert');
     w.textContent = 'Warning: cut off at the bottom' + (cut.length ? ' (' + cut.join(', ') + ')' : '') + '. Shorten it or give the section more pages.';
-    b.appendChild(w);
+    var sh = b.closest('.sheet'); sh.parentNode.insertBefore(w, sh.nextSibling);
   }
 });
 });

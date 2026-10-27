@@ -1407,6 +1407,7 @@ def create_app(config=None):
                 cd, ct = long_date(request.form.get("cover_date", "")) or clean("cover_date_old"), clean("cover_title")
                 if cd or ct:
                     lines.append(f"@date | {cd} | {ct}")
+                db().execute("UPDATE bulletins SET hdr_date=?, theme=? WHERE id=?", (iso_date(cd), ct, bid))
                 av = [clean("addr_" + k) for k in ADDR_FIELDS]
                 if any(av):
                     lines.append("@address | " + " | ".join(av))
@@ -2162,6 +2163,13 @@ def create_app(config=None):
         d = d if long_date(d) else ""
         title = " ".join(request.form.get("theme", "").split())[:120]
         db().execute("UPDATE bulletins SET hdr_date=?, theme=? WHERE id=?", (d, title, bid))
+        cov = db().execute("""SELECT i.id, i.body FROM items i JOIN sections s ON s.id=i.section_id
+            WHERE i.bulletin_id=? AND s.slug='cover'""", (bid,)).fetchone()
+        if cov:
+            keep = [l for l in (cov["body"] or "").splitlines() if not l.strip().lower().startswith("@date")]
+            ct = title.replace("|", "/")
+            new = ([f"@date | {long_date(d)} | {ct}"] if (d or ct) else []) + keep
+            db().execute("UPDATE items SET body=? WHERE id=?", ("\n".join(new), cov["id"]))
         db().commit()
         flash("Header date and title saved.", "ok")
         return redirect(url_for("edit", bid=bid))
