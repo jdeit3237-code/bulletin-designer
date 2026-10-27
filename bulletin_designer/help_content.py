@@ -8,7 +8,7 @@ TOPICS = [
       "Made a mistake? 'Undo / history' on the overview restores an earlier version (see 'Go back to an earlier version').",
       "When it looks right, press Publish, then download the Print PDF for the printer and the Web PDF for posting online."]),
     ("giving", "Stewardship & Giving: collections", "giving stewardship generosity collection first second direct deposit dollar amount offertory hide",
-     ["Open Stewardship & Giving. Choose the date, then type the dollar amount for the 1st Collection and the Weekly Direct Deposit.",
+     ["Open Stewardship & Giving. Choose the date, then type the dollar amount for the 1st Collection and the Direct Deposit.",
       "Type the 2nd Collection amount. If there is no second collection this week, tick 'There is no 2nd collection this week' (or leave the amount empty) and it is left out of the bulletin.",
       "Anything else goes in Notes. Leave an amount empty to leave it out. Press Save section."]),
     ("jump", "Find your way around the overview", "jump menu overview navigate find section list top buttons check history suggestions graphics assistant",
