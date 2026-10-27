@@ -251,6 +251,27 @@
     {% endif %}
     <label for="source">Source / attribution (e.g. usccb.org, miamiarch.org, stpeterbpk.org)</label>
     <input id="source" name="source" type="text" value="{{ item.source }}">
+    {% if photos %}<div class="photo-finder"><h3>Find a photo</h3>
+    <label for="pf_q">Search the photo library by name, keyword or description (for example "palm", "Christmas", "church")</label>
+    <input id="pf_q" type="search" autocomplete="off" placeholder="Type to search">
+    <p class="small" id="pf_none" hidden>No photos match. Try another word, or <a href="{{ url_for('library') }}">add a photo to the library</a>.</p>
+    <div class="pf-grid">{% for p in photos %}<figure class="pf-i" data-id="{{ p.id }}" data-t="{{ (p.title ~ ' ' ~ (p.tags or '') ~ ' ' ~ (p.alt or '') ~ ' ' ~ (p.libs or ''))|lower }}" hidden>
+      <img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}">
+      <figcaption>{{ p.title }}</figcaption>
+      <button type="button" class="btn secondary pf-main">Use as the main photo</button>
+      <button type="button" class="btn secondary pf-extra">Add as an extra photo</button></figure>{% endfor %}</div>
+    <p class="small" id="pf_msg" role="status"></p></div>
+    <script>
+    (function(){var q=document.getElementById('pf_q'),items=[].slice.call(document.querySelectorAll('.pf-i')),none=document.getElementById('pf_none'),msg=document.getElementById('pf_msg');
+    function f(){var w=q.value.toLowerCase().split(/\s+/).filter(Boolean),n=0;items.forEach(function(i){var ok=w.length&&w.every(function(x){return i.getAttribute('data-t').indexOf(x)>-1;});
+      if(ok&&n<12){i.hidden=false;n++;}else{i.hidden=true;}});none.hidden=!(w.length&&!n);}
+    q.addEventListener('input',f);q.addEventListener('keydown',function(e){if(e.key==='Enter')e.preventDefault();});
+    document.addEventListener('click',function(e){var b=e.target,fig=b.closest&&b.closest('.pf-i');if(!fig)return;var id=fig.getAttribute('data-id'),t=fig.querySelector('figcaption').textContent;
+      if(b.classList.contains('pf-main')){var s=document.getElementById('library_id');if(s){s.value=id;msg.textContent='"'+t+'" will be the main photo when you click Save section. Give it a caption below if asked.';}}
+      if(b.classList.contains('pf-extra')){var sel=[].slice.call(document.querySelectorAll('select[name^="ng_lib_"]')).filter(function(x){return !x.value;})[0];
+        if(sel){sel.value=id;var cap=document.querySelector('input[name="'+sel.name.replace('ng_lib_','ng_alt_')+'"]');if(cap&&!cap.value)cap.value=t;msg.textContent='"'+t+'" added as an extra photo. Click Save section to keep it; you can then crop it.';}
+        else{msg.textContent='All four extra-photo slots are used. Save the section first, then add more.';}}});})();
+    </script>{% endif %}
     {% if photos %}<label for="library_id">Choose from the photo library</label>
     <select id="library_id" name="library_id"><option value="">- none -</option>
     {% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select>

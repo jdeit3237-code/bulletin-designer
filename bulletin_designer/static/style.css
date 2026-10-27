@@ -339,3 +339,10 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .photo-card { display: flex; flex-wrap: wrap; gap: .8em; align-items: flex-start; border: 1px solid #bbb; border-radius: 6px; padding: .5em; margin: .5em 0; }
 .photo-card .pc-ctl { flex: 1 1 18em; }
 .photo-card .pc-ctl label { display: block; margin: .3em 0; }
+
+.photo-finder { border: 1px solid #bbb; border-radius: 6px; padding: .5em .8em; margin: .8em 0; background: #f7f7f2; }
+.pf-grid { display: flex; flex-wrap: wrap; gap: .6em; }
+.pf-i { width: 9.5em; margin: 0; font-size: 12pt; }
+.pf-i[hidden] { display: none; }
+.pf-i img { width: 100%; height: 6em; object-fit: cover; border-radius: 4px; }
+.pf-i .btn { display: block; width: 100%; margin-top: .25em; font-size: 12pt; padding: .2em .3em; }

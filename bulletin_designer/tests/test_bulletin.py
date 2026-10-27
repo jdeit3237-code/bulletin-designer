@@ -1471,3 +1471,12 @@ def test_gallery_photo_crop_and_wrap(app):
     assert "object-position:20.0% 70.0%" in html and "scale(2.0)" in html
     assert "galv-wrap-right" in html
     assert html.index("Pic B") < html.index("Words here")
+
+
+def test_section_photo_finder(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/library", data={"csrf": tok(c, "/library"), "photo": (_card(100, 100, "red"), "palm.png"), "title": "Palm branches",
+           "alt": "palms", "tags": "palm sunday"}, content_type="multipart/form-data")
+    h = c.get("/bulletins/1/section/9").text
+    assert 'id="pf_q"' in h and "palm branches" in h and "Use as the main photo" in h
