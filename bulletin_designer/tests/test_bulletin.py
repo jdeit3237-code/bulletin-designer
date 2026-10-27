@@ -1519,3 +1519,19 @@ def test_giving_extra_collections(app):
     assert "Sunday Offertory" in h and "Hurricane Relief" in h and "$250.00" in h and "Keys families" in h and "Gone" not in h
     f = c.get(f"/bulletins/1/section/{gid}").text
     assert "Hurricane Relief" in f and 'id="gx_add"' in f
+
+
+def test_section_background_color(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hello", "use_bg": "1", "bg_color": "#102a43"})
+    h = c.get("/bulletins/1/preview").text
+    assert "background:#102a43" in h and "bg-dark" in h
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hello", "use_bg": "1", "bg_color": "#ffeeaa"})
+    h = c.get("/bulletins/1/preview").text
+    assert "background:#ffeeaa" in h and "bg-dark" not in h
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hello", "bg_color": "#ffeeaa"})
+    assert "background:#ffeeaa" not in c.get("/bulletins/1/preview").text
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hello", "use_bg": "1", "bg_color": "red;x"})
+    assert "red;x" not in c.get("/bulletins/1/preview").text

@@ -350,3 +350,8 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet figure.pa-left { text-align: left; margin-left: 0 !important; margin-right: auto !important; }
 .sheet figure.pa-right { text-align: right; margin-left: auto !important; margin-right: 0 !important; }
 .sheet figure.pa-center { text-align: center; margin-left: auto !important; margin-right: auto !important; }
+
+.sheet .sec.has-bg { padding: .08in .12in; border-radius: 6px; box-sizing: border-box; }
+.sheet .sec.bg-dark, .sheet .sec.bg-dark *, .sheet .sec.bg-dark a { color: #fff !important; border-color: rgba(255,255,255,.6) !important; }
+.sheet .sec.bg-dark .mass, .sheet .sec.bg-dark .giving, .sheet .sec.bg-dark .times-item { background: transparent !important; }
+.sheet .sec.bg-dark h2 { background: transparent !important; }

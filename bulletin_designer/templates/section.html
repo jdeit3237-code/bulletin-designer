@@ -264,6 +264,12 @@
     {% endif %}
     <label for="source">Source / attribution (e.g. usccb.org, miamiarch.org, stpeterbpk.org)</label>
     <input id="source" name="source" type="text" value="{{ item.source }}">
+    <fieldset class="bg-pick"><legend>Background color of this section</legend>
+      <label><input type="checkbox" name="use_bg" value="1" {{ 'checked' if item.bg_color }}> Give this section a colored background</label>
+      <label for="bg_color">Pick the color (a dark color automatically turns the text white)</label>
+      <input id="bg_color" name="bg_color" type="color" value="{{ item.bg_color or '#fff3cd' }}">
+      <p class="small">Tip: pale colors keep the text easy to read and use less ink. Untick the box to remove the color.</p>
+    </fieldset>
     {% if photos %}<div class="photo-finder"><h3>Find a photo</h3>
     <label for="pf_q">Search the photo library by name, keyword or description (for example "palm", "Christmas", "church")</label>
     <input id="pf_q" type="search" autocomplete="off" placeholder="Type to search">
