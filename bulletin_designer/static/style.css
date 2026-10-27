@@ -373,3 +373,8 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .toolrow { display: flex; flex-wrap: wrap; gap: .4em; margin: .6em 0; }
 .toolrow .btn { background: #1f7a3a; color: #fff; border: 2px solid #14562a; font-size: 12pt; padding: .45em .8em; white-space: nowrap; margin: 0; }
 .toolrow .btn:hover, .toolrow .btn:focus { background: #14562a; }
+
+.jumpbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: .8em; flex-wrap: wrap; background: #e0a800; border: 3px solid #14562a; border-radius: 8px; padding: .6em 1em; margin: .6em 0 1em; box-shadow: 0 3px 8px rgba(0,0,0,.3); }
+.jumpbar label { font: bold 18pt Arial, sans-serif; color: #14310f; margin: 0; }
+.jumpbar select { flex: 1 1 18em; font-size: 16pt; font-weight: bold; padding: .35em .5em; border: 3px solid #14562a; background: #fff; color: #14310f; }
+@media print { .jumpbar { display: none; } }

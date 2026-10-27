@@ -1,6 +1,8 @@
 {% extends "base.html" %}{% block title %}Edit bulletin{% endblock %}
 {% block content %}
 <h1>Bulletin for {{ b.sunday }} <span class="badge {{ 'ok' if b.status=='published' else 'pend' }}">{{ b.status }}</span></h1>
+<div class="jumpbar" role="navigation" aria-label="Jump to section"><label for="jump">&#9660; Jump to section</label>
+<select id="jump" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></div>
 <p>Printed length: <strong>{{ total }} pages</strong> (always a multiple of 4; blank pages become notes pages).</p>
 <p class="toolrow">
   <a class="btn" href="{{ url_for('preview', bid=b.id) }}">Preview / print</a>
@@ -30,8 +32,6 @@
   {% else %}<button class="btn">Publish</button>{% endif %}
 </form>
 {% endif %}
-<p><label for="jump">Jump to section</label>
-<select id="jump" style="width:22em" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></p>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
 <form method="post" action="{{ url_for('add_section', bid=b.id) }}" class="inline">
   <input type="hidden" name="csrf" value="{{ csrf() }}">

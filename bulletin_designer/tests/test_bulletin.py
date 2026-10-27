@@ -1615,3 +1615,10 @@ def test_edit_toolbar_row(app):
     create_bulletin(c)
     h = c.get("/bulletins/1").text
     assert 'class="toolrow"' in h and "Liturgical suggestions" in h
+
+
+def test_jumpbar_on_top(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    assert h.index('class="jumpbar"') < h.index('class="toolrow"') and 'id="jump"' in h
