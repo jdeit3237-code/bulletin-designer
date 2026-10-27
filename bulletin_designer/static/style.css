@@ -355,3 +355,17 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .sec.bg-dark, .sheet .sec.bg-dark *, .sheet .sec.bg-dark a { color: #fff !important; border-color: rgba(255,255,255,.6) !important; }
 .sheet .sec.bg-dark .mass, .sheet .sec.bg-dark .giving, .sheet .sec.bg-dark .times-item { background: transparent !important; }
 .sheet .sec.bg-dark h2 { background: transparent !important; }
+
+.align-tool .at-wrap { display: flex; flex-wrap: wrap; gap: 1em; align-items: flex-start; }
+.at-page { width: 130px; height: 170px; border: 2px solid #555; background: #fff; padding: 8px; box-sizing: border-box; }
+.at-title { height: 10px; width: 70%; background: #2e6b4f; border-radius: 2px; }
+.at-photo { width: 45%; height: 34px; background: #8aa; border-radius: 2px; }
+.at-line { height: 5px; background: #bbb; margin: 5px 0; border-radius: 2px; }
+.at-line.short { width: 60%; }
+.at-ctl { flex: 1 1 16em; }
+.at-btns { display: flex; gap: .4em; margin-bottom: .6em; }
+.at-b { display: block; margin: 0; }
+.at-b input { position: absolute; opacity: 0; }
+.at-b span { display: block; border: 2px solid #2e6b4f; border-radius: 6px; padding: .35em 1em; font-weight: bold; cursor: pointer; background: #fff; }
+.at-b input:checked + span { background: #2e6b4f; color: #fff; }
+.at-b input:focus-visible + span { outline: 3px solid #e0a800; }

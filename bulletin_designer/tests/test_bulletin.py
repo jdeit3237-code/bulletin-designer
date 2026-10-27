@@ -1535,3 +1535,14 @@ def test_section_background_color(app):
     assert "background:#ffeeaa" not in c.get("/bulletins/1/preview").text
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hello", "use_bg": "1", "bg_color": "red;x"})
     assert "red;x" not in c.get("/bulletins/1/preview").text
+
+
+def test_alignment_tool_spacing(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "ng_alt_0": "A", "ng_w_0": "above", "ng_file_0": (_card(300, 200, "red"), "a.png"),
+           "gal_align": "right", "gal_before": "0.3", "gal_after": "0.3"}, content_type="multipart/form-data")
+    h = c.get("/bulletins/1/preview").text
+    assert "gal-right" in h and "margin-top:0.3in;margin-bottom:0.3in" in h
+    assert 'id="at_equal"' in c.get("/bulletins/1/section/9").text

@@ -342,8 +342,30 @@
         im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';im.style.transformOrigin=x.value+'% '+y.value+'%';}
       [sh,z,x,y].forEach(function(e){e.addEventListener('input',up);});up();});
     </script>
-    <label for="gal_align">Alignment of the extra photos with the title: left, centered or right (applies to the whole group above)</label>
-    <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
+    <fieldset class="align-tool"><legend>Alignment tool for the extra photos</legend>
+      <p class="small">Pick where the photos sit and how much space is above and below them. The small page shows what you are choosing. Save the section to apply it.</p>
+      <div class="at-wrap">
+        <div class="at-page" aria-hidden="true"><div class="at-title"></div><div class="at-photo" id="at_photo"></div><div class="at-line"></div><div class="at-line"></div><div class="at-line short"></div></div>
+        <div class="at-ctl">
+          <div role="radiogroup" aria-label="Left, center or right" class="at-btns">
+            {% for k, v in (('left', 'Left'), ('center', 'Center'), ('right', 'Right')) %}<label class="at-b"><input type="radio" name="gal_align" value="{{ k }}" {{ 'checked' if gal.align == k }}><span>{{ v }}</span></label>{% endfor %}
+          </div>
+          <label for="gal_before">Space between the title and the photos (inches)</label>
+          <input id="gal_before" name="gal_before" type="number" min="0" max="1" step="0.05" value="{{ gal.before }}">
+          <label for="gal_after">Space between the photos and the text (inches)</label>
+          <input id="gal_after" name="gal_after" type="number" min="0" max="1" step="0.05" value="{{ gal.after }}">
+          <p><button type="button" class="btn secondary" id="at_equal">Make the space above and below equal</button></p>
+        </div>
+      </div>
+      <script>
+      (function(){var ph=document.getElementById('at_photo'),b=document.getElementById('gal_before'),a=document.getElementById('gal_after'),rs=document.querySelectorAll('input[name=gal_align]');
+      function up(){var v='center';rs.forEach(function(r){if(r.checked)v=r.value;});ph.style.marginLeft=v==='left'?'0':'auto';ph.style.marginRight=v==='right'?'0':'auto';
+        if(v==='center'){ph.style.marginLeft=ph.style.marginRight='auto';}
+        ph.style.marginTop=(Math.min(+b.value||0,1)*60)+'px';ph.style.marginBottom=(Math.min(+a.value||0,1)*60)+'px';}
+      rs.forEach(function(r){r.addEventListener('change',up);});[a,b].forEach(function(e){e.addEventListener('input',up);});
+      document.getElementById('at_equal').addEventListener('click',function(){var m=Math.max(+a.value||0,+b.value||0);a.value=b.value=m;up();});up();})();
+      </script>
+    </fieldset>
     {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>

@@ -577,6 +577,8 @@ def create_app(config=None):
         d["dir"] = "stack" if d.get("dir") == "stack" else "row"
         d["wrap"] = d.get("wrap") if d.get("wrap") in ("left", "right") else ""
         d["align"] = d.get("align") if d.get("align") in ("left", "right") else "center"
+        for k in ("before", "after"):
+            d[k] = d.get(k, 0.06) if isinstance(d.get(k), (int, float)) else 0.06
         d["gap"] = d.get("gap", 0.15) if isinstance(d.get("gap"), (int, float)) else 0.15
         d["photos"] = [p for p in d.get("photos", []) if isinstance(p, dict) and p.get("f")]
         for p in d["photos"]:
@@ -1596,8 +1598,13 @@ def create_app(config=None):
                 gal_gap = max(0.0, min(1.0, float(request.form.get("gal_gap") or 0.15)))
             except ValueError:
                 gal_gap = 0.15
+            def _sp(key):
+                try:
+                    return max(0.0, min(1.0, float(request.form.get(key) or 0.06)))
+                except ValueError:
+                    return 0.06
             gal_align = request.form.get("gal_align") if request.form.get("gal_align") in ("left", "right") else "center"
-            gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "align": gal_align,
+            gal_json = json.dumps({"h": gal_h, "gap": gal_gap, "before": _sp("gal_before"), "after": _sp("gal_after"), "align": gal_align,
                                    "dir": "stack" if request.form.get("gal_dir") == "stack" else "row",
                                    "size": request.form.get("gal_size") if request.form.get("gal_size") in ("width", "area") else "height",
                                    "valign": request.form.get("gal_valign") if request.form.get("gal_valign") in ("middle", "bottom") else "top",

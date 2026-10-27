@@ -105,6 +105,7 @@ TOPICS = [
       "Crop: pick a Shape (Square, Wide, Tall, Banner), then Zoom in and slide the picture left/right or up/down until the important part shows. Choose 'Whole picture' to leave it uncropped. The photo is never stretched.",
       "Text around a photo: under Text, pick 'Photo on the left' or 'Photo on the right'. The words flow beside it. A photo with text around it always goes at the top of the section. For the most even look, give every photo in that section the same setting.",
       "The main (first) photo has the same Zoom and Move sliders, and its 'Where the photo goes' menu has the left and right inset choices for text wrap.",
+      "Alignment tool: under the extra-photo cards, click Left, Center or Right, and set the space between the title and the photos and between the photos and the text. The small page beside it shows the result. 'Make the space above and below equal' centers the photos between the title and the text.",
       "Alignment: for the main photo, 'Line the photo up with the title' puts it left, centered or right. For extra photos, 'Line the extra photos up with the title' does the same for the group.",
       "New photos get their crop and text settings after the first Save: add the photo, Save, then open the section again to adjust it."]),
 ("find-photo", "Search for a photo while editing a section", "search find photo picture reference library keyword add main extra",
