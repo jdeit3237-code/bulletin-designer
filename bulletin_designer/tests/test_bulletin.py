@@ -738,6 +738,9 @@ def test_giving_structured_section(app):
     data["g_date"], data["g_end_date"] = "2026-11-07", "2026-11-08"
     c.post(f"/bulletins/1/section/{sid}", data=data)
     assert "Donations Received: Nov. 7-8" in c.get("/bulletins/1/preview").text
+    data["g_subtitle"] = "Offerings for the Week"
+    c.post(f"/bulletins/1/section/{sid}", data=data)
+    assert "Offerings for the Week: Nov. 7-8" in c.get("/bulletins/1/preview").text
     del data["g_no_second"]
     c.post(f"/bulletins/1/section/{sid}", data=data)
     html = c.get("/bulletins/1/preview").text

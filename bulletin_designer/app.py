@@ -647,7 +647,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["mass_data"] = mass_data
 
-    GIVING_KEYS = ("date", "end_date", "first", "second", "no_second", "purpose", "deposit", "notes")
+    GIVING_KEYS = ("subtitle", "date", "end_date", "first", "second", "no_second", "purpose", "deposit", "notes")
 
     def money(text):
         t = (text or "").strip().lstrip("$").replace(",", "")
@@ -667,6 +667,7 @@ def create_app(config=None):
                     d[k] = v.replace("\\n", "\n")
         else:
             d["notes"] = (body or "").strip()
+        d["subtitle"] = d["subtitle"].strip() or "Donations Received"
         d["hide_second"] = bool(d["no_second"]) or not d["second"].strip()
         MON = {1: "Jan.", 2: "Feb.", 3: "Mar.", 4: "Apr.", 5: "May", 6: "June", 7: "July", 8: "Aug.", 9: "Sept.", 10: "Oct.", 11: "Nov.", 12: "Dec."}
 

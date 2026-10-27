@@ -71,6 +71,7 @@
     {% elif s.slug == 'giving' %}
     <p>Fill in the amounts for the week. Leave an amount empty to leave it out.</p>
     <fieldset><legend>Dates</legend>
+      <label for="g_subtitle">Subtitle printed before the dates</label><input id="g_subtitle" name="g_subtitle" type="text" value="{{ giving.subtitle }}">
       <label for="g_date">Date (choose from the calendar)</label><input id="g_date" name="g_date" type="date" value="{{ giving.date }}">
       <label for="g_end_date">Last date, if it covers several days (optional)</label><input id="g_end_date" name="g_end_date" type="date" value="{{ giving.end_date }}">
     </fieldset>
