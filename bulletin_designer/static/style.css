@@ -327,3 +327,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .mass.giving dl { margin-bottom: .05in; }
 .mass.giving p { margin: 0 0 .03in; }
 .mass.giving p:last-child { margin-bottom: 0; }
+.body-cols { column-gap: .35in; column-fill: balance; }
+.body-cols p, .body-cols li, .body-cols .mass, .body-cols .intent { break-inside: avoid; }

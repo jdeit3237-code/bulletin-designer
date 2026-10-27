@@ -1036,7 +1036,11 @@ def create_app(config=None):
         for pg in pages:
             if pg.get("more") and pg.get("row") is not None and not pg.get("duo"):
                 share = [pg["row"]] + list(pg["more"])
-                text_in = sum(0.55 + 0.26 * sum(max(1, -(-len(x) // 85)) for x in (r["body"] or "").splitlines() if x.strip()) for r in share)
+                def text_height(r):
+                    c = r["cols"] if r["cols"] in (2, 3) else 1
+                    lines = sum(max(1, -(-len(x) * c // 85)) for x in (r["body"] or "").splitlines() if x.strip())
+                    return 0.55 + 0.26 * -(-lines // c)
+                text_in = sum(text_height(r) for r in share)
                 n_ph = sum(1 for r in share if r["image"]) or 1
                 pg["photo_h"] = round(max(1.2, min(5.0, (8.4 - text_in) / n_ph)), 2)
         toc = []

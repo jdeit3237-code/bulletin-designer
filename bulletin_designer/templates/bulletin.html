@@ -16,6 +16,7 @@
     {% if r.img_pos == 'above' %}{{ section_photo(r, p) }}{% endif %}
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
     {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
+    {% if r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}<div class="body-cols" style="column-count:{{ r.cols }}">{% endif %}
     {% if p.part == 1 %}
     {% if r.img_pos in ('inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {{ gallery_row(r, 'above') }}
@@ -69,6 +70,7 @@
     {% else %}
       {% for para in soft_paras(r.body) %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}
     {% endif %}
+    {% if r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}</div>{% endif %}
     {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {{ gallery_row(r, 'below') }}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
@@ -107,7 +109,7 @@
     <div class="ad-grid" style="padding-top:{{ p.ad_gap }}in">{% for row in p.ad_rows %}<div class="ad-row" style="height:{{ row|map(attribute='h')|max }}in;margin-bottom:{{ p.ad_gap }}in">{% for a in row %}<img class="ad" src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="width:{{ a.w }}in;height:{{ a.h }}in">{% endfor %}</div>{% endfor %}</div>
     {% if p.ad_last %}<div class="ad-banner ad-contact"><strong>Advertise With Us!</strong><span>Contact Nancy in the Parish Office: (305) 872-2537 &middot; Email nancy@stpeterbpk.org</span></div>{% endif %}
   {% elif p.row %}
-    {% set r = p.row %}<div id="pg{{ p.number }}" class="{{ 'shared' if p.photo_h }}" style="{{ 'column-count:' ~ r.cols ~ ';column-gap:.35in;' if r.cols in (2, 3) else '' }}{{ '--ph:' ~ p.photo_h ~ 'in;' if p.photo_h }}">
+    {% set r = p.row %}<div id="pg{{ p.number }}" class="{{ 'shared' if p.photo_h }}" style="{{ '' }}{{ '--ph:' ~ p.photo_h ~ 'in;' if p.photo_h }}">
     {% for m in p.above %}{{ render_row(m, {'part': 1}) }}{% endfor %}
     {% if side_by_side %}
     {% set place = b.toc_place or 'left' %}
