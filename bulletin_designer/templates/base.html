@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Bulletin Designer{% endblock %} - St. Peter the Fisherman</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% if font_css %}<style>{{ font_css }}</style>{% endif %}
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
@@ -19,6 +20,7 @@
       <a href="{{ url_for('ads') }}">Advertisements</a>
       <a href="{{ url_for('style_guide') }}">Style guide</a>
       <a href="{{ url_for('help_page') }}">Help</a>
+      {% if g.user and g.user.role == 'admin' %}<a href="{{ url_for('fonts') }}">Fonts</a>{% endif %}
       {% if g.user and g.user.role in ('admin','editor') %}<a href="{{ url_for('notes', page=request.path) }}">Notes to admin</a>{% endif %}
       <span>{{ g.user.display_name }} ({{ g.user.role }})</span>
       <form class="inline" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button>Sign out</button></form>

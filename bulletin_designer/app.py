@@ -309,6 +309,7 @@ def create_app(config=None):
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
         CREATE TABLE IF NOT EXISTS libraries(id INTEGER PRIMARY KEY, name TEXT UNIQUE);
+        CREATE TABLE IF NOT EXISTS custom_fonts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, filename TEXT);
         CREATE TABLE IF NOT EXISTS admin_notes(id INTEGER PRIMARY KEY, from_user TEXT, page TEXT, note TEXT, status TEXT DEFAULT 'open', created TEXT);
         CREATE TABLE IF NOT EXISTS hidden_sections(bulletin_id INTEGER, section_id INTEGER, snap TEXT, PRIMARY KEY(bulletin_id, section_id));
         CREATE TABLE IF NOT EXISTS photo_libs(photo_id INTEGER, lib_id INTEGER, PRIMARY KEY(photo_id, lib_id));
@@ -1373,7 +1374,7 @@ def create_app(config=None):
         removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", font_styles=FONT_STYLES, photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
+        return render_template("edit.html", font_styles=all_fonts(), photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
                                where=page_spans(secs, bid))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
@@ -1800,7 +1801,7 @@ def create_app(config=None):
                          (1 if request.form.get("no_toc") else 0, gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0, bid, sid))
             conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
-                         (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "",
+                         (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in all_fonts() else "",
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")), bid, sid))
         if move == "remove":
             sec = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
@@ -2116,7 +2117,7 @@ def create_app(config=None):
         style = request.form.get("toc_style")
         db().execute("UPDATE bulletins SET toc_title=?, toc_start=?, toc_show=?, toc_pt=?, toc_style=?, toc_place=?, toc_cols=?, toc_title_gap=?, toc_item_gap=?, toc_before=? WHERE id=?",
                      (request.form.get("toc_title", "").strip()[:60], start, 1 if request.form.get("toc_show") else 0,
-                      pt, style if style in FONT_STYLES else "",
+                      pt, style if style in all_fonts() else "",
                       request.form.get("toc_place") if request.form.get("toc_place") in ("left", "right", "full") else "left",
                       request.form.get("toc_cols") if request.form.get("toc_cols") in ("1", "2", "3", "4") else 1,
                       gap_value(request.form.get("toc_title_gap")), gap_value(request.form.get("toc_item_gap")), gap_value(request.form.get("toc_before")), bid))
@@ -2604,7 +2605,7 @@ def create_app(config=None):
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         def build(pgs):
             h = render_template("bulletin.html", b=b, pages=pgs, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
-            return h.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
+            return h.replace('url(/uploads/', f'url({PDF_BASE}uploads/').replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
                 'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
         html = build(pages)
@@ -2707,6 +2708,71 @@ def create_app(config=None):
             flash("Answer saved.", "ok")
         return redirect(url_for("help_page") + "#questions")
 
+    def all_fonts():
+        d = dict(FONT_STYLES)
+        try:
+            for r in db().execute("SELECT id, name FROM custom_fonts ORDER BY name"):
+                d["cf%d" % r["id"]] = r["name"] + " (uploaded)"
+        except sqlite3.Error:
+            pass
+        return d
+
+    @app.context_processor
+    def font_css():
+        from markupsafe import Markup
+        css = ""
+        try:
+            rows = db().execute("SELECT id, name, filename FROM custom_fonts").fetchall()
+        except (sqlite3.Error, RuntimeError):
+            rows = []
+        for r in rows:
+            nm = "".join(ch for ch in r["name"] if ch.isalnum() or ch in " -")
+            css += ('@font-face { font-family: "%s"; src: url(/uploads/fonts/%s); }\n.fs-cf%d, .fs-cf%d * { font-family: "%s", Georgia, serif; }\n'
+                    '.toc-box.fs-cf%d .toc li { font-family: inherit; }\n' % (nm, r["filename"], r["id"], r["id"], nm, r["id"]))
+        return {"font_css": Markup(css)}
+
+    @app.route("/fonts", methods=["GET", "POST"])
+    @need("admin")
+    def fonts():
+        conn = db()
+        if request.method == "POST":
+            if request.form.get("action") == "remove":
+                r = conn.execute("SELECT * FROM custom_fonts WHERE id=?", (request.form.get("fid"),)).fetchone()
+                if r:
+                    conn.execute("DELETE FROM custom_fonts WHERE id=?", (r["id"],))
+                    conn.execute("UPDATE items SET font_style='' WHERE font_style=?", ("cf%d" % r["id"],))
+                    conn.execute("UPDATE bulletins SET toc_style='' WHERE toc_style=?", ("cf%d" % r["id"],))
+                    conn.commit()
+                    try:
+                        os.remove(os.path.join(app.config["UPLOAD_DIR"], "fonts", r["filename"]))
+                    except OSError:
+                        pass
+                    flash("Font removed. Sections that used it went back to the standard font.", "ok")
+                return redirect(url_for("fonts"))
+            f = request.files.get("font")
+            name = " ".join("".join(ch for ch in request.form.get("name", "") if ch.isalnum() or ch in " -").split())[:40]
+            ext = f.filename.rsplit(".", 1)[-1].lower() if f and f.filename and "." in f.filename else ""
+            data = f.read() if f else b""
+            if ext not in ("ttf", "otf", "woff", "woff2") or not data:
+                flash("Choose a font file ending in .ttf, .otf, .woff or .woff2.", "error")
+            elif len(data) > 5 * 1024 * 1024:
+                flash("That font file is too big (limit 5 MB).", "error")
+            elif not name:
+                flash("Type a name for the font.", "error")
+            elif conn.execute("SELECT 1 FROM custom_fonts WHERE name=?", (name,)).fetchone():
+                flash("A font with that name is already added.", "error")
+            else:
+                os.makedirs(os.path.join(app.config["UPLOAD_DIR"], "fonts"), exist_ok=True)
+                fn = uuid.uuid4().hex + "." + ext
+                with open(os.path.join(app.config["UPLOAD_DIR"], "fonts", fn), "wb") as out:
+                    out.write(data)
+                conn.execute("INSERT INTO custom_fonts(name, filename) VALUES(?,?)", (name, fn))
+                conn.commit()
+                flash("Font added. It now appears in every Font style menu, and is built into the PDF.", "ok")
+            return redirect(url_for("fonts"))
+        rows = conn.execute("SELECT * FROM custom_fonts ORDER BY name").fetchall()
+        return render_template("fonts.html", rows=rows, builtin=FONT_STYLES)
+
     @app.route("/notes", methods=["GET", "POST"])
     @need("admin", "editor")
     def notes():
@@ -2737,7 +2803,7 @@ def create_app(config=None):
 
     @app.route("/style-guide")
     def style_guide():
-        return render_template("style_guide.html", font_styles=FONT_STYLES)
+        return render_template("style_guide.html", font_styles=all_fonts())
 
     # ---------- admin ----------
     @app.route("/admin/users", methods=["GET", "POST"])

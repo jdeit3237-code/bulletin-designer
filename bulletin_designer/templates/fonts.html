@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}Fonts{% endblock %}
+{% block content %}
+<h1>Fonts</h1>
+<p>The built-in font styles use fonts that come with the computer or server, so they can look a little different on another person's computer. A font you upload here is stored in the system, so it looks the same for everyone and is built into the PDF.</p>
+<h2>Add a font</h2>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="name">Name to show in the menus</label><input id="name" name="name" type="text" maxlength="40" required>
+  <label for="font">Font file (.ttf, .otf, .woff or .woff2, up to 5 MB)</label><input id="font" name="font" type="file" accept=".ttf,.otf,.woff,.woff2" required>
+  <p class="small">Only upload fonts you are allowed to use (free fonts such as Google Fonts are fine). Use the regular weight; bold and italic are made from it.</p>
+  <p><button class="btn">Add font</button></p>
+</form>
+<h2>Uploaded fonts</h2>
+{% if rows %}<ul>{% for r in rows %}<li><span style="font-family:'{{ r.name }}'">{{ r.name }}: The quick brown fox jumps over the lazy dog</span>
+  <form method="post" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="fid" value="{{ r.id }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>
+{% else %}<p>None yet.</p>{% endif %}
+<h2>Built-in styles</h2>
+<ul>{% for k, v in builtin.items() %}<li>{{ v }}</li>{% endfor %}</ul>
+{% endblock %}

@@ -1480,3 +1480,18 @@ def test_section_photo_finder(app):
            "alt": "palms", "tags": "palm sunday"}, content_type="multipart/form-data")
     h = c.get("/bulletins/1/section/9").text
     assert 'id="pf_q"' in h and "palm branches" in h and "Use as the main photo" in h
+
+
+def test_upload_custom_font(app):
+    import io
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/fonts")
+    r = c.post("/fonts", data={"csrf": t, "name": "Test Face", "font": (io.BytesIO(b"fakefontdata"), "t.ttf")}, content_type="multipart/form-data")
+    assert r.status_code == 302
+    c.post("/fonts", data={"csrf": t, "name": "Bad", "font": (io.BytesIO(b"x"), "t.exe")}, content_type="multipart/form-data")
+    page = c.get("/fonts").text
+    assert "Test Face" in page and "Bad" not in page.split("Uploaded fonts")[1]
+    h = c.get("/bulletins/1").text
+    assert "Test Face (uploaded)" in h and "@font-face" in h
+    assert "url(/uploads/fonts/" in c.get("/bulletins/1/preview").text
