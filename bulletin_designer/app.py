@@ -668,9 +668,15 @@ def create_app(config=None):
         else:
             d["notes"] = (body or "").strip()
         d["hide_second"] = bool(d["no_second"]) or not d["second"].strip()
-        d["date_text"] = long_date(d["date"]) if d["date"] else ""
+        def short(v):
+            try:
+                x = datetime.strptime(v, "%Y-%m-%d")
+                return "%s %d, %d" % (x.strftime("%b"), x.day, x.year)
+            except ValueError:
+                return v
+        d["date_text"] = short(d["date"]) if d["date"] else ""
         if d["date_text"] and d["end_date"]:
-            d["date_text"] += " \u2013 " + long_date(d["end_date"])
+            d["date_text"] += " \u2013 " + short(d["end_date"])
         d["first_text"], d["second_text"], d["deposit_text"] = money(d["first"]), money(d["second"]), money(d["deposit"])
         return d
 
