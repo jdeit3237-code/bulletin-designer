@@ -378,3 +378,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .jumpbar label { font: bold 18pt Arial, sans-serif; color: #14310f; margin: 0; }
 .jumpbar select { flex: 1 1 18em; font-size: 16pt; font-weight: bold; padding: .35em .5em; border: 3px solid #14562a; background: #fff; color: #14310f; }
 @media print { .jumpbar { display: none; } }
+
+.ch-b { padding: .4em .9em; }
+#crop-prev img { max-height: none; }

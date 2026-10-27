@@ -301,6 +301,12 @@
       <p><label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
       <h3>Crop and zoom (the picture is never stretched)</h3>
       <div id="crop-prev" class="crop" style="height:{{ item.crop_h or 3 }}in;max-width:6in;border:1px solid #888"><img src="{{ url_for('uploads', name=item.image) }}" alt="Preview of the cropped picture"></div>
+      <fieldset class="crop-frame"><legend>Crop: how tall is the picture frame?</legend>
+        <p class="small">Click a size to crop the picture to a shorter frame, then use Zoom and Move below to choose which part shows. "Whole picture" shows everything with no cropping.</p>
+        <div class="at-btns" role="group" aria-label="Frame height">{% for v, t in ((0, 'Whole picture'), (1.5, 'Short strip'), (2.5, 'Medium'), (3.5, 'Tall'), (5, 'Very tall')) %}<button type="button" class="btn secondary ch-b" data-h="{{ v }}">{{ t }}</button>{% endfor %}</div>
+        <label for="crop_h">Or type the frame height in inches (0 = whole picture; zoom alone uses 3 in)</label>
+        <input id="crop_h" name="crop_h" type="number" min="0" max="9" step="any" value="{{ item.crop_h or 0 }}">
+      </fieldset>
       <label for="crop_zoom">Zoom: <output id="zoom_o">{{ item.crop_zoom or 1 }}</output>x</label>
       <input id="crop_zoom" name="crop_zoom" type="range" min="1" max="4" step="0.1" value="{{ item.crop_zoom or 1 }}">
       <label for="crop_x">Move left / right</label><input id="crop_x" name="crop_x" type="range" min="0" max="100" step="1" value="{{ item.crop_x if item.crop_x is not none else 50 }}">
@@ -310,12 +316,11 @@
       <fieldset class="align-tool"><legend>Alignment tool for the main photo</legend><p class="small">Click Left, Center or Right to line the photo up with the title (for a photo above or below the text). Save the section to apply it.</p><div class="at-btns" role="radiogroup" aria-label="Photo alignment">{% for k, v in (("", "Standard"), ("left", "Left"), ("center", "Center"), ("right", "Right")) %}<label class="at-b"><input type="radio" name="img_align" value="{{ k }}" {{ "checked" if (item.img_align or "") == k }}><span>{{ v }}</span></label>{% endfor %}</div></fieldset>
       <label for="img_pos">Where the photo goes</label>
       <select id="img_pos" name="img_pos">{% for k, v in (('', 'Below the section text'), ('above', 'Above the section (title under the photo)'), ('inset-left', 'Inset at left, text wrapped, just under the title'), ('inset-right', 'Inset at right, text wrapped, just under the title'), ('only', 'Photo only (hide the title and text)')) %}<option value="{{ k }}" {{ 'selected' if (item.img_pos or '') == k }}>{{ v }}</option>{% endfor %}</select>
-      <label for="crop_h">Frame height in inches (0 = show whole picture; zoom alone uses 3 in)</label>
-      <input id="crop_h" name="crop_h" type="number" min="0" max="9" step="0.25" value="{{ item.crop_h or 0 }}">
       <script>
       (function(){var z=crop_zoom,x=crop_x,y=crop_y,h=crop_h,box=document.getElementById('crop-prev'),im=box.firstElementChild;
       function up(){im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';
-        im.style.transformOrigin=x.value+'% '+y.value+'%';zoom_o.textContent=z.value;box.style.height=((+h.value)||3)+'in';}
+        im.style.transformOrigin=x.value+'% '+y.value+'%';zoom_o.textContent=z.value;box.style.height=(+h.value)?(+h.value)+'in':((+z.value)>1?'3in':'auto');im.style.height=box.style.height==='auto'?'auto':'';}
+      document.querySelectorAll('.ch-b').forEach(function(b){b.addEventListener('click',function(){h.value=b.getAttribute('data-h');up();});});
       [z,x,y,h].forEach(function(e){e.addEventListener('input',up);});up();})();
       </script>
     {% endif %}
