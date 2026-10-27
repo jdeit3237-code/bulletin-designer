@@ -48,9 +48,10 @@
       {% set g = giving_data(r.body) %}
       <div class="mass giving">
         {% if g.date_text %}<h3>{{ g.subtitle }}: {{ g.date_text }}</h3>{% endif %}
-        <dl>{% if g.first %}<dt>1<sup>st</sup> Collection</dt><dd>{{ g.first_text }}</dd>{% endif %}
-        {% if not g.hide_second %}<dt>2<sup>nd</sup> Collection</dt><dd>{{ g.second_text }}</dd>{% if g.purpose.strip() %}<dd class="purpose" style="grid-column:1/-1"><em>{{ g.purpose }}</em></dd>{% endif %}{% endif %}
-        {% if g.deposit %}<dt>Direct Deposit</dt><dd>{{ g.deposit_text }}</dd>{% endif %}</dl>
+        <dl>{% if g.first %}<dt>{% if g.first_label %}{{ g.first_label }}{% else %}1<sup>st</sup> Collection{% endif %}</dt><dd>{{ g.first_text }}</dd>{% endif %}
+        {% if not g.hide_second %}<dt>{% if g.second_label %}{{ g.second_label }}{% else %}2<sup>nd</sup> Collection{% endif %}</dt><dd>{{ g.second_text }}</dd>{% if g.purpose.strip() %}<dd class="purpose" style="grid-column:1/-1"><em>{{ g.purpose }}</em></dd>{% endif %}{% endif %}
+        {% if g.deposit %}<dt>{{ g.deposit_label or 'Direct Deposit' }}</dt><dd>{{ g.deposit_text }}</dd>{% endif %}
+        {% for x in g.extra_rows %}<dt>{{ x.label }}</dt><dd>{{ x.amount_text }}</dd>{% if x.note %}<dd class="purpose" style="grid-column:1/-1"><em>{{ x.note }}</em></dd>{% endif %}{% endfor %}</dl>
         {% for line in g.notes.split('\n') if line.strip() %}<p>{{ tight(line, b.no_stragglers) }}</p>{% endfor %}</div>
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}

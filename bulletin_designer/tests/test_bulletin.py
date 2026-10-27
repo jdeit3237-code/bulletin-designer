@@ -1505,3 +1505,17 @@ def test_photo_alignment(app):
            "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
     assert "pa-right" in c.get("/bulletins/1/preview").text
     assert 'value="right" selected' in c.get("/bulletins/1/section/9").text
+
+
+def test_giving_extra_collections(app):
+    import sqlite3
+    c = setup_admin(app)
+    create_bulletin(c)
+    gid = sqlite3.connect(app.config["DATABASE"]).execute("SELECT id FROM sections WHERE slug='giving'").fetchone()[0]
+    t = tok(c, f"/bulletins/1/section/{gid}")
+    c.post(f"/bulletins/1/section/{gid}", data={"csrf": t, "g_first": "100", "g_first_label": "Sunday Offertory", "g_extra_count": "2",
+           "gx0_label": "Hurricane Relief", "gx0_amount": "250", "gx0_note": "Keys families", "gx1_label": "Gone", "gx1_amount": "5", "gx1_rm": "1"})
+    h = c.get("/bulletins/1/preview").text
+    assert "Sunday Offertory" in h and "Hurricane Relief" in h and "$250.00" in h and "Keys families" in h and "Gone" not in h
+    f = c.get(f"/bulletins/1/section/{gid}").text
+    assert "Hurricane Relief" in f and 'id="gx_add"' in f

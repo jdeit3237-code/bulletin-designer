@@ -76,11 +76,24 @@
       <label for="g_end_date">Last date, if it covers several days (optional)</label><input id="g_end_date" name="g_end_date" type="date" value="{{ giving.end_date }}">
     </fieldset>
     <fieldset><legend>Collections</legend>
+      <p class="small">Each collection has a name you can change (leave the name empty to keep the standard one). Use "Add a collection" below for any others.</p>
+      <label for="g_first_label">Name of the 1st collection (standard: 1st Collection)</label><input id="g_first_label" name="g_first_label" type="text" maxlength="60" value="{{ giving.first_label }}">
       <label for="g_first">1st Collection (dollar amount)</label><input id="g_first" name="g_first" type="text" inputmode="decimal" value="{{ giving.first }}">
+      <label for="g_second_label">Name of the 2nd collection (standard: 2nd Collection)</label><input id="g_second_label" name="g_second_label" type="text" maxlength="60" value="{{ giving.second_label }}">
       <label for="g_second">2nd Collection (dollar amount)</label><input id="g_second" name="g_second" type="text" inputmode="decimal" value="{{ giving.second }}">
       <label for="g_purpose">Purpose of the 2nd Collection (optional; printed in italics under the amount, without the word Purpose)</label><input id="g_purpose" name="g_purpose" type="text" value="{{ giving.purpose }}">
       <label><input type="checkbox" name="g_no_second" value="1" {% if giving.no_second %}checked{% endif %}> There is no 2nd collection this week (hide it)</label>
+      <label for="g_deposit_label">Name of the third line (standard: Direct Deposit)</label><input id="g_deposit_label" name="g_deposit_label" type="text" maxlength="60" value="{{ giving.deposit_label }}">
       <label for="g_deposit">Direct Deposit (dollar amount)</label><input id="g_deposit" name="g_deposit" type="text" inputmode="decimal" value="{{ giving.deposit }}">
+      <h3>More collections</h3>
+      <div id="gx_box">{% for x in giving.extra_rows %}<div class="gp gx-row"><label>Name <input name="gx{{ loop.index0 }}_label" value="{{ x.label }}"></label> <label>Dollar amount <input name="gx{{ loop.index0 }}_amount" inputmode="decimal" value="{{ x.amount }}"></label> <label>Purpose or note (optional, italic) <input name="gx{{ loop.index0 }}_note" value="{{ x.note }}"></label> <label><input type="checkbox" name="gx{{ loop.index0 }}_rm" value="1"> Remove</label></div>{% endfor %}</div>
+      <input type="hidden" id="g_extra_count" name="g_extra_count" value="{{ giving.extra_rows|length }}">
+      <p><button type="button" class="btn secondary" id="gx_add">Add a collection</button></p>
+      <script>
+      document.getElementById('gx_add').addEventListener('click',function(){var c=document.getElementById('g_extra_count'),i=+c.value,d=document.createElement('div');d.className='gp gx-row';
+        d.innerHTML='<label>Name <input name="gx'+i+'_label"></label> <label>Dollar amount <input name="gx'+i+'_amount" inputmode="decimal"></label> <label>Purpose or note (optional, italic) <input name="gx'+i+'_note"></label>';
+        document.getElementById('gx_box').appendChild(d);c.value=i+1;d.querySelector('input').focus();});
+      </script>
     </fieldset>
     <label for="g_notes">Notes</label>
     <textarea id="g_notes" name="g_notes" rows="4">{{ giving.notes }}</textarea>

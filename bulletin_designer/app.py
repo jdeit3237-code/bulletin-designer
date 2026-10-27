@@ -681,7 +681,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["mass_data"] = mass_data
 
-    GIVING_KEYS = ("subtitle", "date", "end_date", "first", "second", "no_second", "purpose", "deposit", "notes")
+    GIVING_KEYS = ("subtitle", "date", "end_date", "first", "second", "no_second", "purpose", "deposit", "notes", "first_label", "second_label", "deposit_label", "extras")
 
     def money(text):
         t = (text or "").strip().lstrip("$").replace(",", "")
@@ -720,6 +720,11 @@ def create_app(config=None):
         else:
             d["date_text"] = "%s %d \u2013 %s %d" % (MON[a.month], a.day, MON[z.month], z.day)
         d["first_text"], d["second_text"], d["deposit_text"] = money(d["first"]), money(d["second"]), money(d["deposit"])
+        d["extra_rows"] = []
+        for ln in d["extras"].split("\n"):
+            parts = [x.strip() for x in (ln.split("|") + ["", "", ""])[:3]]
+            if parts[0] or parts[1]:
+                d["extra_rows"].append({"label": parts[0], "amount": parts[1], "amount_text": money(parts[1]), "note": parts[2]})
         return d
 
     app.jinja_env.globals["giving_data"] = giving_data
@@ -1454,6 +1459,14 @@ def create_app(config=None):
             elif s["slug"] == "giving":
                 vals = {k: request.form.get("g_" + k, "").replace("\n", "\\n").replace("\r", "").strip() for k in GIVING_KEYS}
                 vals["no_second"] = "1" if request.form.get("g_no_second") else ""
+                for k in ("first_label", "second_label", "deposit_label"):
+                    vals[k] = " ".join(vals[k].split())[:60]
+                rows = []
+                for i in range(min(int(request.form.get("g_extra_count", 0) or 0), 30)):
+                    r3 = [" ".join(request.form.get(f"gx{i}_{k}", "").replace("|", "/").split())[:120] for k in ("label", "amount", "note")]
+                    if (r3[0] or r3[1]) and not request.form.get(f"gx{i}_rm"):
+                        rows.append(" | ".join(r3))
+                vals["extras"] = "\\n".join(rows)
                 body = "#giving\n" + "\n".join(f"{k}={vals[k]}" for k in GIVING_KEYS)
             elif s["slug"] == "mass-times":
                 lines = []
