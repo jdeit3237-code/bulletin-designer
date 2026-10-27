@@ -44,6 +44,7 @@ ROLE_HELP = {
     "viewer": "Read-only access to drafts and published bulletins.",
 }
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
+LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
 
 # Sections found in the Oct 11/18/25 2026 bulletins. weekly=1 means new content is
 # needed every week; weekly=0 means "standing" content carried forward automatically.
@@ -258,7 +259,7 @@ def create_app(config=None):
         SECRET_KEY=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
         DATABASE=os.environ.get("BULLETIN_DB", os.path.join(base, "bulletin.db")),
         UPLOAD_DIR=os.environ.get("BULLETIN_UPLOADS", os.path.join(base, "uploads")),
-        MAX_CONTENT_LENGTH=40 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=100 * 1024 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
@@ -2236,8 +2237,11 @@ def create_app(config=None):
         Returns (ok, message)."""
         from PIL import Image, ImageOps
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-        if ext not in IMAGE_EXT:
+        if ext not in LIBRARY_EXT:
             return False, "not an image"
+        is_tiff = ext in ("tif", "tiff")
+        if is_tiff:
+            filename, ext = filename.rsplit(".", 1)[0] + ".jpg", "jpg"
         base = secure_filename(filename) or "photo." + ext
         name = f"{uuid.uuid4().hex}_{base}"
         path = os.path.join(app.config["UPLOAD_DIR"], name)
@@ -2247,12 +2251,14 @@ def create_app(config=None):
             meta = read_photo_meta(path)
             with Image.open(path) as im:
                 im.load()
-                animated = getattr(im, "is_animated", False)
+                animated = getattr(im, "is_animated", False) and not is_tiff
                 if not animated:
                     im = ImageOps.exif_transpose(im)
-                    if max(im.size) > MAX_SIDE:
+                    big = max(im.size) > MAX_SIDE
+                    if big:
                         im.thumbnail((MAX_SIDE, MAX_SIDE))
-                        kw = {"quality": 88, "optimize": True} if ext in ("jpg", "jpeg") else {}
+                    if big or ext in ("jpg", "jpeg"):
+                        kw = {"quality": 85, "optimize": True} if ext in ("jpg", "jpeg") else {}
                         if ext in ("jpg", "jpeg") and im.mode not in ("RGB", "L"):
                             im = im.convert("RGB")
                         im.save(path, **kw)
@@ -2287,6 +2293,11 @@ def create_app(config=None):
         put_in_libraries(cur.lastrowid, lib_ids)
         db().commit()
         return True, ""
+
+    @app.errorhandler(413)
+    def too_big(e):
+        flash("That upload is too big (the limit is 100 MB per upload). Add fewer photos at a time, or use smaller files.", "error")
+        return redirect(request.referrer or url_for("library"))
 
     @app.route("/library/bulk", methods=["POST"])
     @need("admin", "editor")

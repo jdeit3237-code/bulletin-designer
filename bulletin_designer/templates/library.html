@@ -8,7 +8,7 @@
 <h2>Add a photo</h2>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
-  <label for="photo">Image file (PNG, JPG, GIF, WebP)</label><input id="photo" name="photo" type="file" accept="image/*" required>
+  <label for="photo">Image file (PNG, JPG, TIFF, GIF, WebP)</label><input id="photo" name="photo" type="file" accept="image/*,.tif,.tiff" required>
   <p class="small">Title, description and keywords are filled in automatically from the photo’s own information when it has any. Type your own to override.</p>
   <label for="title">Title (optional)</label><input id="title" name="title" type="text">
   <label for="alt">Alternative text (describe the photo)</label><input id="alt" name="alt" type="text">
@@ -23,7 +23,7 @@
 <form method="post" action="{{ url_for('library_bulk') }}" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <p class="small">Choose many photos at once, or one .zip file of photos. Each is shrunk to a size that prints and posts well, and its title, keywords and description are read from the photo automatically.</p>
-  <label for="bulk">Photos or a .zip file</label><input id="bulk" name="photos" type="file" accept="image/*,.zip" multiple required>
+  <label for="bulk">Photos or a .zip file</label><input id="bulk" name="photos" type="file" accept="image/*,.tif,.tiff,.zip" multiple required>
   {% if libs %}<fieldset><legend>Put them in these libraries</legend>{% for l in libs %}<label><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if lib == l.id|string }}> {{ l.name }}</label> {% endfor %}</fieldset>{% endif %}
   <label for="bt">Extra tags for all of them (optional, comma separated)</label><input id="bt" name="tags" type="text">
   <p><button class="btn">Add all</button></p>

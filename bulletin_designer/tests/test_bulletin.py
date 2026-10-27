@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import sys
@@ -747,6 +748,21 @@ def test_library_browse_thumbnails_only(app):
     assert "thumb_" in html and "Beach day" in html and 'type="file"' not in html
     assert "Beach day" not in c.get("/library/browse?q=zzzz").text
     assert "Beach day" in c.get("/library/browse?q=beach").text
+
+
+def test_tiff_upload_converted_to_small_jpeg(app):
+    from PIL import Image
+    c = setup_admin(app)
+    buf = io.BytesIO()
+    Image.new("RGB", (3000, 2000), "blue").save(buf, "TIFF")
+    r = c.post("/library", data={"photo": (io.BytesIO(buf.getvalue()), "Scan One.tiff"), "title": "Scan", "alt": "A scan",
+               "csrf": tok(c, "/library")}, content_type="multipart/form-data", follow_redirects=True)
+    assert "Photo added" in r.text
+    import sqlite3
+    name = [f for f in os.listdir(app.config["UPLOAD_DIR"]) if not f.startswith("thumb_")][0]
+    assert name.endswith(".jpg")
+    with Image.open(os.path.join(app.config["UPLOAD_DIR"], name)) as im:
+        assert im.format == "JPEG" and max(im.size) == 2400
 
 
 def test_mass_schedule_heading_is_fitted_green_block(app):
