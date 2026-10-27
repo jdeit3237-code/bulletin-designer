@@ -68,11 +68,14 @@
 <p><button type="button" class="btn" id="ds_copy">Copy the prompt</button> <span id="ds_done" role="status"></span></p>
 <p class="small">Tips: if the first picture is not right, change one thing at a time and try again. Ask for a few versions. Do not ask for real people's faces, logos or trademarks you do not have permission to use. For an ad, get the business's okay on the final picture. Save the image as PNG or JPG, at least the pixel size shown above.</p>
 
+{% if ai_on %}<p><button type="button" class="btn" id="ds_make">Make the picture now with AI</button> <span id="ds_msg" role="status"></span></p>
+<div id="ds_result" hidden><p><img id="ds_img" alt="The picture the AI just made, shown for you to review" style="max-width:100%;max-height:420px"></p>
+<p class="small">Like it? Fill in Step 4 below and click "Add to the photo library". Not right? Change the prompt and click the button again. Each picture costs a few cents and a daily limit applies.</p></div>{% endif %}
 <h2>Step 4. Add the finished picture to the photo library</h2>
 {% if g.user.role in ('admin', 'editor', 'contributor') %}
 <form method="post" action="{{ url_for('library') }}" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
-  <label for="photo">Picture file (PNG, JPG, GIF or WebP)</label><input id="photo" name="photo" type="file" accept="image/*" required>
+  <input type="hidden" name="pending" id="ds_pending"><label for="photo">Picture file (PNG, JPG, GIF or WebP)<span id="ds_photo_hint"> - or use the AI picture above</span></label><input id="photo" name="photo" type="file" accept="image/*" {% if not ai_on %}required{% endif %}>
   <label for="title">Name</label><input id="title" name="title" type="text" required>
   <p class="small"><strong>Accessibility information.</strong> Screen readers read this aloud for people who cannot see the picture, so please fill it in.</p>
   <label for="alt">Alternative text: one short sentence saying what the picture shows (about 10 to 25 words; no need to start with "image of")</label>
@@ -81,7 +84,7 @@
   <textarea id="long_desc" name="long_desc" rows="3" maxlength="1500"></textarea>
   <label for="purpose">What is it for?</label><input id="purpose" name="purpose" type="text" maxlength="200" placeholder="Example: Fish Fry ad, page 5">
   <label for="tags">Search tags (separate with commas)</label><input id="tags" name="tags" type="text" value="design studio, ai-made" maxlength="300">
-  <label for="ai_tool">Which AI tool made it?</label><input id="ai_tool" name="ai_tool" type="text" maxlength="100" placeholder="Example: Adobe Firefly">
+  <label for="ai_tool">Which AI tool made it?</label><input id="ai_tool" name="ai_tool" type="text" value="{{ 'OpenAI image model' if ai_on else '' }}" maxlength="100" placeholder="Example: Adobe Firefly">
   <label for="credit">Credit or permission note (for example, who approved it)</label><input id="credit" name="credit" type="text" maxlength="200">
   <input type="hidden" name="prompt" id="ds_prompt_hidden">
   <p class="small">The prompt you wrote above is saved with the picture so you can remake it later.</p>
@@ -115,6 +118,16 @@
   $('ds_copy').addEventListener('click',function(){var o=$('ds_out');o.select();
     var ok=function(){$('ds_done').textContent='Copied. Now paste it into your AI image tool.';};
     if(navigator.clipboard){navigator.clipboard.writeText(o.value).then(ok,function(){document.execCommand('copy');ok();});}else{document.execCommand('copy');ok();}});
+  var mk=$('ds_make');
+  if(mk){mk.addEventListener('click',function(){
+    var fd=new FormData();fd.append('csrf','{{ csrf() }}');fd.append('prompt',$('ds_out').value);fd.append('size',$('ds_size').value.split('|')[1]);
+    mk.disabled=true;$('ds_msg').textContent='Making your picture. This can take up to a minute...';
+    fetch('{{ url_for("design_generate") }}',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+      mk.disabled=false;
+      if(d.error){$('ds_msg').textContent=d.error;return;}
+      $('ds_msg').textContent='Done. '+d.left+' more pictures available today.';$('ds_img').src=d.image;$('ds_result').hidden=false;$('ds_pending').value=d.token;$('photo').required=false;
+    }).catch(function(){mk.disabled=false;$('ds_msg').textContent='Something went wrong. Please try again.';});
+  });}
   build();
 })();
 </script>

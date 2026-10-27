@@ -112,6 +112,7 @@ TOPICS = [
      ["Open 'Design studio' in the top menu. Pick what you are making and the size and shape (aspect ratio), say what should be in the picture, choose a style, mood and colors, and tick any ideas to include.",
       "The page writes a ready-made prompt. Click 'Copy the prompt', paste it into an AI image tool (for example ChatGPT, Microsoft Designer or Adobe Firefly), and save the picture it makes.",
       "Step 4 adds the finished picture to the photo library. Please fill in the alternative text (one short sentence describing it), a longer description for ads (read out every word), what it is for, search tags and which tool made it. The prompt is saved too.",
+      "If your administrator has turned on AI pictures, a 'Make the picture now with AI' button appears. The picture shows on the page; fill in Step 4 and add it to the library. There is a daily limit.",
       "If the first try is not right, change one thing at a time and try again. Short words in the picture are less likely to be misspelled."]),
 ("find-photo", "Search for a photo while editing a section", "search find photo picture reference library keyword add main extra",
      ["In any section, 'Find a photo' sits above the library list. Type a word (a name, a feast, 'church', 'palm') and matching photos from the photo library appear with small pictures.",

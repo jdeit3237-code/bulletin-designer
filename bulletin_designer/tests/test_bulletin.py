@@ -1570,3 +1570,27 @@ def test_design_studio_saves_accessibility_metadata(app):
     import sqlite3
     row = sqlite3.connect(app.config["DATABASE"]).execute("SELECT alt, meta FROM photos ORDER BY id DESC LIMIT 1").fetchone()
     assert "Fish Fry" in row[0] and "Firefly" in row[1] and "Create an ad" in row[1]
+
+
+def test_design_generate_off_and_on(app, monkeypatch):
+    import base64, json as _j
+    c = setup_admin(app)
+    t = tok(c, "/design-studio")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert "Make the picture now" not in c.get("/design-studio").text
+    assert c.post("/design-studio/generate", data={"csrf": t, "prompt": "x" * 30}).status_code == 400
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    monkeypatch.setenv("AI_IMAGE_DAILY_LIMIT", "1")
+    png = _card(30, 20, "green").read()
+
+    class R:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return _j.dumps({"data": [{"b64_json": base64.b64encode(png).decode()}]}).encode()
+    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: R())
+    assert "Make the picture now" in c.get("/design-studio").text
+    r = c.post("/design-studio/generate", data={"csrf": t, "prompt": "x" * 30, "size": "1024x1024"})
+    assert r.status_code == 200 and r.get_json()["token"]
+    assert c.post("/design-studio/generate", data={"csrf": t, "prompt": "x" * 30}).status_code == 429
+    c.post("/library", data={"csrf": t, "pending": r.get_json()["token"], "title": "Gen pic", "alt": "A green square test picture"})
+    assert "Gen pic" in c.get("/library").text

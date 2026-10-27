@@ -1,4 +1,5 @@
 """St. Peter the Fisherman weekly bulletin designer (standalone Flask app)."""
+import base64
 import hashlib
 import io
 import json
@@ -309,6 +310,7 @@ def create_app(config=None):
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
         CREATE TABLE IF NOT EXISTS libraries(id INTEGER PRIMARY KEY, name TEXT UNIQUE);
+        CREATE TABLE IF NOT EXISTS ai_usage(day TEXT PRIMARY KEY, n INTEGER DEFAULT 0);
         CREATE TABLE IF NOT EXISTS custom_fonts(id INTEGER PRIMARY KEY, name TEXT UNIQUE, filename TEXT);
         CREATE TABLE IF NOT EXISTS admin_notes(id INTEGER PRIMARY KEY, from_user TEXT, page TEXT, note TEXT, status TEXT DEFAULT 'open', created TEXT);
         CREATE TABLE IF NOT EXISTS hidden_sections(bulletin_id INTEGER, section_id INTEGER, snap TEXT, PRIMARY KEY(bulletin_id, section_id));
@@ -2517,10 +2519,19 @@ def create_app(config=None):
             if g.user["role"] not in ("admin", "editor", "contributor"):
                 abort(403)
             f = request.files.get("photo")
-            if not f or not f.filename:
+            pend = request.form.get("pending", "")
+            pend_path = os.path.join(app.config["UPLOAD_DIR"], "ai_tmp", pend + ".png")
+            if (not f or not f.filename) and re.fullmatch(r"[0-9a-f]{32}", pend) and os.path.exists(pend_path):
+                with open(pend_path, "rb") as fh:
+                    pdata = fh.read()
+                os.remove(pend_path)
+                fname = (secure_filename(request.form.get("title", "")) or "ai-picture") + ".png"
+            elif not f or not f.filename:
                 flash("Choose an image file.", "error")
                 return redirect(url_for("library"))
-            ok, why = add_photo(f.read(), f.filename, request.form.get("title", "").strip(), request.form.get("alt", "").strip(),
+            else:
+                pdata, fname = f.read(), f.filename
+            ok, why = add_photo(pdata, fname, request.form.get("title", "").strip(), request.form.get("alt", "").strip(),
                                 1 if request.form.get("decorative") else 0, request.form.get("tags", "").split(","),
                                 lib_ids=request.form.getlist("libs"),
                                 extra_meta={k: request.form.get(k, "").strip()[:1500] for k in ("long_desc", "ai_tool", "prompt", "credit", "purpose")})
@@ -2773,7 +2784,44 @@ def create_app(config=None):
     @need()
     def design_studio():
         libs = db().execute("SELECT id, name FROM libraries ORDER BY name").fetchall()
-        return render_template("design_studio.html", libs=libs)
+        return render_template("design_studio.html", libs=libs, ai_on=bool(os.environ.get("OPENAI_API_KEY")))
+
+    AI_SIZES = {"1536x1024": "1536x1024", "1024x1536": "1024x1536", "1024x1024": "1024x1024",
+                "1152x1536": "1024x1536", "1536x1152": "1536x1024", "1536x768": "1536x1024", "1920x384": "1536x1024"}
+
+    @app.route("/design-studio/generate", methods=["POST"])
+    @need("admin", "editor", "contributor")
+    def design_generate():
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            return jsonify(error="AI picture making is not turned on."), 400
+        prompt = (request.form.get("prompt") or "").strip()[:3000]
+        if len(prompt) < 20:
+            return jsonify(error="Fill in the prompt first."), 400
+        size = AI_SIZES.get(request.form.get("size", ""), "1536x1024")
+        limit = int(os.environ.get("AI_IMAGE_DAILY_LIMIT", "10"))
+        day = date.today().isoformat()
+        conn = db()
+        row = conn.execute("SELECT n FROM ai_usage WHERE day=?", (day,)).fetchone()
+        if row and row["n"] >= limit:
+            return jsonify(error="The daily limit of %d AI pictures has been reached. Try again tomorrow." % limit), 429
+        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1"), "prompt": prompt, "size": size, "n": 1}).encode()
+        req = urllib.request.Request("https://api.openai.com/v1/images/generations", data=body,
+                                     headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                data = json.loads(resp.read())
+            raw = base64.b64decode(data["data"][0]["b64_json"])
+        except Exception:
+            return jsonify(error="The AI service could not make the picture. Check the key, the account balance, or try again."), 502
+        conn.execute("INSERT INTO ai_usage(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n=n+1", (day,))
+        conn.commit()
+        tmp = os.path.join(app.config["UPLOAD_DIR"], "ai_tmp")
+        os.makedirs(tmp, exist_ok=True)
+        token = secrets.token_hex(16)
+        with open(os.path.join(tmp, token + ".png"), "wb") as fh:
+            fh.write(raw)
+        return jsonify(token=token, image="data:image/png;base64," + base64.b64encode(raw).decode(), left=max(0, limit - (row["n"] if row else 0) - 1))
 
     @app.route("/fonts", methods=["GET", "POST"])
     @need("admin")
