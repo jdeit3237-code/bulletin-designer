@@ -4,6 +4,7 @@
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Download web PDF (accessible, screen size)</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Download print PDF (300 dpi)</a>
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
+  <a class="btn secondary" href="{{ url_for('design_studio') }}" target="_blank" rel="noopener">Design studio (make a picture or ad prompt)</a>
   {% if g.user.role == 'admin' %}<a class="btn secondary" href="{{ url_for('preview', bid=b.id, resize=(None if request.args.get('resize') else 1)) }}">{{ 'Turn off resize handles' if request.args.get('resize') else 'Resize sections (drag corners)' }}</a>{% endif %}
   <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
 {% include "_assistant_panel.html" %}

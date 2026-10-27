@@ -1601,3 +1601,10 @@ def test_alignment_spacing_accepts_default(app):
     create_bulletin(c)
     h = c.get("/bulletins/1/section/9").text
     assert 'name="gal_before"' in h and 'step="0.05"' not in h
+
+
+def test_preview_links_to_design_studio(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "/design-studio" in c.get("/bulletins/1/preview").text
+    assert "/design-studio" in c.get("/bulletins/1").text
