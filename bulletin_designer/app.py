@@ -1045,7 +1045,7 @@ def create_app(config=None):
                     return 0.6 + 0.25 * (-(-lines // c) + (1 if c > 1 else 0))
                 text_in = sum(text_height(r) for r in share)
                 n_ph = sum(1 for r in share if r["image"]) or 1
-                pg["photo_h"] = round(max(1.2, min(5.0, (8.4 - text_in) / n_ph)), 2)
+                pg["photo_h"] = round(max(1.2, min(5.0, (9.0 - text_in) / n_ph)), 2)
         toc = []
         for n, p in enumerate(pages, 1):
             p["number"] = n
