@@ -569,6 +569,18 @@ def test_leave_section_out_of_toc(app):
     assert len(toc_titles()) == len(before) - 1
 
 
+def test_ad_pages_setting(app):
+    from bulletin_designer.app import ad_pages
+    cards = [{"name": "a%d" % i, "image": "x.jpg", "w": 3.5, "h": 2.0} for i in range(6)]
+    assert len(ad_pages(cards, 3)) == 3
+    assert len(ad_pages(cards, 1)) >= 1
+    assert len(ad_pages(cards, 0)) == 2
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/ad-pages", data={"ad_page_count": "3", "csrf": tok(c, "/bulletins/1")})
+    assert 'name="ad_page_count" type="number" min="0" max="8" value="3"' in c.get("/bulletins/1").text
+
+
 def test_drag_resize(app):
     c = setup_admin(app)
     create_bulletin(c)

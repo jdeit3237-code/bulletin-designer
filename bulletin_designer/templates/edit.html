@@ -12,6 +12,10 @@
   <label for="tp">Total pages in this bulletin</label> <input id="tp" name="total_pages" type="number" min="0" max="60" value="{{ b.total_pages or 0 }}" style="width:5em">
   <button class="btn secondary">Set</button> <span class="meta">0 = automatic (fills to a multiple of 4). Now {{ total }} pages{% if b.total_pages and total > b.total_pages %}; your content needs {{ total }}, so shorten it to reach {{ b.total_pages }}{% endif %}.</span>
 </form>
+<form class="inline" method="post" action="{{ url_for('ad_page_setting', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="adp">Pages for advertisements</label> <input id="adp" name="ad_page_count" type="number" min="0" max="8" value="{{ b.ad_page_count or 0 }}" style="width:5em">
+  <button class="btn secondary">Set</button> <span class="meta">0 = automatic (up to 2 pages). Ads are spread evenly over the pages you choose and shrink only if they must.</span>
+</form>
 <form class="inline" method="post" action="{{ url_for('extra_pages', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
   <button class="btn secondary" name="do" value="add">+ Add 4 pages</button>
   {% if b.extra_pages %}<button class="btn secondary" name="do" value="remove">&minus; Remove 4 added pages</button> <span class="meta">{{ b.extra_pages }} extra pages added (blank notes pages at the end).</span>{% endif %}
