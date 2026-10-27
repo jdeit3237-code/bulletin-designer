@@ -1594,3 +1594,10 @@ def test_design_generate_off_and_on(app, monkeypatch):
     assert c.post("/design-studio/generate", data={"csrf": t, "prompt": "x" * 30}).status_code == 429
     c.post("/library", data={"csrf": t, "pending": r.get_json()["token"], "title": "Gen pic", "alt": "A green square test picture"})
     assert "Gen pic" in c.get("/library").text
+
+
+def test_alignment_spacing_accepts_default(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1/section/9").text
+    assert 'name="gal_before"' in h and 'step="0.05"' not in h
