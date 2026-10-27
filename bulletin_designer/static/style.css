@@ -330,3 +330,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .body-cols { column-gap: .35in; column-fill: balance; }
 .body-cols p:not(.bp), .body-cols li, .body-cols .mass, .body-cols .intent { break-inside: avoid; }
 .body-cols p.bp { orphans: 2; widows: 2; }
+/* Photo-only sections that share a page shrink to fit instead of being cut off */
+.sheet .shared .sec.img-only figure img { max-height: var(--ph); }
