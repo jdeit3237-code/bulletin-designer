@@ -723,6 +723,22 @@ def test_mass_rows_sorted_by_date(app):
     assert html.index("Earlier Person") < html.index("Later Person")
 
 
+def test_giving_structured_section(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'<th scope="row">Stewardship &amp; Giving.*?/section/(\d+)', page, re.S).group(1)
+    data = {"g_date": "2026-10-25", "g_first": "1234.5", "g_second": "300", "g_no_second": "1",
+            "g_deposit": "$2,000", "g_notes": "Thank you", "csrf": tok(c, "/bulletins/1")}
+    c.post(f"/bulletins/1/section/{sid}", data=data)
+    html = c.get("/bulletins/1/preview").text
+    assert "1st Collection" in html and "$1,234.50" in html and "$2,000.00" in html and "Thank you" in html
+    assert "2nd Collection" not in html
+    del data["g_no_second"]
+    c.post(f"/bulletins/1/section/{sid}", data=data)
+    assert "2nd Collection" in c.get("/bulletins/1/preview").text and "$300.00" in c.get("/bulletins/1/preview").text
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)

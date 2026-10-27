@@ -39,7 +39,7 @@
     <p><label><input type="checkbox" name="hide_title" value="1" {{ 'checked' if item.hide_title }}> Hide this section's title in the bulletin</label></p>
     <label for="para_gap">Space between paragraphs, in inches (blank = default; 0 = no space). Press Enter in the text box to start a new paragraph.</label>
     <input id="para_gap" name="para_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.para_gap) }}" placeholder="default">
-    {% if s.slug not in ('mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover', 'staff') %}
+    {% if s.slug not in ('giving', 'mass-schedule', 'mass-times', 'mass-intentions', 'calendar', 'youth-calendar', 'cover', 'staff') %}
     <label for="document">Upload a document (.docx, .doc or .txt); its text is added to the box below for you to review</label>
     <input id="document" name="document" type="file" accept=".doc,.docx,.txt">
     {% endif %}
@@ -68,6 +68,20 @@
     </div>
     <label for="extra">Other cover text (optional)</label>
     <textarea id="extra" name="extra">{{ cover.extra }}</textarea>
+    {% elif s.slug == 'giving' %}
+    <p>Fill in the amounts for the week. Leave an amount empty to leave it out.</p>
+    <fieldset><legend>Dates</legend>
+      <label for="g_date">Date (choose from the calendar)</label><input id="g_date" name="g_date" type="date" value="{{ giving.date }}">
+      <label for="g_end_date">Last date, if it covers several days (optional)</label><input id="g_end_date" name="g_end_date" type="date" value="{{ giving.end_date }}">
+    </fieldset>
+    <fieldset><legend>Collections</legend>
+      <label for="g_first">1st Collection (dollar amount)</label><input id="g_first" name="g_first" type="text" inputmode="decimal" value="{{ giving.first }}">
+      <label for="g_second">2nd Collection (dollar amount)</label><input id="g_second" name="g_second" type="text" inputmode="decimal" value="{{ giving.second }}">
+      <label><input type="checkbox" name="g_no_second" value="1" {% if giving.no_second %}checked{% endif %}> There is no 2nd collection this week (hide it)</label>
+      <label for="g_deposit">Weekly Direct Deposit (dollar amount)</label><input id="g_deposit" name="g_deposit" type="text" inputmode="decimal" value="{{ giving.deposit }}">
+    </fieldset>
+    <label for="g_notes">Notes</label>
+    <textarea id="g_notes" name="g_notes" rows="4">{{ giving.notes }}</textarea>
     {% elif s.slug == 'mass-schedule' %}
     <p>Add one block per Mass or day. For lectors, sacristans and Eucharistic ministers you may list several names, separated by commas. Leave unused fields and blocks empty; they are left out of the bulletin.</p>
     <label for="header">Header (e.g. This Week in Our Parish)</label>

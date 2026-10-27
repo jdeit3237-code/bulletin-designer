@@ -42,6 +42,14 @@
       <div class="staff-item">{% if t.role %}<p class="staff-role">{{ t.role }}</p>{% endif %}<p class="staff-name">{{ t.name }}</p>
         {% if t.phone or t.email %}<p class="staff-contact">{{ t.phone }}{% if t.phone and t.email %} &middot; {% endif %}{{ t.email }}</p>{% endif %}</div>
       {% endfor %}
+    {% elif r.slug == 'giving' %}
+      {% set g = giving_data(r.body) %}
+      <div class="mass giving">
+        {% if g.date_text %}<h3>{{ g.date_text }}</h3>{% endif %}
+        <dl>{% if g.first %}<dt>1st Collection</dt><dd>{{ g.first_text }}</dd>{% endif %}
+        {% if not g.hide_second %}<dt>2nd Collection</dt><dd>{{ g.second_text }}</dd>{% endif %}
+        {% if g.deposit %}<dt>Weekly Direct Deposit</dt><dd>{{ g.deposit_text }}</dd>{% endif %}</dl>
+        {% for line in g.notes.split('\n') if line.strip() %}<p>{{ tight(line, b.no_stragglers) }}</p>{% endfor %}</div>
     {% elif r.slug == 'mass-times' %}
       {% for t in times_rows(r.body) %}
       <div class="mass times-item">{% if t.title %}<h3>{{ t.title }}</h3>{% endif %}

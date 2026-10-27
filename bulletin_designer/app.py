@@ -646,6 +646,35 @@ def create_app(config=None):
 
     app.jinja_env.globals["mass_data"] = mass_data
 
+    GIVING_KEYS = ("date", "end_date", "first", "second", "no_second", "deposit", "notes")
+
+    def money(text):
+        t = (text or "").strip().lstrip("$").replace(",", "")
+        try:
+            return "${:,.2f}".format(float(t))
+        except ValueError:
+            return (text or "").strip()
+
+    def giving_data(body):
+        """Structured Stewardship & Giving fields; older free text is kept as the notes."""
+        d = dict.fromkeys(GIVING_KEYS, "")
+        lines = (body or "").split("\n")
+        if lines and lines[0].strip() == "#giving":
+            for line in lines[1:]:
+                k, _, v = line.partition("=")
+                if k in d:
+                    d[k] = v.replace("\\n", "\n")
+        else:
+            d["notes"] = (body or "").strip()
+        d["hide_second"] = bool(d["no_second"]) or not d["second"].strip()
+        d["date_text"] = long_date(d["date"]) if d["date"] else ""
+        if d["date_text"] and d["end_date"]:
+            d["date_text"] += " \u2013 " + long_date(d["end_date"])
+        d["first_text"], d["second_text"], d["deposit_text"] = money(d["first"]), money(d["second"]), money(d["deposit"])
+        return d
+
+    app.jinja_env.globals["giving_data"] = giving_data
+
     ADDR_FIELDS = ("street", "city", "phone", "email", "web")
 
     def cover_data(body):
@@ -1038,7 +1067,7 @@ def create_app(config=None):
                 spans[r["id"]] = (cur, cur + r["pages"] - 1, False)
         return spans
 
-    PLAIN_SLUGS_EXCLUDED = ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff")
+    PLAIN_SLUGS_EXCLUDED = ("giving", "mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff")
 
     # ---------- routes ----------
     @app.before_request
@@ -1363,6 +1392,10 @@ def create_app(config=None):
                     if any(vals):
                         lines.append(" | ".join(vals))
                 body = "\n".join(lines)
+            elif s["slug"] == "giving":
+                vals = {k: request.form.get("g_" + k, "").replace("\n", "\\n").replace("\r", "").strip() for k in GIVING_KEYS}
+                vals["no_second"] = "1" if request.form.get("g_no_second") else ""
+                body = "#giving\n" + "\n".join(f"{k}={vals[k]}" for k in GIVING_KEYS)
             elif s["slug"] == "mass-times":
                 lines = []
                 for i in range(min(int(request.form.get("times_count", 0)), 40)):
@@ -1374,7 +1407,7 @@ def create_app(config=None):
             doc_added = False
             if doc and doc.filename:
                 dext = doc.filename.rsplit(".", 1)[-1].lower()
-                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff"):
+                if s["slug"] in ("mass-schedule", "mass-times", "mass-intentions", "calendar", "youth-calendar", "cover", "staff", "giving"):
                     flash("Mass schedules use the form; paste details into the fields instead of uploading a document.", "error")
                     return redirect(request.url)
                 try:
@@ -1504,7 +1537,7 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), giving=giving_data(item["body"]), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_entries(item["body"]) + [dict(date="", time="", event="", lectors="", sacristans="", ministers="")] * 2,
