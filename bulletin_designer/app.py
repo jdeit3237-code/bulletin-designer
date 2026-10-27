@@ -843,7 +843,7 @@ def create_app(config=None):
             if old and (not s["weekly"] or carry_events):
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
                     position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap,area,page_no,font_pt,font_style,min_h,img_pos,para_gap,hide_title,space_before,bullet_style,no_toc)
-                    VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                              (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else (upcoming_events(old["body"], sunday) if carry_events else old["body"]), old["image"], old["alt"], old["decorative"],
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
