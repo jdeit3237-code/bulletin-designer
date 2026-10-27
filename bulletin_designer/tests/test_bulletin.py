@@ -1504,7 +1504,7 @@ def test_photo_alignment(app):
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "img_align": "right", "img_pos": "above",
            "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
     assert "pa-right" in c.get("/bulletins/1/preview").text
-    assert 'value="right" selected' in c.get("/bulletins/1/section/9").text
+    assert 'value="right" checked' in c.get("/bulletins/1/section/9").text
 
 
 def test_giving_extra_collections(app):
@@ -1546,3 +1546,13 @@ def test_alignment_tool_spacing(app):
     h = c.get("/bulletins/1/preview").text
     assert "gal-right" in h and "margin-top:0.3in;margin-bottom:0.3in" in h
     assert 'id="at_equal"' in c.get("/bulletins/1/section/9").text
+
+
+def test_extra_photo_table_not_full_width_and_main_align_buttons(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert "table.gal { width: auto" in open("static/style.css").read()
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "img_pos": "above",
+           "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
+    assert 'type="radio" name="img_align"' in c.get("/bulletins/1/section/9").text

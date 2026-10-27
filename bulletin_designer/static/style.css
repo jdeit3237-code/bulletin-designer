@@ -280,7 +280,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .bl + p.bp, .sheet .bl + .bl { margin-top: 0; }
 .sheet .bl li:last-child { margin-bottom: 0; }
 
-.sheet table.gal { table-layout: auto; border-collapse: collapse; margin: .06in auto; }
+.sheet table.gal { width: auto; table-layout: auto; border-collapse: collapse; margin: .06in auto; }
 .sheet table.gal-left { margin-left: 0; margin-right: auto; }
 .sheet table.gal-right { margin-left: auto; margin-right: 0; }
 .sheet table.gal td { text-align: center; border: 0; padding-top: 0; padding-bottom: 0; }
