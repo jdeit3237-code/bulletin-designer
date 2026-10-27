@@ -1434,3 +1434,22 @@ def test_header_date_setting_updates_cover(app):
     h = c.get("/bulletins/1/preview").text
     assert 'class="head-date">Sunday, November 8, 2026' in h or "head-date" in h and "November 8, 2026" in h.split("head-date")[1][:200]
     assert "October 25" not in h.split("head-date")[1][:200]
+
+
+def test_duplicate_photo_not_added_twice(app):
+    import io, sqlite3
+    from PIL import Image
+    c = setup_admin(app)
+    b = io.BytesIO()
+    Image.new("RGB", (100, 80), "red").save(b, "JPEG")
+    data = b.getvalue()
+    for _ in range(2):
+        c.post("/library/bulk", data={"csrf": tok(c, "/library"), "photos": [(io.BytesIO(data), "Same.jpg")]},
+               content_type="multipart/form-data")
+    n = sqlite3.connect(app.config["DATABASE"]).execute("SELECT COUNT(*) FROM photos").fetchone()[0]
+    assert n == 1
+    b2 = io.BytesIO()
+    Image.new("RGB", (120, 90), "red").save(b2, "JPEG")
+    c.post("/library/bulk", data={"csrf": tok(c, "/library"), "photos": [(io.BytesIO(b2.getvalue()), "Same.jpg")]},
+           content_type="multipart/form-data")
+    assert sqlite3.connect(app.config["DATABASE"]).execute("SELECT COUNT(*) FROM photos").fetchone()[0] == 2

@@ -2327,6 +2327,14 @@ def create_app(config=None):
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
         if ext not in LIBRARY_EXT:
             return False, "not an image"
+        orig_name, orig_bytes = filename.lower(), len(data)
+        for r in db().execute("SELECT meta FROM photos WHERE meta LIKE ?", ("%" + json.dumps(orig_name)[1:-1] + "%",)):
+            try:
+                m = json.loads(r["meta"] or "{}")
+            except ValueError:
+                continue
+            if m.get("orig_name") == orig_name and m.get("orig_bytes") == orig_bytes:
+                return False, "duplicate"
         is_tiff = ext in ("tif", "tiff")
         if is_tiff:
             filename, ext = filename.rsplit(".", 1)[0] + ".jpg", "jpg"
@@ -2337,6 +2345,7 @@ def create_app(config=None):
             out.write(data)
         try:
             meta = read_photo_meta(path)
+            meta["orig_name"], meta["orig_bytes"] = orig_name, orig_bytes
             with Image.open(path) as im:
                 im.load()
                 animated = getattr(im, "is_animated", False) and not is_tiff
@@ -2394,6 +2403,7 @@ def create_app(config=None):
         extra = [t for t in request.form.get("tags", "").split(",")]
         added, skipped = 0, []
         items = []
+        dupes = 0
         for f in files:
             if f.filename.lower().endswith(".zip"):
                 try:
@@ -2411,10 +2421,13 @@ def create_app(config=None):
             ok, why = add_photo(data, fname, extra_tags=extra, allow_blank_alt=True, lib_ids=request.form.getlist("libs"))
             if ok:
                 added += 1
+            elif why == "duplicate":
+                dupes += 1
             else:
                 skipped.append("%s (%s)" % (fname, why))
         flash("Added %d photo%s. They were resized for print and web and their keywords were read automatically. Photos tagged needs-description have no description of their own; search for that tag to fix them." % (added, "" if added == 1 else "s")
-              + ((" Skipped: " + "; ".join(skipped[:10])) if skipped else ""), "ok" if added else "error")
+              + ((" %d already in the library (same name and size) and not added again." % dupes) if dupes else "")
+              + ((" Skipped: " + "; ".join(skipped[:10])) if skipped else ""), "ok" if added or dupes else "error")
         return redirect(url_for("library"))
 
     @app.route("/library/browse")
@@ -2448,6 +2461,9 @@ def create_app(config=None):
             ok, why = add_photo(f.read(), f.filename, request.form.get("title", "").strip(), request.form.get("alt", "").strip(),
                                 1 if request.form.get("decorative") else 0, request.form.get("tags", "").split(","),
                                 lib_ids=request.form.getlist("libs"))
+            if not ok and why == "duplicate":
+                flash("That photo is already in the library (same name and size), so it was not added again.", "error")
+                return redirect(url_for("library"))
             if not ok:
                 flash("That photo was not added: %s. Choose a PNG, JPG, GIF or WebP image; if it has no description of its own, describe it in the alternative text box or tick Decorative." % why, "error")
                 return redirect(url_for("library"))
