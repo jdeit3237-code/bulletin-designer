@@ -1308,12 +1308,15 @@ def create_app(config=None):
                 head = request.form.get("header", "").replace("|", "/").replace("\n", " ").strip()
                 if head:
                     lines.append("# " + head)
+                rows = []
                 for i in range(min(int(request.form.get("mass_count", 0)), 40)):
                     if request.form.get(f"m{i}_remove"):
                         continue
                     vals = form_vals("m", i, MASS_FIELDS)
                     if any(vals):
-                        lines.append(" | ".join(vals))
+                        rows.append(vals)
+                rows.sort(key=lambda v: iso_date(v[1]) or "9999")
+                lines += [" | ".join(v) for v in rows]
                 body = "\n".join(lines)
             elif s["slug"] == "mass-intentions":
                 lines = []

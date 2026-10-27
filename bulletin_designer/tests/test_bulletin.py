@@ -711,6 +711,18 @@ def test_delete_mass_subsection(app):
     assert "Anna Keep" in html and "Bob Gone" not in html
 
 
+def test_mass_rows_sorted_by_date(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/bulletins/1").text
+    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "", "m0_date": "2026-10-25",
+           "m0_lectors": "Later Person", "m1_date": "2026-10-24", "m1_lectors": "Earlier Person",
+           "csrf": tok(c, "/bulletins/1")})
+    html = c.get(f"/bulletins/1/section/{sid}").text
+    assert html.index("Earlier Person") < html.index("Later Person")
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)
