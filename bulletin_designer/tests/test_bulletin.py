@@ -1556,3 +1556,17 @@ def test_extra_photo_table_not_full_width_and_main_align_buttons(app):
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "img_pos": "above",
            "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
     assert 'type="radio" name="img_align"' in c.get("/bulletins/1/section/9").text
+
+
+def test_design_studio_saves_accessibility_metadata(app):
+    c = setup_admin(app)
+    r = c.get("/design-studio")
+    assert r.status_code == 200 and "Alternative text" in r.text
+    t = tok(c, "/design-studio")
+    c.post("/library", data={"csrf": t, "photo": (_card(300, 200, "blue"), "ad.png"), "title": "Fish fry ad", "alt": "A fish fry ad with a fish and the words Fish Fry",
+           "long_desc": "Blue ad reading Fish Fry", "ai_tool": "Firefly", "prompt": "Create an ad", "tags": "design studio, ai-made"}, content_type="multipart/form-data")
+    h = c.get("/library").text
+    assert "Fish fry ad" in h and "design studio" in h
+    import sqlite3
+    row = sqlite3.connect(app.config["DATABASE"]).execute("SELECT alt, meta FROM photos ORDER BY id DESC LIMIT 1").fetchone()
+    assert "Fish Fry" in row[0] and "Firefly" in row[1] and "Create an ad" in row[1]

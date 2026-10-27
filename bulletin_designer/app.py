@@ -2381,7 +2381,7 @@ def create_app(config=None):
             if str(i).isdigit() and int(i) in valid:
                 db().execute("INSERT OR IGNORE INTO photo_libs VALUES(?,?)", (photo_id, int(i)))
 
-    def add_photo(data, filename, title="", alt="", decorative=0, extra_tags=(), allow_blank_alt=False, lib_ids=()):
+    def add_photo(data, filename, title="", alt="", decorative=0, extra_tags=(), allow_blank_alt=False, lib_ids=(), extra_meta=None):
         """Save one image: read its metadata, shrink it for print and web, make a small thumbnail, add it to the library.
         Returns (ok, message)."""
         from PIL import Image, ImageOps
@@ -2407,6 +2407,7 @@ def create_app(config=None):
         try:
             meta = read_photo_meta(path)
             meta["orig_name"], meta["orig_bytes"] = orig_name, orig_bytes
+            meta.update({k: v for k, v in (extra_meta or {}).items() if v})
             with Image.open(path) as im:
                 im.load()
                 animated = getattr(im, "is_animated", False) and not is_tiff
@@ -2521,7 +2522,8 @@ def create_app(config=None):
                 return redirect(url_for("library"))
             ok, why = add_photo(f.read(), f.filename, request.form.get("title", "").strip(), request.form.get("alt", "").strip(),
                                 1 if request.form.get("decorative") else 0, request.form.get("tags", "").split(","),
-                                lib_ids=request.form.getlist("libs"))
+                                lib_ids=request.form.getlist("libs"),
+                                extra_meta={k: request.form.get(k, "").strip()[:1500] for k in ("long_desc", "ai_tool", "prompt", "credit", "purpose")})
             if not ok and why == "duplicate":
                 flash("That photo is already in the library (same name and size), so it was not added again.", "error")
                 return redirect(url_for("library"))
@@ -2766,6 +2768,12 @@ def create_app(config=None):
             css += ('@font-face { font-family: "%s"; src: url(/uploads/fonts/%s); }\n.fs-cf%d, .fs-cf%d * { font-family: "%s", Georgia, serif; }\n'
                     '.toc-box.fs-cf%d .toc li { font-family: inherit; }\n' % (nm, r["filename"], r["id"], r["id"], nm, r["id"]))
         return {"font_css": Markup(css)}
+
+    @app.route("/design-studio")
+    @need()
+    def design_studio():
+        libs = db().execute("SELECT id, name FROM libraries ORDER BY name").fetchall()
+        return render_template("design_studio.html", libs=libs)
 
     @app.route("/fonts", methods=["GET", "POST"])
     @need("admin")

@@ -54,7 +54,7 @@
 <figure style="display:inline-block;width:230px;vertical-align:top;margin:.5em">
   <img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" style="max-width:100%;height:auto">
   <figcaption><strong>{{ p.title }}</strong><br>{{ p.tags }}
-    {% set m = metas[p.id] %}{% if m %}<br><span class="small">{% for k in (m.size, m.taken, m.camera, m.creator, m.copyright) if k %}{{ k }}{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}</figcaption>
+    {% set m = metas[p.id] %}{% if m %}<br><span class="small">{% for k in (m.size, m.taken, m.camera, m.creator, m.copyright, ('Made with ' ~ m.ai_tool) if m.ai_tool, m.purpose) if k %}{{ k }}{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}</figcaption>
   {% if g.user.role in ('admin','editor') and libs %}<form method="post" action="{{ url_for('photo_libraries', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="back" value="{{ lib }}">
     {% for l in libs %}<label class="small"><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if l.id in member.get(p.id, ()) }}> {{ l.name }}</label> {% endfor %}
     <button class="btn secondary">Save libraries</button></form>{% elif libs %}<span class="small">{% for l in libs if l.id in member.get(p.id, ()) %}{{ l.name }}{{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}

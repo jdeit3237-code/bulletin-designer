@@ -18,6 +18,7 @@
       <a href="{{ url_for('library') }}">Photo library</a>
       <a href="{{ url_for('library_browse') }}">Browse photos</a>
       <a href="{{ url_for('ads') }}">Advertisements</a>
+      <a href="{{ url_for('design_studio') }}">Design studio</a>
       <a href="{{ url_for('style_guide') }}">Style guide</a>
       <a href="{{ url_for('help_page') }}">Help</a>
       {% if g.user and g.user.role == 'admin' %}<a href="{{ url_for('fonts') }}">Fonts</a>{% endif %}

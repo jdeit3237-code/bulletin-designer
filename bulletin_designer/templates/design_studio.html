@@ -1,0 +1,121 @@
+{% extends "base.html" %}{% block title %}Design studio{% endblock %}
+{% block content %}
+<h1>Design studio</h1>
+<p>Answer the questions below and this page writes a clear <strong>prompt</strong> for you. Copy it into an AI image tool (for example ChatGPT, Microsoft Designer or Adobe Firefly), save the picture it makes, then add it to the photo library in Step 4.</p>
+
+<form id="ds" onsubmit="return false" class="ds">
+<h2>Step 1. What are you making?</h2>
+<label for="ds_kind">Kind of picture</label>
+<select id="ds_kind">
+  <option value="a photo-style illustration to go with a bulletin article">Picture for an article</option>
+  <option value="an advertisement for a local business, to print in a church bulletin">Advertisement</option>
+  <option value="a flyer announcing a parish event">Event flyer</option>
+  <option value="a decorative banner or header for a bulletin section">Banner or header</option>
+  <option value="a seasonal holiday graphic">Seasonal graphic</option>
+  <option value="a simple icon or logo-style graphic">Icon or logo</option>
+</select>
+<label for="ds_size">Size and shape (this is the "aspect ratio", the width compared to the height)</label>
+<select id="ds_size">
+  <option value="3:2|1536x1024|landscape (wider than tall) 3:2">Wide picture 3:2 (fits most section photos)</option>
+  <option value="4:3|1536x1152|landscape 4:3">Wide picture 4:3</option>
+  <option value="1:1|1024x1024|square 1:1">Square 1:1 (small spot in a column)</option>
+  <option value="2:3|1024x1536|portrait (taller than wide) 2:3">Tall picture 2:3 (beside text)</option>
+  <option value="3:4|1152x1536|portrait 3:4">Tall picture 3:4 (full-page ad)</option>
+  <option value="2:1|1536x768|wide banner 2:1">Half-page ad or banner 2:1</option>
+  <option value="5:1|1920x384|very wide strip 5:1">Thin strip across the page 5:1</option>
+</select>
+<p class="small">Not sure? Pick "Wide picture 3:2" for a section photo, "Tall picture 3:4" for a full-page ad, and "Square" for a small ad.</p>
+
+<h2>Step 2. What should it show?</h2>
+<label for="ds_subject">Main subject: what is in the picture? (people, place, objects, in plain words)</label>
+<textarea id="ds_subject" rows="2" placeholder="Example: a family sharing a meal at a long table"></textarea>
+<label for="ds_words">Words that must appear in the picture (optional; keep them short)</label>
+<input id="ds_words" type="text" placeholder="Example: Fish Fry, Friday March 6, 5 pm">
+<p class="small">AI tools often misspell words. Short words work best, and always check the spelling. You can also leave words out and add them in the bulletin as text.</p>
+<label for="ds_setting">Setting or background (optional)</label>
+<input id="ds_setting" type="text" placeholder="Example: a sunny church hall with palm trees outside">
+
+<h2>Step 3. Look and feel</h2>
+<label for="ds_style">Style</label>
+<select id="ds_style">
+  <option value="a realistic photograph">Real photograph</option>
+  <option value="a warm watercolor painting">Watercolor painting</option>
+  <option value="a clean, flat vector illustration">Clean flat illustration</option>
+  <option value="a hand-drawn pencil sketch">Pencil sketch</option>
+  <option value="a stained-glass inspired design">Stained glass</option>
+  <option value="a simple bold poster design">Bold poster</option>
+</select>
+<label for="ds_mood">Mood</label>
+<select id="ds_mood">
+  <option value="warm, welcoming and friendly">Warm and welcoming</option>
+  <option value="joyful and festive">Joyful and festive</option>
+  <option value="calm, prayerful and reverent">Calm and prayerful</option>
+  <option value="professional and trustworthy">Professional</option>
+  <option value="bright and energetic">Bright and energetic</option>
+</select>
+<label for="ds_colors">Colors (optional; the bulletin uses green and gold)</label>
+<input id="ds_colors" type="text" value="deep green and gold" >
+<fieldset><legend>Ideas to include (tick any)</legend>
+{% for k in ['a cross or church window', 'palm trees and Florida Keys scenery', 'the ocean and a fishing boat', 'a decorative border', 'plenty of empty space for text', 'soft natural lighting', 'happy people of all ages', 'a candle or flowers'] %}<label class="ds-chk"><input type="checkbox" class="ds_idea" value="{{ k }}"> {{ k }}</label>{% endfor %}
+</fieldset>
+<label for="ds_avoid">Things to avoid (optional)</label>
+<input id="ds_avoid" type="text" value="text errors, extra fingers, distorted faces, watermarks, clutter">
+</form>
+
+<h2>Your prompt</h2>
+<p class="small" id="ds_tip" role="status"></p>
+<textarea id="ds_out" rows="8" readonly aria-label="Your finished prompt"></textarea>
+<p><button type="button" class="btn" id="ds_copy">Copy the prompt</button> <span id="ds_done" role="status"></span></p>
+<p class="small">Tips: if the first picture is not right, change one thing at a time and try again. Ask for a few versions. Do not ask for real people's faces, logos or trademarks you do not have permission to use. For an ad, get the business's okay on the final picture. Save the image as PNG or JPG, at least the pixel size shown above.</p>
+
+<h2>Step 4. Add the finished picture to the photo library</h2>
+{% if g.user.role in ('admin', 'editor', 'contributor') %}
+<form method="post" action="{{ url_for('library') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <label for="photo">Picture file (PNG, JPG, GIF or WebP)</label><input id="photo" name="photo" type="file" accept="image/*" required>
+  <label for="title">Name</label><input id="title" name="title" type="text" required>
+  <p class="small"><strong>Accessibility information.</strong> Screen readers read this aloud for people who cannot see the picture, so please fill it in.</p>
+  <label for="alt">Alternative text: one short sentence saying what the picture shows (about 10 to 25 words; no need to start with "image of")</label>
+  <input id="alt" name="alt" type="text" required minlength="8" maxlength="250" placeholder="Example: A family of four shares a meal at a long wooden table in a bright parish hall">
+  <label for="long_desc">Longer description (optional; for complicated pictures or ads: describe the layout and read out every word shown)</label>
+  <textarea id="long_desc" name="long_desc" rows="3" maxlength="1500"></textarea>
+  <label for="purpose">What is it for?</label><input id="purpose" name="purpose" type="text" maxlength="200" placeholder="Example: Fish Fry ad, page 5">
+  <label for="tags">Search tags (separate with commas)</label><input id="tags" name="tags" type="text" value="design studio, ai-made" maxlength="300">
+  <label for="ai_tool">Which AI tool made it?</label><input id="ai_tool" name="ai_tool" type="text" maxlength="100" placeholder="Example: Adobe Firefly">
+  <label for="credit">Credit or permission note (for example, who approved it)</label><input id="credit" name="credit" type="text" maxlength="200">
+  <input type="hidden" name="prompt" id="ds_prompt_hidden">
+  <p class="small">The prompt you wrote above is saved with the picture so you can remake it later.</p>
+  {% if libs %}<fieldset><legend>Put it in these libraries (optional)</legend>{% for l in libs %}<label class="ds-chk"><input type="checkbox" name="libs" value="{{ l.id }}"> {{ l.name }}</label>{% endfor %}</fieldset>{% endif %}
+  <p><button class="btn">Add to the photo library</button></p>
+</form>
+{% else %}<p>Ask an editor to add your finished picture to the photo library.</p>{% endif %}
+
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i);};
+  function build(){
+    var sz=$('ds_size').value.split('|'),ideas=[];
+    document.querySelectorAll('.ds_idea:checked').forEach(function(c){ideas.push(c.value);});
+    var subj=$('ds_subject').value.trim()||'[describe the main subject]';
+    var p='Create '+$('ds_kind').value+'. Subject: '+subj+'.';
+    if($('ds_setting').value.trim())p+=' Setting: '+$('ds_setting').value.trim()+'.';
+    p+=' Style: '+$('ds_style').value+', '+$('ds_mood').value+'.';
+    if($('ds_colors').value.trim())p+=' Main colors: '+$('ds_colors').value.trim()+'.';
+    if(ideas.length)p+=' Include: '+ideas.join(', ')+'.';
+    if($('ds_words').value.trim())p+=' The picture must show exactly this text, spelled correctly: "'+$('ds_words').value.trim()+'".';
+    else p+=' Do not put any words or letters in the picture.';
+    p+=' Format: '+sz[2]+', about '+sz[1]+' pixels, aspect ratio '+sz[0]+'. Keep important content away from the edges. High resolution, suitable for black-and-white or color printing.';
+    if($('ds_avoid').value.trim())p+=' Avoid: '+$('ds_avoid').value.trim()+'.';
+    $('ds_out').value=p;$('ds_prompt_hidden').value=p;
+    var tip=[];if(!$('ds_subject').value.trim())tip.push('Describe the main subject in Step 2.');
+    if($('ds_words').value.length>40)tip.push('Long text often comes out misspelled; try fewer words.');
+    $('ds_tip').textContent=tip.join(' ');
+  }
+  document.querySelectorAll('#ds input,#ds select,#ds textarea').forEach(function(e){e.addEventListener('input',build);e.addEventListener('change',build);});
+  $('ds_copy').addEventListener('click',function(){var o=$('ds_out');o.select();
+    var ok=function(){$('ds_done').textContent='Copied. Now paste it into your AI image tool.';};
+    if(navigator.clipboard){navigator.clipboard.writeText(o.value).then(ok,function(){document.execCommand('copy');ok();});}else{document.execCommand('copy');ok();}});
+  build();
+})();
+</script>
+{% endblock %}
