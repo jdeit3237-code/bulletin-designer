@@ -323,3 +323,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 /* Photo-only page: use the whole page body */
 .sheet .sec.img-only figure img { max-height: 8.9in; }
+.mass.giving { border-left: 0; padding-bottom: 0; margin-bottom: .1in; }
+.mass.giving dl { margin-bottom: .05in; }
+.mass.giving p { margin: 0 0 .03in; }
+.mass.giving p:last-child { margin-bottom: 0; }
