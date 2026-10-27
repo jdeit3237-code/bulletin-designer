@@ -359,6 +359,8 @@ def create_app(config=None):
             conn.execute("ALTER TABLE items ADD COLUMN bullet_style TEXT DEFAULT ''")
         if "space_before" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN space_before REAL DEFAULT 0")
+        if "no_toc" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN no_toc INTEGER DEFAULT 0")
         if "hide_title" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN hide_title INTEGER DEFAULT 0")
         if "para_gap" not in have:
@@ -840,18 +842,18 @@ def create_app(config=None):
             carry_events = s["slug"] == "youth-calendar"
             if old and (not s["weekly"] or carry_events):
                 conn.execute("""INSERT INTO items(bulletin_id,section_id,body,image,alt,decorative,caption,source,carried,
-                    position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap,area,page_no,font_pt,font_style,min_h,img_pos,para_gap,hide_title,space_before,bullet_style)
+                    position,pages,cols,crop_zoom,crop_x,crop_y,crop_h,title,title_gap,item_gap,area,page_no,font_pt,font_style,min_h,img_pos,para_gap,hide_title,space_before,bullet_style,no_toc)
                     VALUES(?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                              (bulletin_id, s["id"], week_free(old["body"]) if s["slug"] == "cover" else (upcoming_events(old["body"], sunday) if carry_events else old["body"]), old["image"], old["alt"], old["decorative"],
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
-                              old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"]))
+                              old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"], old["no_toc"]))
                 conn.execute("UPDATE items SET gallery=?, img_w=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, bulletin_id, s["id"]))
             else:
-                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style,no_toc) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
                               old["font_pt"] if old else 0, old["font_style"] if old else "", old["title"] if old else "",
-                              old["title_gap"] if old else 0, old["item_gap"] if old else 0, old["min_h"] if old else 0, old["img_pos"] if old else "", old["para_gap"] if old else 0, old["hide_title"] if old else 0, old["space_before"] if old else 0, old["bullet_style"] if old else ""))
+                              old["title_gap"] if old else 0, old["item_gap"] if old else 0, old["min_h"] if old else 0, old["img_pos"] if old else "", old["para_gap"] if old else 0, old["hide_title"] if old else 0, old["space_before"] if old else 0, old["bullet_style"] if old else "", old["no_toc"] if old else 0))
         if fresh:
             fill_mass_week(conn, bulletin_id, sunday, prev)
         conn.commit()
@@ -909,7 +911,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1055,6 +1057,8 @@ def create_app(config=None):
             for r in rows_on(p):
                 if r is not None and r["id"] not in seen:
                     seen.add(r["id"])
+                    if r["no_toc"]:
+                        continue
                     toc.append({"title": r["title"], "page": p["number"], "pos": r["position"]})
         toc.sort(key=lambda t: (t["page"], t["pos"]))
         cur = len(pages) + 1
@@ -1336,7 +1340,7 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.no_toc, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
         removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
@@ -1753,8 +1757,8 @@ def create_app(config=None):
             except ValueError:
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
-            conn.execute("UPDATE items SET space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
-                         (gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
+            conn.execute("UPDATE items SET no_toc=?, space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
+                         (1 if request.form.get("no_toc") else 0, gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0, bid, sid))
             conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
                          (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "",

@@ -553,6 +553,22 @@ def test_notes_to_admin(app):
     assert "Reopen" in c.get("/notes").text
 
 
+def test_leave_section_out_of_toc(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/5", data={"body": "Hello there", "csrf": tok(c, "/bulletins/1")})
+    def toc_titles():
+        html = c.get("/bulletins/1/preview").text
+        return re.findall(r'<li><a href="#pg\d+">([^<]+)</a>', html.split('aria-label="Table of contents"')[1].split("</ol>")[0])
+    before = toc_titles()
+    assert before
+    import sqlite3
+    sid = sqlite3.connect(app.config["DATABASE"]).execute("SELECT id FROM sections WHERE slug='mass-schedule'").fetchone()[0]
+    c.post("/bulletins/1/layout/%d" % sid, data={"area": "full", "no_toc": "1", "csrf": tok(c, "/bulletins/1")})
+    assert 'name="no_toc" value="1" checked' in c.get("/bulletins/1").text
+    assert len(toc_titles()) == len(before) - 1
+
+
 def test_drag_resize(app):
     c = setup_admin(app)
     create_bulletin(c)
