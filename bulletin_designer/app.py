@@ -1732,7 +1732,7 @@ def create_app(config=None):
         if request.form.get("pages"):
             conn.execute("UPDATE items SET pages=?, cols=? WHERE bulletin_id=? AND section_id=?",
                          (max(1, min(8, int(request.form["pages"]))),
-                          2 if request.form.get("cols") == "2" else 1, bid, sid))
+                          int(request.form["cols"]) if request.form.get("cols") in ("2", "3") else 1, bid, sid))
         if "area" in request.form:
             area = request.form["area"] if request.form["area"] in ("full", "left", "right", "below", "above", "left3", "mid3", "right3", "left23", "right23") else ""
             try:
@@ -1831,7 +1831,7 @@ def create_app(config=None):
             "SELECT s.title FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=?", (bid,))]
         system = ("You edit a parish bulletin layout. Reply with ONLY a JSON array of actions. Allowed: "
                   '{"action":"add_section","title":str,"text":str?}, {"action":"move","section":str,"direction":"up|down"}, '
-                  '{"action":"layout","section":str,"pages":1-8?,"cols":1|2?}, {"action":"set_text","section":str,"text":str}, '
+                  '{"action":"layout","section":str,"pages":1-8?,"cols":1|2|3?}, {"action":"set_text","section":str,"text":str}, '
                   '{"action":"remove","section":str}, {"action":"set_header","text":str} (the tagline in the banner header). Never invent facts, names, dates or Mass intentions. '
                   "Existing sections: " + json.dumps(titles))
         payload = json.dumps({"model": os.environ.get("BULLETIN_AI_MODEL", "gpt-4o-mini"),
@@ -1899,7 +1899,7 @@ def create_app(config=None):
                              (max(1, min(8, int(a["pages"]))), bid, sid))
             if "cols" in a:
                 conn.execute("UPDATE items SET cols=? WHERE bulletin_id=? AND section_id=?",
-                             (2 if int(a["cols"]) == 2 else 1, bid, sid))
+                             (int(a["cols"]) if int(a["cols"]) in (2, 3) else 1, bid, sid))
         elif kind == "set_text":
             conn.execute("UPDATE items SET body=?, status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
                          (str(a.get("text", "")), "AI assistant", bid, sid))

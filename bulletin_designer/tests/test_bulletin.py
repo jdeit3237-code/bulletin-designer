@@ -772,6 +772,15 @@ def test_tiff_upload_converted_to_small_jpeg(app):
         assert im.format == "JPEG" and max(im.size) == 2400
 
 
+def test_three_text_columns(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    assert '<option value="3"' in c.get("/bulletins/1").text
+    c.post("/bulletins/1/section/5", data={"body": "Some text", "csrf": tok(c, "/bulletins/1")})
+    c.post("/bulletins/1/layout/5", data={"cols": "3", "pages": "1", "csrf": tok(c, "/bulletins/1")})
+    assert "column-count:3" in c.get("/bulletins/1/preview").text
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)

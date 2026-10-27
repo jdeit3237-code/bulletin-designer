@@ -92,7 +92,7 @@ TOPICS = [
       "To reset every section at once, use 'Reset layout of all sections' on the bulletin overview."]),
     ("order", "Move sections, columns and pages", "move order position column columns pages width half left right page number reorder",
      ["On the overview, each section row has Pages, Columns, Width, Order and On page. Up and Down move a section one place; the settings grid is condensed to fit more on the screen.",
-      "Order sets position (1 = first). Width Left half / Right half puts two sections side by side. To put a full-width section over or under side-by-side sections, choose Width \"Full width, over the sections below it\" or \"Full width, under the sections above it\" and give it an Order number next to those sections.",
+      "Order sets position (1 = first). Width Left half / Right half puts two sections side by side; the Left, Middle and Right third options give three across. Columns 1, 2 or 3 splits one section's text into columns. To put a full-width section over or under side-by-side sections, choose Width \"Full width, over the sections below it\" or \"Full width, under the sections above it\" and give it an Order number next to those sections.",
       "'On page' puts a section on a chosen page number. Two full-page sections with the same 'On page' share that page, one under the other (see 'Put two sections with photos on one page'). Half and third-width sections can also share a page.",
       "Pages makes a section take more than one page. Its text prints on the first page; the others are left for photos or notes.",
       "Change one thing at a time and check the Preview. If it gets confusing, use Reset layout."]),

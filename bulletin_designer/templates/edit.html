@@ -57,7 +57,7 @@
           <div class="lgrid">
           <div class="lf"><label for="pg{{ s.id }}">Pages</label><input id="pg{{ s.id }}" name="pages" type="number" min="1" max="8" value="{{ s.pages }}"></div>
           
-          <div class="lf"><label for="cl{{ s.id }}">Columns</label><select id="cl{{ s.id }}" name="cols"><option value="1">1</option><option value="2" {{ 'selected' if s.cols == 2 }}>2</option></select></div>
+          <div class="lf"><label for="cl{{ s.id }}">Columns</label><select id="cl{{ s.id }}" name="cols"><option value="1">1</option><option value="2" {{ 'selected' if s.cols == 2 }}>2</option><option value="3" {{ 'selected' if s.cols == 3 }}>3</option></select></div>
           
           <div class="lf"><label for="ar{{ s.id }}">Width</label><select id="ar{{ s.id }}" name="area"><option value="">Default</option><option value="full" {{ 'selected' if s.area == 'full' }}>Full page</option><option value="left" {{ 'selected' if s.area == 'left' }}>Left half</option><option value="right" {{ 'selected' if s.area == 'right' }}>Right half</option><option value="left3" {{ 'selected' if s.area == 'left3' }}>Left third</option><option value="mid3" {{ 'selected' if s.area == 'mid3' }}>Middle third</option><option value="right3" {{ 'selected' if s.area == 'right3' }}>Right third</option><option value="left23" {{ 'selected' if s.area == 'left23' }}>Left two-thirds (with a right third)</option><option value="right23" {{ 'selected' if s.area == 'right23' }}>Right two-thirds (with a left third)</option><option value="below" {{ 'selected' if s.area == 'below' }}>Full width, under the sections above it</option><option value="above" {{ 'selected' if s.area == 'above' }}>Full width, over the sections below it</option></select></div>
           
