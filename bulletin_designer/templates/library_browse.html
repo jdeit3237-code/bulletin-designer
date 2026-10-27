@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block title %}Browse photos{% endblock %}
+{% block content %}
+<h1>Browse photos</h1>
+<form method="get"><label for="q">Search by title, tag, description or camera</label><input id="q" name="q" type="text" value="{{ q }}" style="max-width:20em"> <input type="hidden" name="lib" value="{{ lib }}"> <button class="btn secondary">Search</button></form>
+<p>
+  <a class="btn {{ '' if lib == '' else 'secondary' }}" href="{{ url_for('library_browse', q=q) }}">All photos</a>
+  {% for l in libs %}<a class="btn {{ '' if lib == l.id|string else 'secondary' }}" href="{{ url_for('library_browse', lib=l.id, q=q) }}">{{ l.name }} ({{ l.n }})</a> {% endfor %}
+  <a class="btn {{ '' if lib == 'none' else 'secondary' }}" href="{{ url_for('library_browse', lib='none', q=q) }}">Not in a library</a>
+</p>
+<p class="small">{{ photos|length }} photo{{ '' if photos|length == 1 else 's' }}. To add or change photos, use the <a href="{{ url_for('library') }}">Photo library</a> page.</p>
+{% for p in photos %}
+<figure style="display:inline-block;width:150px;vertical-align:top;margin:.4em">
+  <img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" title="{{ p.title }}" style="max-width:100%;height:auto">
+  <figcaption class="small">{{ p.title }}</figcaption>
+</figure>
+{% else %}<p>No photos found.</p>
+{% endfor %}
+{% endblock %}

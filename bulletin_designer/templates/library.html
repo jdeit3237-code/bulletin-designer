@@ -2,6 +2,7 @@
 {% block content %}
 <h1>Photo library</h1>
 <p>Photos stored here can be reused in any bulletin. They are never stretched or cropped.</p>
+<p><a class="btn secondary" href="{{ url_for('library_browse') }}">Browse thumbnails only (no upload forms)</a></p>
 <form method="get"><label for="q">Search by title, tag, description or camera</label><input id="q" name="q" type="text" value="{{ q }}" style="max-width:20em"> <button class="btn secondary">Search</button></form>
 {% if g.user.role != 'viewer' %}
 <h2>Add a photo</h2>

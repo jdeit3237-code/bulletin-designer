@@ -739,6 +739,16 @@ def test_giving_structured_section(app):
     assert "2nd Collection" in c.get("/bulletins/1/preview").text and "$300.00" in c.get("/bulletins/1/preview").text
 
 
+def test_library_browse_thumbnails_only(app):
+    c = setup_admin(app)
+    c.post("/library", data={"photo": (_card(40, 30, "red"), "beach.png"), "title": "Beach day", "alt": "A beach",
+           "csrf": tok(c, "/library")}, content_type="multipart/form-data")
+    html = c.get("/library/browse").text
+    assert "thumb_" in html and "Beach day" in html and 'type="file"' not in html
+    assert "Beach day" not in c.get("/library/browse?q=zzzz").text
+    assert "Beach day" in c.get("/library/browse?q=beach").text
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)

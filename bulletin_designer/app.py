@@ -2318,6 +2318,23 @@ def create_app(config=None):
               + ((" Skipped: " + "; ".join(skipped[:10])) if skipped else ""), "ok" if added else "error")
         return redirect(url_for("library"))
 
+    @app.route("/library/browse")
+    @need()
+    def library_browse():
+        conn = db()
+        q = request.args.get("q", "").strip()
+        lib = request.args.get("lib", "")
+        sql = "SELECT * FROM photos WHERE (title LIKE ? OR tags LIKE ? OR alt LIKE ? OR meta LIKE ?)"
+        args = [f"%{q}%"] * 4
+        if lib.isdigit():
+            sql += " AND id IN (SELECT photo_id FROM photo_libs WHERE lib_id=?)"
+            args.append(int(lib))
+        elif lib == "none":
+            sql += " AND id NOT IN (SELECT photo_id FROM photo_libs)"
+        rows = conn.execute(sql + " ORDER BY title", args).fetchall()
+        libs_all = conn.execute("SELECT l.*, (SELECT COUNT(*) FROM photo_libs WHERE lib_id=l.id) n FROM libraries l ORDER BY l.name").fetchall()
+        return render_template("library_browse.html", photos=rows, q=q, libs=libs_all, lib=lib)
+
     @app.route("/library", methods=["GET", "POST"])
     @need()
     def library():
