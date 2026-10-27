@@ -647,7 +647,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["mass_data"] = mass_data
 
-    GIVING_KEYS = ("date", "end_date", "first", "second", "no_second", "deposit", "notes")
+    GIVING_KEYS = ("date", "end_date", "first", "second", "no_second", "purpose", "deposit", "notes")
 
     def money(text):
         t = (text or "").strip().lstrip("$").replace(",", "")

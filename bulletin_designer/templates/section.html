@@ -77,6 +77,7 @@
     <fieldset><legend>Collections</legend>
       <label for="g_first">1st Collection (dollar amount)</label><input id="g_first" name="g_first" type="text" inputmode="decimal" value="{{ giving.first }}">
       <label for="g_second">2nd Collection (dollar amount)</label><input id="g_second" name="g_second" type="text" inputmode="decimal" value="{{ giving.second }}">
+      <label for="g_purpose">Purpose of the 2nd Collection (optional; printed in italics under the amount, without the word Purpose)</label><input id="g_purpose" name="g_purpose" type="text" value="{{ giving.purpose }}">
       <label><input type="checkbox" name="g_no_second" value="1" {% if giving.no_second %}checked{% endif %}> There is no 2nd collection this week (hide it)</label>
       <label for="g_deposit">Weekly Direct Deposit (dollar amount)</label><input id="g_deposit" name="g_deposit" type="text" inputmode="decimal" value="{{ giving.deposit }}">
     </fieldset>

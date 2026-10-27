@@ -47,7 +47,7 @@
       <div class="mass giving">
         {% if g.date_text %}<h3>{{ g.date_text }}</h3>{% endif %}
         <dl>{% if g.first %}<dt>1st Collection</dt><dd>{{ g.first_text }}</dd>{% endif %}
-        {% if not g.hide_second %}<dt>2nd Collection</dt><dd>{{ g.second_text }}</dd>{% endif %}
+        {% if not g.hide_second %}<dt>2nd Collection</dt><dd>{{ g.second_text }}</dd>{% if g.purpose.strip() %}<dd class="purpose" style="grid-column:1/-1"><em>{{ g.purpose }}</em></dd>{% endif %}{% endif %}
         {% if g.deposit %}<dt>Weekly Direct Deposit</dt><dd>{{ g.deposit_text }}</dd>{% endif %}</dl>
         {% for line in g.notes.split('\n') if line.strip() %}<p>{{ tight(line, b.no_stragglers) }}</p>{% endfor %}</div>
     {% elif r.slug == 'mass-times' %}
