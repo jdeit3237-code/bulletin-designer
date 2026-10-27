@@ -532,6 +532,27 @@ def test_section_below_contents_on_page_one(app):
     assert html.count("UnderContents") >= 1
 
 
+def test_drag_resize_hidden_from_editor(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    e = register_user(app, c, "ed1@x.org", "editor")
+    assert "resize=1" not in e.get("/bulletins/1/preview").text
+    assert e.post("/bulletins/1/resize/5", data={"frac": "0.5", "height": "3", "csrf": tok(e, "/bulletins/1/preview")}).status_code == 403
+
+
+def test_notes_to_admin(app):
+    c = setup_admin(app)
+    e = register_user(app, c, "ed2@x.org", "editor")
+    v = register_user(app, c, "contrib2@x.org", "contributor")
+    assert v.get("/notes").status_code == 403
+    e.post("/notes", data={"action": "add", "note": "Resize jumped sections", "page": "/bulletins/1/preview", "csrf": tok(e, "/notes")})
+    assert "Resize jumped sections" in c.get("/notes").text
+    assert "Mark done" in c.get("/notes").text
+    assert e.post("/notes", data={"action": "done", "nid": "1", "csrf": tok(e, "/notes")}).status_code == 403
+    c.post("/notes", data={"action": "done", "nid": "1", "csrf": tok(c, "/notes")})
+    assert "Reopen" in c.get("/notes").text
+
+
 def test_drag_resize(app):
     c = setup_admin(app)
     create_bulletin(c)

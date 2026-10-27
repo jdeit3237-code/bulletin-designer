@@ -6,5 +6,6 @@
   <label for="ai-help">Ask for help or describe what you want changed. You review every change before it is applied.</label>
   <input id="ai-help" name="request" type="text" required placeholder="e.g. Set header to Join us for the Fall Festival; make Calendar 2 columns; move Staff down">
   <p><button class="btn">Ask the assistant</button></p>
-</form></section>
+</form>
+<p class="meta">Is something hard to use or missing? <a href="{{ url_for('notes', page=request.path) }}">Leave a note for the admin</a>.</p></section>
 {% endif %}

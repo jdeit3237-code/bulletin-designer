@@ -294,6 +294,7 @@ def create_app(config=None):
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
         CREATE TABLE IF NOT EXISTS libraries(id INTEGER PRIMARY KEY, name TEXT UNIQUE);
+        CREATE TABLE IF NOT EXISTS admin_notes(id INTEGER PRIMARY KEY, from_user TEXT, page TEXT, note TEXT, status TEXT DEFAULT 'open', created TEXT);
         CREATE TABLE IF NOT EXISTS hidden_sections(bulletin_id INTEGER, section_id INTEGER, snap TEXT, PRIMARY KEY(bulletin_id, section_id));
         CREATE TABLE IF NOT EXISTS photo_libs(photo_id INTEGER, lib_id INTEGER, PRIMARY KEY(photo_id, lib_id));
         CREATE TABLE IF NOT EXISTS event_titles(id INTEGER PRIMARY KEY, title TEXT UNIQUE);
@@ -1792,7 +1793,7 @@ def create_app(config=None):
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/resize/<int:sid>", methods=["POST"])
-    @need("admin", "editor")
+    @need("admin")
     def resize(bid, sid):
         """Drag-to-resize: snap the dragged width to a layout width and store a minimum height (inches)."""
         open_bulletin(bid)
@@ -2522,10 +2523,39 @@ def create_app(config=None):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
-        html = render_template("bulletin.html", b=b, pages=pages, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
-        html = html.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
-            'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
+        def build(pgs):
+            h = render_template("bulletin.html", b=b, pages=pgs, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
+            return h.replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
+                'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
+        html = build(pages)
+        # Measure the real spare room on pages where photos share space, then grow/shrink the photos to fit.
+        for _ in range(2):
+          try:
+              shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
+              if not shared:
+                  break
+              doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+              changed = False
+              for page in doc.pages:
+                  for box in page._page_box.descendants():
+                      el = getattr(box, "element", None)
+                      m = re.fullmatch(r"pg(\d+)", el.get("id") or "") if el is not None and box.element_tag == "div" else None
+                      if not m or int(m.group(1)) not in shared or box.parent is None:
+                          continue
+                      par = box.parent
+                      slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
+                      pg = shared[int(m.group(1))]
+                      n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
+                      if slack > 0.12 or slack < 0:
+                          pg["photo_h"] = round(max(1.0, min(6.5, pg["photo_h"] + (slack - 0.08) / n_ph)), 2)
+                          changed = True
+                      break
+              if not changed:
+                  break
+              html = build(pages)
+          except Exception:
+              break
         pdf = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).write_pdf(
             pdf_variant="pdf/ua-1", optimize_images=True, **opts)
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
@@ -2597,6 +2627,34 @@ def create_app(config=None):
             db().commit()
             flash("Answer saved.", "ok")
         return redirect(url_for("help_page") + "#questions")
+
+    @app.route("/notes", methods=["GET", "POST"])
+    @need("admin", "editor")
+    def notes():
+        """Editors leave notes about things the design tool should do better; the admin works through them."""
+        conn = db()
+        if request.method == "POST":
+            act = request.form.get("action", "add")
+            if act == "add":
+                text = request.form.get("note", "").strip()[:2000]
+                if text:
+                    conn.execute("INSERT INTO admin_notes(from_user,page,note,created) VALUES(?,?,?,?)",
+                                 (g.user["display_name"] or g.user["username"], request.form.get("page", "").strip()[:200], text,
+                                  datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit()
+                    flash("Thank you. Your note was saved for the admin.", "ok")
+            elif g.user["role"] == "admin":
+                nid = int(request.form.get("nid", 0))
+                conn.execute("UPDATE admin_notes SET status=? WHERE id=?", ("done" if act == "done" else "open", nid))
+                conn.commit()
+            else:
+                abort(403)
+            return redirect(url_for("notes"))
+        rows = conn.execute("SELECT * FROM admin_notes ORDER BY status='done', id DESC LIMIT 200").fetchall()
+        if g.user["role"] != "admin":
+            me = g.user["display_name"] or g.user["username"]
+            rows = [r for r in rows if r["from_user"] == me]
+        return render_template("notes.html", rows=rows, page=request.args.get("page", ""))
 
     @app.route("/style-guide")
     def style_guide():

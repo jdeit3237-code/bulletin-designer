@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block title %}Notes to the admin{% endblock %}
+{% block content %}
+<h1>Notes to the admin</h1>
+<p>Something hard to use, confusing, or not working the way you want? Write it here in your own words. The admin reads these and works on them with the AI helper.</p>
+<form method="post" action="{{ url_for('notes') }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="add">
+  <label for="page">Where were you? (filled in for you)</label>
+  <input id="page" name="page" type="text" maxlength="200" value="{{ page }}">
+  <label for="note">What should be better?</label>
+  <textarea id="note" name="note" rows="5" maxlength="2000" required></textarea>
+  <p><button class="btn">Send note</button></p>
+</form>
+<h2>{{ 'All notes' if g.user.role == 'admin' else 'Your notes' }}</h2>
+{% for r in rows %}
+<div class="note-row"><p><strong>{{ r.note }}</strong><br><span class="meta">{{ r.from_user }} &middot; {{ r.created }}{% if r.page %} &middot; {{ r.page }}{% endif %} &middot; {{ 'Done' if r.status == 'done' else 'Open' }}</span></p>
+{% if g.user.role == 'admin' %}<form method="post" action="{{ url_for('notes') }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="nid" value="{{ r.id }}"><button class="btn secondary" name="action" value="{{ 'reopen' if r.status == 'done' else 'done' }}">{{ 'Reopen' if r.status == 'done' else 'Mark done' }}</button></form>{% endif %}</div>
+{% else %}<p>No notes yet.</p>{% endfor %}
+{% endblock %}
