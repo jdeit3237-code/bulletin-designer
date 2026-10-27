@@ -302,7 +302,7 @@
       <h3>Crop and zoom (the picture is never stretched)</h3>
       <div id="crop-prev" class="crop" style="height:{{ item.crop_h or 3 }}in;max-width:6in;border:1px solid #888"><img src="{{ url_for('uploads', name=item.image) }}" alt="Preview of the cropped picture"></div>
       <fieldset class="crop-frame"><legend>Crop: how tall is the picture frame?</legend>
-        <p class="small">Click a size to crop the picture to a shorter frame, then use Zoom and Move below to choose which part shows. "Whole picture" shows everything with no cropping.</p>
+        <p class="small">Click a size to crop the picture to a shorter frame, then use Zoom and Move below to choose which part shows. "Whole picture" shows everything with no cropping. The frame has to be <strong>shorter than the picture appears on the page</strong> to cut anything off: a frame taller than the picture (for example 6.75 inches on a picture that prints about 6 inches tall) does nothing. Try a smaller number, then check Preview.</p>
         <div class="at-btns" role="group" aria-label="Frame height">{% for v, t in ((0, 'Whole picture'), (1.5, 'Short strip'), (2.5, 'Medium'), (3.5, 'Tall'), (5, 'Very tall')) %}<button type="button" class="btn secondary ch-b" data-h="{{ v }}">{{ t }}</button>{% endfor %}</div>
         <label for="crop_h">Or type the frame height in inches (0 = whole picture; zoom alone uses 3 in)</label>
         <input id="crop_h" name="crop_h" type="number" min="0" max="9" step="any" value="{{ item.crop_h or 0 }}">
