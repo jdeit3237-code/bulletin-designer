@@ -280,10 +280,26 @@
     {% endif %}
     {% set gal = gallery_data(item.gallery) %}
     <h3>More photos in this section</h3>
-    <p class="meta">Add several photos, placed above the text and/or below the text. Photos in the same place sit side by side (up to 3 per row) at the same height, sized automatically.</p>
-    {% for gp in gal.photos %}<div class="gp"><img src="{{ url_for('uploads', name=gp.f) }}" alt="" style="height:.6in"> <label>Caption <input name="gp_alt_{{ loop.index0 }}" value="{{ gp.alt }}"></label>
-      <label>Place <select name="gp_w_{{ loop.index0 }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select></label>
-      <label><input type="checkbox" name="gp_rm_{{ loop.index0 }}" value="1"> Remove</label></div>{% endfor %}
+    <p class="meta">Each photo has its own crop (pick a shape, zoom, then slide the picture so the important part shows in the preview) and its own text setting. Add several photos, placed above the text and/or below the text. Photos in the same place sit side by side (up to 3 per row) at the same height, sized automatically.</p>
+    {% for gp in gal.photos %}{% set n = loop.index0 %}<div class="gp photo-card" data-n="{{ n }}">
+      <div class="pc-prev"><div class="crop pc-box" style="width:2.2in;height:{{ (2.2 / gp.ar)|round(2) }}in;border:1px solid #888"><img src="{{ url_for('uploads', name=gp.f) }}" alt="Preview" style="object-position:{{ gp.x }}% {{ gp.y }}%;transform:scale({{ gp.z }});transform-origin:{{ gp.x }}% {{ gp.y }}%"></div></div>
+      <div class="pc-ctl">
+      <label>Caption <input name="gp_alt_{{ n }}" value="{{ gp.alt }}"></label>
+      <label>Shape (crop) <select name="gp_shape_{{ n }}" class="pc-shape" data-ar0="{{ gp.ar0|round(3) }}"><option value="" data-ar="{{ gp.ar0|round(3) }}">Whole picture (no crop)</option>{% for k, v in PHOTO_SHAPES.items() %}<option value="{{ k }}" data-ar="{{ v[0]|round(3) }}" {{ 'selected' if gp.shape == k }}>{{ v[1] }}</option>{% endfor %}</select></label>
+      <label>Zoom in <input type="range" name="gp_z_{{ n }}" class="pc-z" min="1" max="4" step="0.1" value="{{ gp.z }}"></label>
+      <label>Move picture left / right <input type="range" name="gp_x_{{ n }}" class="pc-x" min="0" max="100" value="{{ gp.x|int }}"></label>
+      <label>Move picture up / down <input type="range" name="gp_y_{{ n }}" class="pc-y" min="0" max="100" value="{{ gp.y|int }}"></label>
+      <label>Text <select name="gp_wrap_{{ n }}"><option value="" {{ 'selected' if not gp.wrap }}>Photo does not have text beside it</option><option value="left" {{ 'selected' if gp.wrap == 'left' }}>Photo on the left, text wraps around it</option><option value="right" {{ 'selected' if gp.wrap == 'right' }}>Photo on the right, text wraps around it</option></select></label>
+      <label>Place <select name="gp_w_{{ n }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select> <span class="small">(a photo with text around it always goes at the top)</span></label>
+      <label><input type="checkbox" name="gp_rm_{{ n }}" value="1"> Remove this photo</label>
+      </div></div>{% endfor %}
+    <script>
+    document.querySelectorAll('.photo-card').forEach(function(c){
+      var box=c.querySelector('.pc-box'),im=box.firstElementChild,sh=c.querySelector('.pc-shape'),z=c.querySelector('.pc-z'),x=c.querySelector('.pc-x'),y=c.querySelector('.pc-y');
+      function up(){var ar=parseFloat(sh.options[sh.selectedIndex].getAttribute('data-ar'))||1.5;box.style.height=(2.2/ar)+'in';
+        im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';im.style.transformOrigin=x.value+'% '+y.value+'%';}
+      [sh,z,x,y].forEach(function(e){e.addEventListener('input',up);});up();});
+    </script>
     {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>

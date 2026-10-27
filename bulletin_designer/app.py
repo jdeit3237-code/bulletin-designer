@@ -44,6 +44,7 @@ ROLE_HELP = {
     "viewer": "Read-only access to drafts and published bulletins.",
 }
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
+PHOTO_SHAPES = {"3:2": (1.5, "Wide (3 by 2)"), "1:1": (1.0, "Square"), "2:3": (2 / 3, "Tall (2 by 3)"), "3:1": (3.0, "Banner (3 by 1)"), "16:9": (16 / 9, "Widescreen (16 by 9)")}
 LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
 
 # Sections found in the Oct 11/18/25 2026 bulletins. weekly=1 means new content is
@@ -580,9 +581,21 @@ def create_app(config=None):
                     p["ar"] = max(0.2, min(5.0, im.width / im.height))
             except Exception:
                 p["ar"] = 1.5
+            p["ar0"] = p["ar"]
+            p["shape"] = p.get("shape") if p.get("shape") in PHOTO_SHAPES else ""
+            if p["shape"]:
+                p["ar"] = PHOTO_SHAPES[p["shape"]][0]
+            for k, lo, hi, dflt in (("z", 1, 4, 1), ("x", 0, 100, 50), ("y", 0, 100, 50)):
+                try:
+                    p[k] = max(lo, min(hi, float(p.get(k, dflt))))
+                except (TypeError, ValueError):
+                    p[k] = dflt
+            p["wrap"] = p.get("wrap") if p.get("wrap") in ("left", "right") else ""
+            p["crop"] = bool(p["shape"] or p["z"] > 1)
         return d
 
     app.jinja_env.globals["gallery_data"] = gallery_data
+    app.jinja_env.globals["PHOTO_SHAPES"] = PHOTO_SHAPES
 
     def tight(text, on=True):
         """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
@@ -1515,7 +1528,18 @@ def create_app(config=None):
                 if request.form.get(f"gp_rm_{n}"):
                     continue
                 p["alt"] = request.form.get(f"gp_alt_{n}", p.get("alt", "")).strip()[:300]
-                p["w"] = "above" if request.form.get(f"gp_w_{n}") == "above" else "below"
+                wrap = request.form.get(f"gp_wrap_{n}")
+                p["wrap"] = wrap if wrap in ("left", "right") else ""
+                p["w"] = "above" if (request.form.get(f"gp_w_{n}") == "above" or p["wrap"]) else "below"
+                shape = request.form.get(f"gp_shape_{n}", "")
+                p["shape"] = shape if shape in PHOTO_SHAPES else ""
+                for k, lo, hi, dflt in (("z", 1, 4, 1), ("x", 0, 100, 50), ("y", 0, 100, 50)):
+                    try:
+                        p[k] = max(lo, min(hi, float(request.form.get(f"gp_{k}_{n}", p.get(k, dflt)))))
+                    except ValueError:
+                        p[k] = dflt
+                for k in ("ar", "ar0", "crop"):
+                    p.pop(k, None)
                 keep.append(p)
             for n in range(4):
                 gf = request.files.get(f"ng_file_{n}")

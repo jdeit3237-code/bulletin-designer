@@ -332,3 +332,10 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .body-cols p.bp { orphans: 2; widows: 2; }
 /* Photo-only sections that share a page shrink to fit instead of being cut off */
 .sheet .shared .sec.img-only figure img { max-height: var(--ph); }
+
+.sheet .crop-r { position: relative; height: 0; width: 100%; }
+.sheet .crop-r img { position: absolute; top: 0; left: 0; }
+.sheet .galv-one { margin-top: .03in; margin-bottom: .06in; text-align: center; }
+.photo-card { display: flex; flex-wrap: wrap; gap: .8em; align-items: flex-start; border: 1px solid #bbb; border-radius: 6px; padding: .5em; margin: .5em 0; }
+.photo-card .pc-ctl { flex: 1 1 18em; }
+.photo-card .pc-ctl label { display: block; margin: .3em 0; }

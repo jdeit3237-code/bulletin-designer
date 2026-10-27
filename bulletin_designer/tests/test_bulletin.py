@@ -1453,3 +1453,21 @@ def test_duplicate_photo_not_added_twice(app):
     c.post("/library/bulk", data={"csrf": tok(c, "/library"), "photos": [(io.BytesIO(b2.getvalue()), "Same.jpg")]},
            content_type="multipart/form-data")
     assert sqlite3.connect(app.config["DATABASE"]).execute("SELECT COUNT(*) FROM photos").fetchone()[0] == 2
+
+
+def test_gallery_photo_crop_and_wrap(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Words here", "ng_alt_0": "Pic A", "ng_w_0": "above",
+           "ng_alt_1": "Pic B", "ng_w_1": "above", "ng_file_0": (_card(300, 200, "red"), "a.png"),
+           "ng_file_1": (_card(300, 200, "blue"), "b.png")}, content_type="multipart/form-data")
+    form = c.get("/bulletins/1/section/9").text
+    assert "gp_shape_0" in form and "gp_wrap_1" in form
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Words here", "gp_alt_0": "Pic A", "gp_w_0": "above",
+           "gp_shape_0": "1:1", "gp_z_0": "2", "gp_x_0": "20", "gp_y_0": "70",
+           "gp_alt_1": "Pic B", "gp_w_1": "below", "gp_wrap_1": "right"})
+    html = c.get("/bulletins/1/preview").text
+    assert "object-position:20.0% 70.0%" in html and "scale(2.0)" in html
+    assert "galv-wrap-right" in html
+    assert html.index("Pic B") < html.index("Words here")
