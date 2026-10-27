@@ -733,8 +733,11 @@ def test_giving_structured_section(app):
             "g_deposit": "$2,000", "g_purpose": "Seminarian fund", "g_notes": "Thank you", "csrf": tok(c, "/bulletins/1")}
     c.post(f"/bulletins/1/section/{sid}", data=data)
     html = c.get("/bulletins/1/preview").text
-    assert "Donations Received: Oct 25, 2026" in html and "1st Collection" in html and "$1,234.50" in html and "$2,000.00" in html and "Thank you" in html
+    assert "Donations Received: Oct. 25" in html and "1st Collection" in html and "$1,234.50" in html and "$2,000.00" in html and "Thank you" in html
     assert "2nd Collection" not in html and "Seminarian fund" not in html
+    data["g_date"], data["g_end_date"] = "2026-11-07", "2026-11-08"
+    c.post(f"/bulletins/1/section/{sid}", data=data)
+    assert "Donations Received: Nov. 7-8" in c.get("/bulletins/1/preview").text
     del data["g_no_second"]
     c.post(f"/bulletins/1/section/{sid}", data=data)
     html = c.get("/bulletins/1/preview").text

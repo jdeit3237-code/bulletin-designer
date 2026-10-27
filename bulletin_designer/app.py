@@ -668,15 +668,22 @@ def create_app(config=None):
         else:
             d["notes"] = (body or "").strip()
         d["hide_second"] = bool(d["no_second"]) or not d["second"].strip()
-        def short(v):
+        MON = {1: "Jan.", 2: "Feb.", 3: "Mar.", 4: "Apr.", 5: "May", 6: "June", 7: "July", 8: "Aug.", 9: "Sept.", 10: "Oct.", 11: "Nov.", 12: "Dec."}
+
+        def parse(v):
             try:
-                x = datetime.strptime(v, "%Y-%m-%d")
-                return "%s %d, %d" % (x.strftime("%b"), x.day, x.year)
+                return datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                return v
-        d["date_text"] = short(d["date"]) if d["date"] else ""
-        if d["date_text"] and d["end_date"]:
-            d["date_text"] += " \u2013 " + short(d["end_date"])
+                return None
+        a, z = parse(d["date"]), parse(d["end_date"])
+        if not a:
+            d["date_text"] = d["date"]
+        elif not z or z == a:
+            d["date_text"] = "%s %d" % (MON[a.month], a.day)
+        elif (z.year, z.month) == (a.year, a.month):
+            d["date_text"] = "%s %d-%d" % (MON[a.month], a.day, z.day)
+        else:
+            d["date_text"] = "%s %d \u2013 %s %d" % (MON[a.month], a.day, MON[z.month], z.day)
         d["first_text"], d["second_text"], d["deposit_text"] = money(d["first"]), money(d["second"]), money(d["deposit"])
         return d
 
