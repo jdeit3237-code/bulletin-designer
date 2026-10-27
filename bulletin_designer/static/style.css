@@ -369,3 +369,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .at-b span { display: block; border: 2px solid #2e6b4f; border-radius: 6px; padding: .35em 1em; font-weight: bold; cursor: pointer; background: #fff; }
 .at-b input:checked + span { background: #2e6b4f; color: #fff; }
 .at-b input:focus-visible + span { outline: 3px solid #e0a800; }
+
+.toolrow { display: flex; flex-wrap: wrap; gap: .4em; margin: .6em 0; }
+.toolrow .btn { background: #1f7a3a; color: #fff; border: 2px solid #14562a; font-size: 12pt; padding: .45em .8em; white-space: nowrap; margin: 0; }
+.toolrow .btn:hover, .toolrow .btn:focus { background: #14562a; }

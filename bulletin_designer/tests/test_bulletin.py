@@ -1608,3 +1608,10 @@ def test_preview_links_to_design_studio(app):
     create_bulletin(c)
     assert "/design-studio" in c.get("/bulletins/1/preview").text
     assert "/design-studio" in c.get("/bulletins/1").text
+
+
+def test_edit_toolbar_row(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    assert 'class="toolrow"' in h and "Liturgical suggestions" in h
