@@ -72,12 +72,15 @@
           <div class="lf"><label for="tg{{ s.id }}">Space after title (in)</label><input id="tg{{ s.id }}" name="title_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.title_gap) }}" placeholder="default"></div>
           
           <div class="lf"><label for="ig{{ s.id }}">Space between items (in)</label><input id="ig{{ s.id }}" name="item_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.item_gap) }}" placeholder="default"></div>
+          <div class="lf"><label for="sb{{ s.id }}">Space before title (in)</label><input id="sb{{ s.id }}" name="space_before" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.space_before) }}" placeholder="default"></div>
+          <div class="lf"><label for="pgp{{ s.id }}">Space between paragraphs (in)</label><input id="pgp{{ s.id }}" name="para_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.para_gap) }}" placeholder="default"></div>
+          <div class="lf"><label><input type="checkbox" name="hide_title" value="1" {{ 'checked' if s.hide_title }}> Hide the title</label></div>
           </div>
           <p class="meta lnote">Space settings: blank = default, 0 = none.</p>
           <button class="btn">Save settings</button>
           <button class="btn secondary" name="move" value="up" aria-label="Move {{ s.title }} up">&uarr; Up</button>
           <button class="btn secondary" name="move" value="down" aria-label="Move {{ s.title }} down">&darr; Down</button>
-          {% if s.bulletin_id %}<button class="btn secondary" name="move" value="remove" onclick="return confirm('Remove this section?')">Remove</button>{% endif %}
+          <button class="btn secondary" name="move" value="remove" onclick="return confirm('Remove this section from this bulletin only? You can add it back below.')">Remove from this bulletin</button>
         </form>
         {% endif %}
         <a href="{{ url_for('section', bid=b.id, sid=s.id) }}">{{ 'Edit' if editable[s.id] and b.status != 'published' else 'View' }}</a>
@@ -89,6 +92,10 @@
   {% endfor %}
   </tbody>
 </table>
+{% if removed and g.user.role in ('admin','editor') and b.status != 'published' %}
+<h2>Removed from this bulletin</h2>
+{% for r in removed %}<form method="post" action="{{ url_for('restore_section', bid=b.id, sid=r.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">{{ r.title }} <button class="btn secondary">Add back</button></form> {% endfor %}
+{% endif %}
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
 <h2>Header photo</h2>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}

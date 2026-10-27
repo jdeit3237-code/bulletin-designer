@@ -294,6 +294,7 @@ def create_app(config=None):
             answered_by TEXT DEFAULT '', created TEXT DEFAULT '');
         CREATE TABLE IF NOT EXISTS tokens(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, token_hash TEXT, expires TEXT);
         CREATE TABLE IF NOT EXISTS libraries(id INTEGER PRIMARY KEY, name TEXT UNIQUE);
+        CREATE TABLE IF NOT EXISTS hidden_sections(bulletin_id INTEGER, section_id INTEGER, snap TEXT, PRIMARY KEY(bulletin_id, section_id));
         CREATE TABLE IF NOT EXISTS photo_libs(photo_id INTEGER, lib_id INTEGER, PRIMARY KEY(photo_id, lib_id));
         CREATE TABLE IF NOT EXISTS event_titles(id INTEGER PRIMARY KEY, title TEXT UNIQUE);
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
@@ -822,6 +823,8 @@ def create_app(config=None):
                             (sunday,)).fetchone()
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL OR bulletin_id=? ORDER BY position",
                             (bulletin_id,)).fetchall()
+        hidden = {r["section_id"] for r in conn.execute("SELECT section_id FROM hidden_sections WHERE bulletin_id=?", (bulletin_id,))}
+        secs = [x for x in secs if x["id"] not in hidden]
         fresh = False
         for s in secs:
             if conn.execute("SELECT 1 FROM items WHERE bulletin_id=? AND section_id=?",
@@ -1038,8 +1041,8 @@ def create_app(config=None):
                 share = [pg["row"]] + list(pg["more"])
                 def text_height(r):
                     c = r["cols"] if r["cols"] in (2, 3) else 1
-                    lines = sum(max(1, -(-len(x) * c // 85)) for x in (r["body"] or "").splitlines() if x.strip())
-                    return 0.55 + 0.26 * -(-lines // c)
+                    lines = sum(max(1, -(-len(x) * c // 100)) for x in (r["body"] or "").splitlines() if x.strip())
+                    return 0.6 + 0.25 * (-(-lines // c) + (1 if c > 1 else 0))
                 text_in = sum(text_height(r) for r in share)
                 n_ph = sum(1 for r in share if r["image"]) or 1
                 pg["photo_h"] = round(max(1.2, min(5.0, (8.4 - text_in) / n_ph)), 2)
@@ -1332,12 +1335,13 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
+        removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
-        return render_template("edit.html", font_styles=FONT_STYLES, photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable,
+        return render_template("edit.html", font_styles=FONT_STYLES, photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
                                where=page_spans(secs, bid))
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
@@ -1748,6 +1752,9 @@ def create_app(config=None):
             except ValueError:
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
+            conn.execute("UPDATE items SET space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
+                         (gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
+                          1 if request.form.get("hide_title") else 0, bid, sid))
             conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
                          (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in FONT_STYLES else "",
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")), bid, sid))
@@ -1756,9 +1763,32 @@ def create_app(config=None):
             if sec["bulletin_id"] == bid:
                 conn.execute("DELETE FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid))
                 conn.execute("DELETE FROM sections WHERE id=?", (sid,))
+            else:
+                it = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid)).fetchone()
+                if it:
+                    conn.execute("INSERT OR REPLACE INTO hidden_sections(bulletin_id, section_id, snap) VALUES(?,?,?)",
+                                 (bid, sid, json.dumps(dict(it))))
+                    conn.execute("DELETE FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid))
         conn.commit()
         if not move and "area" in request.form:
             flash("Settings saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/section/<int:sid>/restore", methods=["POST"])
+    @need("admin", "editor")
+    def restore_section(bid, sid):
+        open_bulletin(bid)
+        conn = db()
+        h = conn.execute("SELECT snap FROM hidden_sections WHERE bulletin_id=? AND section_id=?", (bid, sid)).fetchone() or abort(404)
+        snap = json.loads(h["snap"])
+        snap.pop("id", None)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
+        snap = {k: v for k, v in snap.items() if k in cols}
+        snap["position"] = conn.execute("SELECT COALESCE(MAX(position),0)+1 m FROM items WHERE bulletin_id=?", (bid,)).fetchone()["m"]
+        conn.execute("INSERT INTO items(" + ",".join(snap) + ") VALUES(" + ",".join("?" * len(snap)) + ")", list(snap.values()))
+        conn.execute("DELETE FROM hidden_sections WHERE bulletin_id=? AND section_id=?", (bid, sid))
+        conn.commit()
+        flash("Section added back at the end of the list.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/resize/<int:sid>", methods=["POST"])

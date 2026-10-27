@@ -14,7 +14,7 @@ TOPICS = [
     ("jump", "Find your way around the overview", "jump menu overview navigate find section list top buttons check history suggestions graphics assistant",
      ["The top buttons are Preview / print, Check my bulletin, Undo / history, Help, Web PDF, Print PDF and 'Liturgical suggestions & graphics'.",
       "Use the Jump to section menu to go straight to any section instead of scrolling.",
-      "Each section row has Up, Down and Remove buttons and its page settings (see 'Move sections, columns and pages'). Remove only takes it out of this bulletin.",
+      "Each section row has Up, Down and Remove buttons and its page settings (see 'Move sections, columns and pages'). Remove only takes it out of this bulletin (any section, admin or editor, before it is published). Removed sections are listed at the bottom with an 'Add back' button. The grid also has space before title, space between paragraphs and Hide the title.",
       "'Add a section to this week's bulletin' adds a one-time section. Admins add permanent sections on the Sections page.",
       "'Ask the assistant' answers questions about the bulletin. 'Liturgical suggestions & graphics' proposes readings, feast days and pictures for the week."]),
     ("history", "Go back to an earlier version", "undo history restore earlier version mistake back revert deleted lost snapshot",

@@ -781,6 +781,28 @@ def test_three_text_columns(app):
     assert "column-count:3" in c.get("/bulletins/1/preview").text
 
 
+def test_remove_standard_section_and_add_back(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/5", data={"body": "Keep this text", "csrf": tok(c, "/bulletins/1")})
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/layout/5", data={"move": "remove", "csrf": t})
+    page = c.get("/bulletins/1").text
+    assert "Removed from this bulletin" in page and "/section/5/restore" in page
+    c.post("/bulletins/1/section/5/restore", data={"csrf": t})
+    assert "Removed from this bulletin" not in c.get("/bulletins/1").text
+    assert "Keep this text" in c.get("/bulletins/1/section/5").text
+
+
+def test_design_grid_has_title_spacing_options(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/layout/5", data={"area": "full", "space_before": "0.2", "para_gap": "0.1", "hide_title": "1",
+           "csrf": tok(c, "/bulletins/1")})
+    html = c.get("/bulletins/1").text
+    assert 'name="space_before"' in html and 'value="0.2"' in html and 'name="hide_title" value="1" checked' in html
+
+
 def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)
