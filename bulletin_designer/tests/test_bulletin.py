@@ -1495,3 +1495,13 @@ def test_upload_custom_font(app):
     h = c.get("/bulletins/1").text
     assert "Test Face (uploaded)" in h and "@font-face" in h
     assert "url(/uploads/fonts/" in c.get("/bulletins/1/preview").text
+
+
+def test_photo_alignment(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "img_align": "right", "img_pos": "above",
+           "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
+    assert "pa-right" in c.get("/bulletins/1/preview").text
+    assert 'value="right" selected' in c.get("/bulletins/1/section/9").text

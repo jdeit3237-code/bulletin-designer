@@ -288,6 +288,8 @@
       <label for="crop_y">Move up / down</label><input id="crop_y" name="crop_y" type="range" min="0" max="100" step="1" value="{{ item.crop_y if item.crop_y is not none else 50 }}">
       <label for="img_w">Photo width: % of the page width (0 = standard). Bigger number = bigger photo. For text to wrap beside the photo, use 60 or less (45 is the standard); the app will not go above 60 for a photo with text beside it. For a photo on its own line, up to 100.</label>
       <input id="img_w" name="img_w" type="number" min="0" max="100" step="5" value="{{ item.img_w|int if item.img_w else 0 }}">
+      <label for="img_align">Line the photo up with the title: left, centered or right (for a photo above or below the text; inset photos already sit left or right)</label>
+      <select id="img_align" name="img_align">{% for k, v in (('', 'Standard (centered)'), ('left', 'Left, in line with the title'), ('center', 'Center'), ('right', 'Right')) %}<option value="{{ k }}" {{ 'selected' if (item.img_align or '') == k }}>{{ v }}</option>{% endfor %}</select>
       <label for="img_pos">Where the photo goes</label>
       <select id="img_pos" name="img_pos">{% for k, v in (('', 'Below the section text'), ('above', 'Above the section (title under the photo)'), ('inset-left', 'Inset at left, text wrapped, just under the title'), ('inset-right', 'Inset at right, text wrapped, just under the title'), ('only', 'Photo only (hide the title and text)')) %}<option value="{{ k }}" {{ 'selected' if (item.img_pos or '') == k }}>{{ v }}</option>{% endfor %}</select>
       <label for="crop_h">Frame height in inches (0 = show whole picture; zoom alone uses 3 in)</label>
@@ -334,7 +336,7 @@
     <select id="gal_size" name="gal_size"><option value="height">All the same height (widths differ)</option><option value="area" {{ 'selected' if gal.size == 'area' }}>Equal presence (square, wide and tall look the same size)</option><option value="width" {{ 'selected' if gal.size == 'width' }}>All the same width (heights differ)</option></select>
     <label for="gal_valign">If the photos are different heights, line them up at the</label>
     <select id="gal_valign" name="gal_valign"><option value="top">Top</option><option value="middle" {{ 'selected' if gal.valign == 'middle' }}>Middle</option><option value="bottom" {{ 'selected' if gal.valign == 'bottom' }}>Bottom</option></select>
-    <label for="gal_align">Place the group of photos on the page</label>
+    <label for="gal_align">Line the extra photos up with the title: left, centered or right</label>
     <select id="gal_align" name="gal_align"><option value="center">Centered</option><option value="left" {{ 'selected' if gal.align == 'left' }}>Left</option><option value="right" {{ 'selected' if gal.align == 'right' }}>Right</option></select>
     <label for="gal_gap">Space between photos in inches</label>
     <input id="gal_gap" name="gal_gap" type="number" min="0" max="1" step="0.05" value="{{ gal.gap }}">

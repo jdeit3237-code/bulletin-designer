@@ -367,6 +367,8 @@ def create_app(config=None):
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "img_pos" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN img_pos TEXT DEFAULT ''")
+        if "img_align" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN img_align TEXT DEFAULT ''")
         if "img_w" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN img_w REAL DEFAULT 0")
         if "gallery" not in have:
@@ -939,7 +941,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.img_align, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1583,7 +1585,7 @@ def create_app(config=None):
                     return default
             new_title = request.form.get("section_title", s["title"]).strip()[:120]
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
-                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?, img_align=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
@@ -1596,6 +1598,7 @@ def create_app(config=None):
                           gap_value(request.form.get("space_before")),
                           request.form.get("bullet_style") if request.form.get("bullet_style") in BULLETS else "",
                           gal_json, num("img_w", 0, 100, 0),
+                          request.form.get("img_align") if request.form.get("img_align") in ("left", "right", "center") else "",
                           status, g.user["username"], item["id"]))
             db().commit()
             if doc_added:
@@ -1613,7 +1616,7 @@ def create_app(config=None):
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
+    COPY_COLS = ("img_align", "body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -1747,7 +1750,7 @@ def create_app(config=None):
         sql = ("UPDATE items SET position=(SELECT position FROM sections WHERE id=items.section_id), "
                "pages=(SELECT pages FROM sections WHERE id=items.section_id), cols=1, area='', page_no=0, font_pt=0, "
                "font_style='', min_h=0, title_gap=0, item_gap=0, para_gap=0, img_pos='', hide_title=0, space_before=0, bullet_style='', "
-               "crop_zoom=1, crop_x=50, crop_y=50, crop_h=0 WHERE bulletin_id=?")
+               "crop_zoom=1, crop_x=50, crop_y=50, crop_h=0, img_align='' WHERE bulletin_id=?")
         args = [bid]
         if sid:
             sql += " AND section_id=?"
