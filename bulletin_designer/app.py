@@ -1485,8 +1485,15 @@ def create_app(config=None):
         removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
         pages, _ = layout(bid, include_pending=True)
         editable = {s["id"]: can_edit_section(s["id"]) for s in secs}
+        spans = page_spans(secs, bid)
+        why = {}
+        for s_ in secs:
+            want = s_["page_no"] or 0
+            if want >= 2 and spans[s_["id"]][2] and spans[s_["id"]][0] != want:
+                others = [o["title"] for o in secs if o["id"] != s_["id"] and spans[o["id"]][2] and spans[o["id"]][0] <= want <= spans[o["id"]][1]]
+                why[s_["id"]] = (f"Page {want} is already used by " + " and ".join(others) + ". Give that section a different page, or set this one to the same page with 1 page each.") if others else f"Page {want} could not be used, so this went to page {spans[s_['id']][0]}."
         return render_template("edit.html", font_styles=all_fonts(), photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
-                               where=page_spans(secs, bid))
+                               where=spans, why=why)
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
     @need()

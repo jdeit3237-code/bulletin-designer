@@ -49,7 +49,7 @@
     <tr id="sec{{ s.id }}">
       <th scope="row">{{ s.title }}<br><span class="meta">{{ s.hint }}</span></th>
       {% set w = where[s.id] %}
-      <td>{% if w[2] %}{{ 'Page ' ~ w[0] if w[0] == w[1] else 'Pages ' ~ w[0] ~ '-' ~ w[1] }}{% else %}<span class="meta">Empty - would start on page {{ w[0] }}</span>{% endif %}</td>
+      <td>{% if w[2] %}{{ 'Page ' ~ w[0] if w[0] == w[1] else 'Pages ' ~ w[0] ~ '-' ~ w[1] }}{% else %}<span class="meta">Empty - would start on page {{ w[0] }}</span>{% endif %}{% if why.get(s.id) %}<br><strong style="color:#9a3412">Not on page {{ s.page_no }}: {{ why[s.id] }}</strong>{% endif %}</td>
       <td>{{ 'This week only' if s.bulletin_id else ('Changes weekly' if s.weekly else 'Standing (carried forward)') }}</td>
       <td>
         {% if not (s.body.strip() or s.image) %}<span class="badge need">{{ 'Needs this week\'s content' if s.weekly else 'Empty' }}</span>

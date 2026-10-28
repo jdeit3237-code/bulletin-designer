@@ -1717,3 +1717,14 @@ def test_readded_section_takes_over_blank_page(app):
     parts = re.split(r'id="pg(\d+)"', h)
     where = {b: int(parts[i]) for i in range(1, len(parts), 2) for b in re.findall(r'Body(\d+)', parts[i + 1])}
     assert where['10'] == 2
+
+
+def test_page_conflict_is_explained(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid in (9, 10):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": f"Body{sid}", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "4", "pages": "2", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/10", data={"area": "full", "page_no": "4", "pages": "1", "cols": "1", "csrf": t})
+    assert "is already used by" in c.get("/bulletins/1").text
