@@ -1127,8 +1127,12 @@ def create_app(config=None):
                     groups.append([pg])
             slots, rest = {}, []
             slots[0] = groups[0]
-            for g in sorted(range(1, len(groups)), key=lambda i: (groups[i][0].get("pin") or 999, i)):
+            for g in sorted(range(1, len(groups)), key=lambda i: (bool(groups[i][0].get("blank")), groups[i][0].get("pin") or 999, i)):
                 grp, pin = groups[g], groups[g][0].get("pin")
+                if grp[0].get("blank"):
+                    if pin and (pin - 1) not in slots:
+                        slots[pin - 1] = [grp[0]]
+                    continue
                 start = (pin or 0) - 1
                 if pin and start >= 1 and all((start + j) not in slots for j in range(len(grp))) and \
                         all((start + j) not in slots for j in range(len(grp))):
