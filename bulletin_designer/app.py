@@ -2429,8 +2429,9 @@ def create_app(config=None):
     def ads():
         conn = db()
         if request.method == "POST":
-            if g.user["role"] not in ("admin", "editor"):
+            if g.user["role"] not in ("admin", "editor", "contributor"):
                 abort(403)
+            live = 1 if g.user["role"] in ("admin", "editor") else 0
             added, bad = 0, 0
             for f in request.files.getlist("cards"):
                 if not f or not f.filename:
@@ -2441,10 +2442,10 @@ def create_app(config=None):
                     continue
                 nxt = conn.execute("SELECT COALESCE(MAX(position),0)+1 FROM ads").fetchone()[0]
                 title = os.path.splitext(secure_filename(f.filename))[0].replace("_", " ").replace("-", " ").strip()[:80]
-                conn.execute("INSERT INTO ads(name,image,w,h,position,active) VALUES(?,?,?,?,?,1)", (title or "Advertiser", res[0], res[1], res[2], nxt))
+                conn.execute("INSERT INTO ads(name,image,w,h,position,active) VALUES(?,?,?,?,?,?)", (title or "Advertiser", res[0], res[1], res[2], nxt, live))
                 added += 1
             conn.commit()
-            flash(f"Added {added} card(s)." + (f" {bad} file(s) could not be read (use JPG, PNG, GIF, WebP or PDF)." if bad else ""), "error" if bad and not added else "ok")
+            flash(f"Added {added} card(s)." + (" An editor must tick Print before they appear in the bulletin." if added and not live else "") + (f" {bad} file(s) could not be read (use JPG, PNG, GIF, WebP or PDF)." if bad else ""), "error" if bad and not added else "ok")
             return redirect(url_for("ads"))
         rows = conn.execute("SELECT * FROM ads ORDER BY position, id").fetchall()
         pg = ad_pages([dict(r) for r in rows if r["active"]])
@@ -2572,7 +2573,7 @@ def create_app(config=None):
         return redirect(request.referrer or url_for("library"))
 
     @app.route("/library/bulk", methods=["POST"])
-    @need("admin", "editor")
+    @need("admin", "editor", "contributor")
     def library_bulk():
         files = [f for f in request.files.getlist("photos") if f and f.filename]
         extra = [t for t in request.form.get("tags", "").split(",")]

@@ -18,7 +18,7 @@
   <p><button class="btn">Add to library</button></p>
 </form>
 {% endif %}
-{% if g.user.role in ('admin','editor') %}
+{% if g.user.role in ('admin','editor','contributor') %}
 <h2>Bulk add photos</h2>
 <form method="post" action="{{ url_for('library_bulk') }}" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">

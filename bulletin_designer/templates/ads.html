@@ -3,8 +3,9 @@
 <h1>Advertisements</h1>
 <p>Add each business card once. Active cards are placed automatically on the last two pages of every bulletin, sized to fit and centered. Cards stay here from week to week, so you only add or remove what changes.</p>
 {% if ads %}<p role="status"><strong>{{ ads|selectattr('active')|list|length }}</strong> active card(s) fill <strong>{{ ad_page_count }}</strong> page(s).</p>{% endif %}
-{% if g.user.role in ('admin','editor') %}
+{% if g.user.role in ('admin','editor','contributor') %}
 <h2>Add business cards</h2>
+{% if g.user.role == 'contributor' %}<p class="small">Cards you add wait for an editor to approve them (tick Print) before they appear in the bulletin.</p>{% endif %}
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="cards">Card images (JPG, PNG, GIF, WebP or PDF; you can choose several at once)</label>

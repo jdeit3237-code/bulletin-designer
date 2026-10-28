@@ -1735,3 +1735,20 @@ def test_footer_address_only_on_first_page(app):
     create_bulletin(c)
     h = c.get("/bulletins/1/preview").text
     assert h.count("31300 Overseas Hwy") == 1
+
+
+def test_contributor_ads_and_photo_library(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    y = register_user(app, c, "adscontrib@x.org", "contributor")
+    assert "Add business cards" in y.get("/ads").text
+    assert "Bulk add photos" in y.get("/library").text
+    assert y.get("/library/browse").status_code == 200
+    r = y.post("/ads", data={"csrf": tok(y, "/ads"), "cards": [(_card(1050, 600, "navy"), "a.png")]},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "Added 1 card(s)" in r.text and "editor must tick Print" in r.text
+    assert c.get("/bulletins/1/preview").text.count('class="ad"') == 0
+    assert y.post("/ads/save", data={"csrf": tok(y, "/ads")}).status_code == 403
+    r = y.post("/library/bulk", data={"csrf": tok(y, "/library"), "photos": [(_card(400, 300, "red"), "p.png")]},
+               content_type="multipart/form-data")
+    assert r.status_code == 302
