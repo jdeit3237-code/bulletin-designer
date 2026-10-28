@@ -1147,8 +1147,9 @@ def create_app(config=None):
             holes = [int(x) for x in (db().execute("SELECT blank_at FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()["blank_at"] or "").split(",") if x.strip()]
         except Exception:
             holes = []
+        wanted = {r["page_no"] for r in printed if r["page_no"]}
         for n in sorted(set(holes)):
-            if n >= 2:
+            if n >= 2 and n not in wanted:
                 pages.append({"row": None, "pin": n, "blank": True})
         keep_pinned_pages()
 

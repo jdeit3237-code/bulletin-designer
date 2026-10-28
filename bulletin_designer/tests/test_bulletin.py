@@ -1702,3 +1702,18 @@ def test_removed_section_leaves_blank_page(app):
     after = pages()
     assert notes() == n0 + 1
     assert "Body9" not in "".join(after.values()) and "Body10" in after[3]
+
+
+def test_readded_section_takes_over_blank_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid in (5, 9, 10):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": f"Body{sid}", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"move": "remove", "csrf": t})
+    c.post("/bulletins/1/layout/10", data={"area": "full", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    h = c.get("/bulletins/1/preview").text
+    parts = re.split(r'id="pg(\d+)"', h)
+    where = {b: int(parts[i]) for i in range(1, len(parts), 2) for b in re.findall(r'Body(\d+)', parts[i + 1])}
+    assert where['10'] == 2
