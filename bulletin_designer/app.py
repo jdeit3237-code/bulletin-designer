@@ -56,6 +56,7 @@ FONT_STYLES = {
     "sans": "Clean sans-serif",
     "humanist": "Humanist (easy to read)",
     "rounded": "Friendly rounded",
+    "source": "Myriad-style sans (Source Sans)",
 }
 
 DEFAULT_SECTIONS = [
