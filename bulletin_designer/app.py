@@ -51,12 +51,12 @@ LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
 # Sections found in the Oct 11/18/25 2026 bulletins. weekly=1 means new content is
 # needed every week; weekly=0 means "standing" content carried forward automatically.
 FONT_STYLES = {
-    "condensed": "Condensed (fits more text)",
-    "serif": "Classic serif",
-    "sans": "Clean sans-serif",
-    "humanist": "Humanist (easy to read)",
-    "rounded": "Friendly rounded",
-    "source": "Myriad-style sans (Source Sans)",
+    "condensed": "Condensed - Archivo Narrow (fits more text)",
+    "serif": "Classic serif - Georgia",
+    "sans": "Clean sans-serif - Arial",
+    "humanist": "Humanist - Verdana (easy to read)",
+    "rounded": "Friendly rounded - Trebuchet",
+    "source": "Myriad-style sans - Source Sans 3",
 }
 
 DEFAULT_SECTIONS = [

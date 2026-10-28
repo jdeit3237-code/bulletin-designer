@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}Fonts{% endblock %}
 {% block content %}
 <h1>Fonts</h1>
-<p>The built-in font styles use fonts that come with the computer or server, so they can look a little different on another person's computer. A font you upload here is stored in the system, so it looks the same for everyone and is built into the PDF.</p>
+<p>The built-in font styles below are bundled with the app (Georgia is Gelasio, Arial is Liberation Sans, Arial Narrow is Archivo Narrow, and Source Sans 3 is the Myriad-style option), so the preview and the PDF look the same on any computer. Humanist and Friendly rounded use Verdana and Trebuchet only if installed. A font you upload here is stored in the system, so it looks the same for everyone and is built into the PDF.</p>
 <h2>Add a font</h2>
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
@@ -15,5 +15,5 @@
   <form method="post" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="remove"><input type="hidden" name="fid" value="{{ r.id }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>
 {% else %}<p>None yet.</p>{% endif %}
 <h2>Built-in styles</h2>
-<ul>{% for k, v in builtin.items() %}<li>{{ v }}</li>{% endfor %}</ul>
+<ul>{% for k, v in builtin.items() %}<li class="fs-{{ k }}"><strong>{{ v }}</strong>: The quick brown fox jumps over the lazy dog</li>{% endfor %}</ul>
 {% endblock %}
