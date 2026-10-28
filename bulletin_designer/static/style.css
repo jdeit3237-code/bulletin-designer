@@ -390,5 +390,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
   .sheet { overflow: hidden; }
   .sheet .pg-body { flex: 1 1 0; height: 0; min-height: 0; overflow: hidden; }
   .sheet .pg-foot { flex: none; }
-  .sheet:not(.cover) .pg-body { flex: none; height: 9.58in; max-height: 9.58in; }
+  .sheet:not(.cover) { position: relative; }
+  .sheet:not(.cover) .pg-body { position: absolute; left: .25in; right: .25in; top: .863in; flex: none; height: 9.58in; max-height: 9.58in; overflow: hidden; }
+  .sheet:not(.cover) .pg-foot { position: absolute; left: .25in; right: .25in; bottom: .25in; }
 }
