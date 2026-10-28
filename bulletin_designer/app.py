@@ -364,7 +364,7 @@ def create_app(config=None):
         if "toc_before" not in bcols:
             conn.execute("ALTER TABLE bulletins ADD COLUMN toc_before REAL DEFAULT 0")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
-        for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0), ("min_h", 0)):
+        for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0), ("min_h", 0), ("crop_t", 0), ("crop_b", 0), ("crop_l", 0), ("crop_r", 0)):
             if col not in have:
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "img_pos" not in have:
@@ -615,6 +615,35 @@ def create_app(config=None):
     app.jinja_env.globals["is_dark"] = is_dark
     app.jinja_env.globals["gallery_data"] = gallery_data
     app.jinja_env.globals["PHOTO_SHAPES"] = PHOTO_SHAPES
+
+    def edge_values(form):
+        out = []
+        for k in ("crop_t", "crop_b", "crop_l", "crop_r"):
+            try:
+                out.append(max(0.0, min(80.0, float(form.get(k) or 0))))
+            except ValueError:
+                out.append(0.0)
+        if out[0] + out[1] > 90:
+            out[0] = out[1] = 0.0
+        if out[2] + out[3] > 90:
+            out[2] = out[3] = 0.0
+        return out
+
+    def edge_crop(name, t, b, l, r):
+        """CSS for a picture with its edges trimmed (percent of each side), or None."""
+        t, b, l, r = (float(v or 0) / 100 for v in (t, b, l, r))
+        if not (t or b or l or r) or not name:
+            return None
+        try:
+            from PIL import Image
+            with Image.open(os.path.join(app.config["UPLOAD_DIR"], name)) as im:
+                ratio = im.size[0] / im.size[1]
+        except Exception:
+            return None
+        w, h = 1 - l - r, 1 - t - b
+        return dict(box="aspect-ratio:%.4f;position:relative;overflow:hidden" % (ratio * w / h),
+                    img="position:absolute;max-width:none;width:%.3f%%;height:%.3f%%;left:-%.3f%%;top:-%.3f%%" % (100 / w, 100 / h, l / w * 100, t / h * 100))
+    app.jinja_env.globals["edge_crop"] = edge_crop
 
     def tight(text, on=True):
         """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
@@ -899,7 +928,7 @@ def create_app(config=None):
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
                               old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"], old["no_toc"]))
-                conn.execute("UPDATE items SET gallery=?, img_w=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, bulletin_id, s["id"]))
+                conn.execute("UPDATE items SET gallery=?, img_w=?, crop_t=?, crop_b=?, crop_l=?, crop_r=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, old["crop_t"] or 0, old["crop_b"] or 0, old["crop_l"] or 0, old["crop_r"] or 0, bulletin_id, s["id"]))
             else:
                 conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style,no_toc) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
@@ -962,7 +991,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1619,11 +1648,12 @@ def create_app(config=None):
                     return default
             new_title = request.form.get("section_title", s["title"]).strip()[:120]
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
-                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?, img_align=?, bg_color=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, crop_t=?, crop_b=?, crop_l=?, crop_r=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?, img_align=?, bg_color=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
                           num("crop_zoom", 1, 4, 1), num("crop_x", 0, 100, 50), num("crop_y", 0, 100, 50), num("crop_h", 0, 9, 0),
+                          *edge_values(request.form),
                           "" if new_title == s["title"] else new_title,
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")),
                           request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "only") else "",
@@ -1654,7 +1684,7 @@ def create_app(config=None):
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("bg_color", "img_align", "body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
+    COPY_COLS = ("bg_color", "img_align", "body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "crop_t", "crop_b", "crop_l", "crop_r", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -1788,7 +1818,7 @@ def create_app(config=None):
         sql = ("UPDATE items SET position=(SELECT position FROM sections WHERE id=items.section_id), "
                "pages=(SELECT pages FROM sections WHERE id=items.section_id), cols=1, area='', page_no=0, font_pt=0, "
                "font_style='', min_h=0, title_gap=0, item_gap=0, para_gap=0, img_pos='', hide_title=0, space_before=0, bullet_style='', "
-               "crop_zoom=1, crop_x=50, crop_y=50, crop_h=0, img_align='', bg_color='' WHERE bulletin_id=?")
+               "crop_zoom=1, crop_x=50, crop_y=50, crop_h=0, crop_t=0, crop_b=0, crop_l=0, crop_r=0, img_align='', bg_color='' WHERE bulletin_id=?")
         args = [bid]
         if sid:
             sql += " AND section_id=?"

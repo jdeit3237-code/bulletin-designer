@@ -103,6 +103,7 @@ TOPICS = [
 ("photo-crop", "Crop a photo and wrap text around it", "crop cropping zoom shape square wide tall wrap text around beside left right photo picture more photos",
      ["Open the section and look under 'More photos in this section'. Each photo has its own box with a small preview. The preview shows what will print.",
       "Crop: pick a Shape (Square, Wide, Tall, Banner), then Zoom in and slide the picture left/right or up/down until the important part shows. Choose 'Whole picture' to leave it uncropped. The photo is never stretched.",
+      "Trim the edges (main photo): slide Top, Bottom, Left or Right to cut that side off the picture. The preview shows what will print. Reset edges puts it all back.",
       "Text around a photo: under Text, pick 'Photo on the left' or 'Photo on the right'. The words flow beside it. A photo with text around it always goes at the top of the section. For the most even look, give every photo in that section the same setting.",
       "The main (first) photo has the same Zoom and Move sliders, and its 'Where the photo goes' menu has the left and right inset choices for text wrap.",
       "Alignment tool: under the extra-photo cards, click Left, Center or Right, and set the space between the title and the photos and between the photos and the text. The small page beside it shows the result. 'Make the space above and below equal' centers the photos between the title and the text.",

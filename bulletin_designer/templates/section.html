@@ -301,12 +301,24 @@
       <p><label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
       <h3>Crop and zoom (the picture is never stretched)</h3>
       <p class="small"><strong>This preview is the picture as it will print</strong> (about {{ print_w }} inches wide on the page). Only the part inside the frame prints. Changing the frame height, Zoom or Move updates it right away. Press Save section, then Preview / print to double-check.</p>
+      <p class="small"><strong>Drag to crop:</strong> pull the green frame's sides or corners in, or drag inside the frame to slide it. Everything outside the frame is cut off. The "As it will print" picture below shows the result.</p>
+      <div id="edge-ed" style="position:relative;width:{{ print_w }}in;max-width:100%;touch-action:none;user-select:none;line-height:0"><img src="{{ url_for('uploads', name=item.image) }}" alt="" style="width:100%;display:block" draggable="false">
+        <div id="edge-frame" style="position:absolute;border:3px solid #14562a;box-shadow:0 0 0 9999px rgba(0,0,0,.55);cursor:move;box-sizing:border-box">
+          {% for hd, st in (('tl','left:-9px;top:-9px;cursor:nwse-resize'),('tr','right:-9px;top:-9px;cursor:nesw-resize'),('bl','left:-9px;bottom:-9px;cursor:nesw-resize'),('br','right:-9px;bottom:-9px;cursor:nwse-resize'),('t','left:50%;top:-9px;margin-left:-9px;cursor:ns-resize'),('b','left:50%;bottom:-9px;margin-left:-9px;cursor:ns-resize'),('l','left:-9px;top:50%;margin-top:-9px;cursor:ew-resize'),('r','right:-9px;top:50%;margin-top:-9px;cursor:ew-resize')) %}<span class="eh" data-e="{{ hd }}" style="position:absolute;width:18px;height:18px;background:#14562a;border:2px solid #fff;border-radius:50%;{{ st }}"></span>{% endfor %}
+        </div></div>
+      <p class="small" style="margin-top:.8em"><strong>As it will print</strong> (about {{ print_w }} inches wide on the page):</p>
       <div id="crop-prev" class="crop" data-w="{{ print_w }}" style="width:{{ print_w }}in;max-width:100%;border:2px solid #14562a"><img src="{{ url_for('uploads', name=item.image) }}" alt="Preview of the cropped picture"></div>
       <fieldset class="crop-frame"><legend>Crop: how tall is the picture frame?</legend>
         <p class="small">Click a size to crop the picture to a shorter frame, then use Zoom and Move below to choose which part shows. "Whole picture" shows everything with no cropping. The frame has to be <strong>shorter than the picture appears on the page</strong> to cut anything off: a frame taller than the picture (for example 6.75 inches on a picture that prints about 6 inches tall) does nothing. Try a smaller number, then check Preview.</p>
         <div class="at-btns" role="group" aria-label="Frame height"><button type="button" class="btn secondary ch-b" data-h="0">Whole picture</button>{% for k, v in PHOTO_SHAPES.items() %}<button type="button" class="btn secondary ch-b" data-h="{{ (print_w / v[0])|round(2) }}">{{ v[1] }}</button>{% endfor %}</div>
         <label for="crop_h">Or type the frame height in inches (0 = whole picture; zoom alone uses 3 in)</label>
         <input id="crop_h" name="crop_h" type="number" min="0" max="9" step="any" value="{{ item.crop_h or 0 }}">
+      </fieldset>
+      <fieldset class="crop-frame"><legend>Fine-tune the edges (or use the sliders instead of dragging)</legend>
+        <p class="small">Slide each edge in to cut that side off. 0 = nothing cut. When any edge is trimmed, this is used instead of the frame height, Zoom and Move below.</p>
+        {% for k, lab in (('crop_t','Top'),('crop_b','Bottom'),('crop_l','Left'),('crop_r','Right')) %}<label for="{{ k }}">{{ lab }}: cut <output id="{{ k }}_o">{{ item[k]|int if item[k] else 0 }}</output>%</label>
+        <input id="{{ k }}" name="{{ k }}" class="edge-in" type="range" min="0" max="80" step="1" value="{{ item[k]|int if item[k] else 0 }}">{% endfor %}
+        <button type="button" class="btn secondary" id="edge-reset">Reset edges</button>
       </fieldset>
       <label for="crop_zoom">Zoom: <output id="zoom_o">{{ item.crop_zoom or 1 }}</output>x</label>
       <input id="crop_zoom" name="crop_zoom" type="range" min="1" max="4" step="0.1" value="{{ item.crop_zoom or 1 }}">
@@ -324,7 +336,28 @@
         if(fh){box.style.height=Math.max(20,box.clientWidth*fh/pw)+'px';im.style.height='100%';}else{box.style.height='auto';im.style.height='auto';}}
       window.addEventListener('resize',up);window.addEventListener('load',up);
       document.querySelectorAll('.ch-b').forEach(function(b){b.addEventListener('click',function(){h.value=b.getAttribute('data-h');up();});});
-      [z,x,y,h].forEach(function(e){e.addEventListener('input',up);});up();})();
+      [z,x,y,h].forEach(function(e){e.addEventListener('input',up);});up();
+      var ed=[].slice.call(document.querySelectorAll('.edge-in'));
+      function eup(){var v={};ed.forEach(function(e){v[e.id]=+e.value;document.getElementById(e.id+'_o').textContent=e.value;});
+        if(v.crop_t+v.crop_b>90||v.crop_l+v.crop_r>90)return;
+        if(!(v.crop_t||v.crop_b||v.crop_l||v.crop_r)){im.style.cssText='';up();return;}
+        var nw=im.naturalWidth||1,nh=im.naturalHeight||1,w=1-(v.crop_l+v.crop_r)/100,hh=1-(v.crop_t+v.crop_b)/100;
+        box.style.height='auto';box.style.aspectRatio=(nw*w)+' / '+(nh*hh);box.style.position='relative';box.style.overflow='hidden';
+        im.style.cssText='position:absolute;max-width:none;object-fit:fill;transform:none;width:'+(100/w)+'%;height:'+(100/hh)+'%;left:-'+(v.crop_l/100/w*100)+'%;top:-'+(v.crop_t/100/hh*100)+'%';}
+      var E=document.getElementById('edge-ed'),F=document.getElementById('edge-frame'),drag=null;
+      function paint(){var l=+crop_l.value,r=+crop_r.value,tt=+crop_t.value,b=+crop_b.value;F.style.left=l+'%';F.style.right=r+'%';F.style.top=tt+'%';F.style.bottom=b+'%';}
+      function setv(k,v){document.getElementById(k).value=Math.round(Math.max(0,Math.min(80,v)));}
+      F.addEventListener('pointerdown',function(ev){var hd=ev.target.getAttribute&&ev.target.getAttribute('data-e')||'move';var bx=E.getBoundingClientRect();
+        drag={hd:hd,x:ev.clientX,y:ev.clientY,w:bx.width,h:bx.height,l:+crop_l.value,r:+crop_r.value,t:+crop_t.value,b:+crop_b.value};F.setPointerCapture(ev.pointerId);ev.preventDefault();});
+      F.addEventListener('pointermove',function(ev){if(!drag)return;var dx=(ev.clientX-drag.x)/drag.w*100,dy=(ev.clientY-drag.y)/drag.h*100,d=drag,hd=d.hd;
+        if(hd==='move'){var fw=100-d.l-d.r,fh=100-d.t-d.b,nl=Math.max(0,Math.min(100-fw,d.l+dx)),nt=Math.max(0,Math.min(100-fh,d.t+dy));setv('crop_l',nl);setv('crop_r',100-fw-nl);setv('crop_t',nt);setv('crop_b',100-fh-nt);}
+        else{if(hd.indexOf('l')>-1)setv('crop_l',Math.min(d.l+dx,90-d.r));if(hd.indexOf('r')>-1)setv('crop_r',Math.min(d.r-dx,90-d.l));
+          if(hd.indexOf('t')>-1)setv('crop_t',Math.min(d.t+dy,90-d.b));if(hd.indexOf('b')>-1)setv('crop_b',Math.min(d.b-dy,90-d.t));}
+        paint();eup();});
+      F.addEventListener('pointerup',function(){drag=null;});F.addEventListener('pointercancel',function(){drag=null;});
+      ed.forEach(function(e){e.addEventListener('input',function(){paint();eup();});});paint();
+      document.getElementById('edge-reset').addEventListener('click',function(){ed.forEach(function(e){e.value=0;});paint();eup();});
+      im.addEventListener('load',eup);eup();})();
       </script>
     {% endif %}
     {% set gal = gallery_data(item.gallery) %}

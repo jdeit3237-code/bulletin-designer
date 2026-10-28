@@ -1640,3 +1640,25 @@ def test_crop_preview_matches_print_width(app):
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(300, 450, "red"), "a.png")}, content_type="multipart/form-data")
     h = c.get("/bulletins/1/section/9").text
     assert 'data-w="' in h and "as it will print" in h
+
+
+def test_edge_crop_saves_and_renders(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(400, 300, "red"), "a.png")}, content_type="multipart/form-data")
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "crop_t": "10", "crop_l": "25", "crop_r": "25", "crop_b": "0"})
+    h = c.get("/bulletins/1/section/9").text
+    assert 'id="crop_l"' in h and 'value="25"' in h
+    p = c.get("/bulletins/1/preview").text
+    assert "aspect-ratio" in p and "left:-50.000%" in p
+
+
+def test_drag_crop_frame_present(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
+    h = c.get("/bulletins/1/section/9").text
+    assert 'id="edge-frame"' in h and 'data-e="br"' in h
