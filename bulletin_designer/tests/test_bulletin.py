@@ -1728,3 +1728,10 @@ def test_page_conflict_is_explained(app):
     c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "4", "pages": "2", "cols": "1", "csrf": t})
     c.post("/bulletins/1/layout/10", data={"area": "full", "page_no": "4", "pages": "1", "cols": "1", "csrf": t})
     assert "is already used by" in c.get("/bulletins/1").text
+
+
+def test_footer_address_only_on_first_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1/preview").text
+    assert h.count("31300 Overseas Hwy") == 1
