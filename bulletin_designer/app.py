@@ -1643,7 +1643,10 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         rows = db().execute("""SELECT s.id, s.slug, i.pages, i.body, i.image FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bid,)).fetchall()
-        return render_template("section.html", where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), giving=giving_data(item["body"]), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+        _aw = {"left": 3.5, "right": 3.5, "left23": 4.7, "right23": 4.7, "left3": 2.2, "mid3": 2.2, "right3": 2.2}.get(item["area"] or "", 7.2)
+        _iw = int(item["img_w"] or 0)
+        print_w = round(_aw * (min(_iw, 60) if (item["img_pos"] or "") in ("inset-left", "inset-right") and _iw else 45 if (item["img_pos"] or "") in ("inset-left", "inset-right") else (_iw or 100)) / 100, 2)
+        return render_template("section.html", print_w=print_w, where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), giving=giving_data(item["body"]), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_entries(item["body"]) + [dict(date="", time="", event="", lectors="", sacristans="", ministers="")] * 2,

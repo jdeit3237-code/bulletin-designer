@@ -1631,3 +1631,12 @@ def test_main_photo_crop_frame_buttons(app):
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
     h = c.get("/bulletins/1/section/9").text
     assert 'class="btn secondary ch-b"' in h and 'name="crop_h"' in h and "Whole picture" in h
+
+
+def test_crop_preview_matches_print_width(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(300, 450, "red"), "a.png")}, content_type="multipart/form-data")
+    h = c.get("/bulletins/1/section/9").text
+    assert 'data-w="' in h and "as it will print" in h
