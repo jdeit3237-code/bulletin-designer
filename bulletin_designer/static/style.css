@@ -330,13 +330,13 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 /* Youth calendar cards */
 .sec-youth-calendar h2 { background: linear-gradient(90deg, #f26b3a, #8e5bd4 55%, #1fa3c4); color: #fff; border: 0; border-radius: 12px; padding: 3px 12px; margin-bottom: 6px; text-align: left; letter-spacing: 1px; }
 .ycal { display: block; }
-.yev { display: table; width: 100%; margin: 0 0 3px; border: 1.5px solid; border-radius: 9px; page-break-inside: avoid; }
+.yev { display: table; width: 100%; margin: 0 0 2px; border: 1.5px solid; border-radius: 9px; page-break-inside: avoid; }
 .ydate { display: table-cell; width: 0.95in; text-align: center; vertical-align: middle; padding: 1px 3px; border-radius: 7px 0 0 7px; color: #fff; white-space: nowrap; }
 .ymon { font-size: 12pt; font-weight: bold; letter-spacing: 1px; }
 .yday { font-size: 14pt; font-weight: bold; }
 .ybody { display: table-cell; vertical-align: middle; padding: 1px 8px; }
-.ytitle { display: block; font-size: 13pt; line-height: 1.1; }
-.ymeta { display: block; font-size: 12pt; color: #444; line-height: 1.1; }
+.ytitle { display: block; font-size: 12.5pt; line-height: 1.1; }
+.ymeta { display: block; font-size: 11.5pt; color: #444; line-height: 1.1; }
 .y0 { border-color: #f26b3a; background: #fff3ec; } .y0 .ydate { background: #f26b3a; }
 .y1 { border-color: #1fa3c4; background: #eaf8fc; } .y1 .ydate { background: #1fa3c4; }
 .y2 { border-color: #8e5bd4; background: #f4eefc; } .y2 .ydate { background: #8e5bd4; }
