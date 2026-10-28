@@ -1405,7 +1405,7 @@ def test_bulk_photos_resized_with_thumbnails(app, tmp_path):
     big = [n for n in up if n.endswith("big_one.jpg") and not n.startswith("thumb_")][0]
     assert max(Image.open(os.path.join(app.config["UPLOAD_DIR"], big)).size) == 2400
     v = register_user(app, c, "v@x.org", "viewer")
-    assert v.post("/library/bulk", data={"csrf": tok(v, "/library")}).status_code == 403
+    assert v.post("/library/bulk", data={"csrf": tok(v, "/")}).status_code == 403
 
 
 def test_photo_libraries_many_to_many(app):
@@ -1741,6 +1741,7 @@ def test_contributor_ads_and_photo_library(app):
     c = setup_admin(app)
     create_bulletin(c)
     y = register_user(app, c, "adscontrib@x.org", "contributor")
+    c.post("/admin/users", data={"action": "role", "uid": "2", "role": "contributor", "areas": ["ads", "library", "browse"], "csrf": tok(c, "/admin/users")})
     assert "Add business cards" in y.get("/ads").text
     assert "Bulk add photos" in y.get("/library").text
     assert y.get("/library/browse").status_code == 200
@@ -1758,3 +1759,18 @@ def test_duplicate_parish_titles_made_distinct(app):
     c = setup_admin(app)
     page = c.get("/admin/users").text
     assert page.count("This Week in Our Parish</label>") == 0
+
+
+def test_area_access_chosen_per_user(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    y = register_user(app, c, "area@x.org", "contributor")
+    uid = re.search(r'name="uid" value="(\d+)"[^>]*>\s*<fieldset><legend>[^<]*\(area@x.org\)', c.get("/admin/users").text)
+    uid = uid.group(1) if uid else "3"
+    assert y.get("/ads").status_code == 403 and y.get("/library").status_code == 403
+    assert y.get("/library/browse").status_code == 403
+    assert "Advertisements" not in y.get("/").text
+    c.post("/admin/users", data={"action": "role", "uid": uid, "role": "contributor", "areas": ["ads", "browse"], "csrf": tok(c, "/admin/users")})
+    assert y.get("/ads").status_code == 200 and y.get("/library/browse").status_code == 200
+    assert y.get("/library").status_code == 403
+    assert 'name="areas"' in c.get("/admin/users").text

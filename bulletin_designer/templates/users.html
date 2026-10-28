@@ -22,6 +22,8 @@
     <select id="role{{ u.id }}" name="role" {% if u.id == g.user.id %}disabled{% endif %}>
       {% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == u.role }}>{{ r|capitalize }}</option>{% endfor %}
     </select>
+    <p>Areas this person may use (editors and admins always have all of them; contributors can also add cards or photos, others can only look):</p>
+    {% for k, label in areas %}<label><input type="checkbox" name="areas" value="{{ k }}" {{ 'checked' if k in user_areas[u.id] }}> {{ label }}</label>{% endfor %}
     <p>Sections a contributor may submit:</p>
     {% for s in secs %}<label><input type="checkbox" name="sections" value="{{ s.id }}" {{ 'checked' if s.id in assigned[u.id] }}> {{ s.title }}</label>{% endfor %}
     <p><button class="btn">Save</button></p>
@@ -60,6 +62,9 @@
   <label for="nu">Email address</label><input id="nu" name="username" type="email" required>
   <label for="nd">Name</label><input id="nd" name="display_name" type="text">
   <label for="nr">Access level</label><select id="nr" name="role">{% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == 'editor' }}>{{ r|capitalize }}</option>{% endfor %}</select>
+  <fieldset><legend>Areas this user may use</legend>
+    {% for k, label in areas %}<label><input type="checkbox" name="areas" value="{{ k }}" {{ 'checked' if k == 'browse' }}> {{ label }}</label>{% endfor %}
+  </fieldset>
   <fieldset><legend>Sections this user may submit (for the Contributor level, e.g. youth group leaders)</legend>
     {% for s in secs %}<label><input type="checkbox" name="sections" value="{{ s.id }}"> {{ s.title }}</label>{% endfor %}
   </fieldset>

@@ -15,9 +15,9 @@
     {% if g.user %}
       <a href="{{ url_for('dashboard') }}">Bulletins</a>
       {% if g.user.role in ('admin','editor') %}<a href="{{ url_for('users') }}">Users</a>{% endif %}{% if g.user.role == 'admin' %}<a href="{{ url_for('sections_admin') }}">Sections</a>{% endif %}
-      <a href="{{ url_for('library') }}">Photo library</a>
-      <a href="{{ url_for('library_browse') }}">Browse photos</a>
-      <a href="{{ url_for('ads') }}">Advertisements</a>
+      {% if has_area('library') %}<a href="{{ url_for('library') }}">Photo library</a>{% endif %}
+      {% if has_area('browse') %}<a href="{{ url_for('library_browse') }}">Browse photos</a>{% endif %}
+      {% if has_area('ads') %}<a href="{{ url_for('ads') }}">Advertisements</a>{% endif %}
       <a href="{{ url_for('design_studio') }}">Design studio</a>
       <a href="{{ url_for('style_guide') }}">Style guide</a>
       <a href="{{ url_for('help_page') }}">Help</a>

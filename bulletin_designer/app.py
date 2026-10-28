@@ -320,6 +320,8 @@ def create_app(config=None):
         CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY, bulletin_id INTEGER, label TEXT, snapshot TEXT, created TEXT, by TEXT);
         CREATE TABLE IF NOT EXISTS user_sections(user_id INTEGER, section_id INTEGER,
             PRIMARY KEY(user_id, section_id));
+        CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
+        CREATE TABLE IF NOT EXISTS user_areas(user_id INTEGER, area TEXT, PRIMARY KEY(user_id, area));
         CREATE TABLE IF NOT EXISTS bulletins(id INTEGER PRIMARY KEY, sunday TEXT UNIQUE,
             theme TEXT DEFAULT '', status TEXT DEFAULT 'draft');
         CREATE TABLE IF NOT EXISTS items(id INTEGER PRIMARY KEY, bulletin_id INTEGER, section_id INTEGER,
@@ -406,6 +408,11 @@ def create_app(config=None):
                      ("This Week in Our Parish: Lectors, Sacristans & Ministers",
                       "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)",
                       "Mass Schedule, Intentions & Ministers"))
+        if not conn.execute("SELECT 1 FROM meta WHERE k='areas_v1'").fetchone():
+            for u in conn.execute("SELECT id FROM users WHERE role NOT IN ('admin','editor')").fetchall():
+                for a in ("ads", "library", "browse"):
+                    conn.execute("INSERT OR IGNORE INTO user_areas VALUES(?,?)", (u["id"], a))
+            conn.execute("INSERT INTO meta(k,v) VALUES('areas_v1','1')")
         for slug, old, new in (("calendar", "This Week in Our Parish", "This Week in Our Parish (Calendar of Events)"),
                                ("mass-schedule", "This Week in Our Parish", "This Week in Our Parish: Lectors, Sacristans & Ministers")):
             conn.execute("UPDATE sections SET title=? WHERE slug=? AND title=?", (new, slug, old))
@@ -869,6 +876,33 @@ def create_app(config=None):
                 return fn(*a, **kw)
             return wrapper
         return deco
+
+    AREAS = (("ads", "Advertisements"), ("library", "Photo library"), ("browse", "Browse photos"))
+
+    def has_area(name):
+        if not g.user:
+            return False
+        if g.user["role"] in ("admin", "editor"):
+            return True
+        return bool(db().execute("SELECT 1 FROM user_areas WHERE user_id=? AND area=?", (g.user["id"], name)).fetchone())
+
+    app.jinja_env.globals["has_area"] = has_area
+
+    def need_area(name):
+        def deco(fn):
+            @wraps(fn)
+            def wrapper(*a, **kw):
+                if not has_area(name):
+                    abort(403)
+                return fn(*a, **kw)
+            return wrapper
+        return deco
+
+    def save_areas(conn, uid):
+        conn.execute("DELETE FROM user_areas WHERE user_id=?", (uid,))
+        for a, _ in AREAS:
+            if a in request.form.getlist("areas"):
+                conn.execute("INSERT OR IGNORE INTO user_areas VALUES(?,?)", (uid, a))
 
     def can_edit_section(section_id):
         r = g.user["role"]
@@ -2429,6 +2463,7 @@ def create_app(config=None):
 
     @app.route("/ads", methods=["GET", "POST"])
     @need()
+    @need_area("ads")
     def ads():
         conn = db()
         if request.method == "POST":
@@ -2577,6 +2612,7 @@ def create_app(config=None):
 
     @app.route("/library/bulk", methods=["POST"])
     @need("admin", "editor", "contributor")
+    @need_area("library")
     def library_bulk():
         files = [f for f in request.files.getlist("photos") if f and f.filename]
         extra = [t for t in request.form.get("tags", "").split(",")]
@@ -2611,6 +2647,7 @@ def create_app(config=None):
 
     @app.route("/library/browse")
     @need()
+    @need_area("browse")
     def library_browse():
         conn = db()
         q = request.args.get("q", "").strip()
@@ -2628,6 +2665,7 @@ def create_app(config=None):
 
     @app.route("/library", methods=["GET", "POST"])
     @need()
+    @need_area("library")
     def library():
         conn = db()
         if request.method == "POST":
@@ -3049,6 +3087,8 @@ def create_app(config=None):
                             for sid in request.form.getlist("sections"):
                                 conn.execute("INSERT OR IGNORE INTO user_sections VALUES(?,?)",
                                              (cur.lastrowid, int(sid)))
+                        if role not in ("admin", "editor"):
+                            save_areas(conn, cur.lastrowid)
                         conn.commit()
                         sent, link = invite_user(conn.execute("SELECT * FROM users WHERE id=?", (cur.lastrowid,)).fetchone())
                         flash("Invitation emailed to %s." % email if sent else
@@ -3108,6 +3148,7 @@ def create_app(config=None):
                 conn.execute("DELETE FROM user_sections WHERE user_id=?", (uid,))
                 for sid in request.form.getlist("sections"):
                     conn.execute("INSERT OR IGNORE INTO user_sections VALUES(?,?)", (uid, int(sid)))
+                save_areas(conn, uid)
             conn.commit()
             return redirect(url_for("users"))
         rows = conn.execute("SELECT * FROM users ORDER BY username").fetchall()
@@ -3128,7 +3169,8 @@ def create_app(config=None):
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL ORDER BY position").fetchall()
         assigned = {r["id"]: {x["section_id"] for x in conn.execute(
             "SELECT section_id FROM user_sections WHERE user_id=?", (r["id"],))} for r in rows}
-        return render_template("users.html", users=rows, roles=ROLES, help=ROLE_HELP,
+        user_areas = {r["id"]: {x["area"] for x in conn.execute("SELECT area FROM user_areas WHERE user_id=?", (r["id"],))} for r in rows}
+        return render_template("users.html", areas=AREAS, user_areas=user_areas, users=rows, roles=ROLES, help=ROLE_HELP,
                                secs=secs, assigned=assigned, info=info, allowed=allowed, can_manage=lambda role: role in allowed)
 
     @app.route("/admin/backup")
