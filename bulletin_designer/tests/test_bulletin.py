@@ -1752,3 +1752,9 @@ def test_contributor_ads_and_photo_library(app):
     r = y.post("/library/bulk", data={"csrf": tok(y, "/library"), "photos": [(_card(400, 300, "red"), "p.png")]},
                content_type="multipart/form-data")
     assert r.status_code == 302
+
+
+def test_duplicate_parish_titles_made_distinct(app):
+    c = setup_admin(app)
+    page = c.get("/admin/users").text
+    assert page.count("This Week in Our Parish</label>") == 0

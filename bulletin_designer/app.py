@@ -406,6 +406,9 @@ def create_app(config=None):
                      ("This Week in Our Parish: Lectors, Sacristans & Ministers",
                       "Weekly form: header, then day, date, lectors, sacristans and Eucharistic ministers (several names allowed)",
                       "Mass Schedule, Intentions & Ministers"))
+        for slug, old, new in (("calendar", "This Week in Our Parish", "This Week in Our Parish (Calendar of Events)"),
+                               ("mass-schedule", "This Week in Our Parish", "This Week in Our Parish: Lectors, Sacristans & Ministers")):
+            conn.execute("UPDATE sections SET title=? WHERE slug=? AND title=?", (new, slug, old))
         if not conn.execute("SELECT 1 FROM users").fetchone():
             pw = os.environ.get("BULLETIN_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
             conn.execute("INSERT INTO users(username,display_name,pw_hash,role,must_reset) VALUES(?,?,?,?,1)",
