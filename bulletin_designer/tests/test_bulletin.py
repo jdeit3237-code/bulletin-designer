@@ -1250,7 +1250,7 @@ def test_toc_space_before_setting(app):
     t = tok(c, "/bulletins/1")
     c.post("/bulletins/1/toc-settings", data={"toc_before": "0", "toc_start": "2", "toc_show": "1", "csrf": t})
     html = c.get("/bulletins/1/preview").text
-    assert "margin-top:calc(0in - .15in)" in html
+    assert "margin-top:-0.15in" in html
     assert 'name="toc_before"' in c.get("/bulletins/1").text
 
 
@@ -1652,7 +1652,7 @@ def test_edge_crop_saves_and_renders(app):
     h = c.get("/bulletins/1/section/9").text
     assert 'id="crop_l"' in h and 'value="25"' in h
     p = c.get("/bulletins/1/preview").text
-    assert "aspect-ratio" in p and "left:-50.000%" in p
+    assert "padding-bottom" in p and "left:-50.000%" in p
 
 
 def test_drag_crop_frame_present(app):

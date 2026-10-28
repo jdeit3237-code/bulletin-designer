@@ -641,7 +641,7 @@ def create_app(config=None):
         except Exception:
             return None
         w, h = 1 - l - r, 1 - t - b
-        return dict(box="aspect-ratio:%.4f;position:relative;overflow:hidden" % (ratio * w / h),
+        return dict(box="position:relative;overflow:hidden;height:0;padding-bottom:%.3f%%" % (100 * h / (ratio * w)),
                     img="position:absolute;max-width:none;width:%.3f%%;height:%.3f%%;left:-%.3f%%;top:-%.3f%%" % (100 / w, 100 / h, l / w * 100, t / h * 100))
     app.jinja_env.globals["edge_crop"] = edge_crop
 
