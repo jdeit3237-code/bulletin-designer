@@ -20,7 +20,9 @@ header.site a, header.site button { color: #fff; font-size: 13pt; }
 header.site nav { display: flex; gap: 1.2em; flex-wrap: wrap; align-items: center; }
 header.site .brand img { height: 48px; width: auto; display: block; }
 header.site .brand { font-weight: bold; font-size: 15pt; text-decoration: none; margin-right: auto; }
-header.site button { background: none; border: 0; text-decoration: underline; cursor: pointer; }
+header.site a, header.site button { text-decoration: none; }
+header.site a:hover, header.site button:hover { text-decoration: underline; }
+header.site button { background: none; border: 0; cursor: pointer; }
 main { max-width: 1000px; margin: 1.5em auto; padding: 0 1.2em; }
 .flash { padding: .6em 1em; border-left: 6px solid; margin: 1em 0; background: #f3f6fa; }
 .flash.error { border-color: var(--err); color: var(--err); } .flash.ok { border-color: var(--ok); color: var(--ok); }
