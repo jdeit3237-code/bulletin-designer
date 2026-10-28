@@ -345,7 +345,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("total_pages", "INTEGER DEFAULT 0"), ("ad_page_count", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("blank_at", "TEXT DEFAULT ''"), ("total_pages", "INTEGER DEFAULT 0"), ("ad_page_count", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
@@ -976,6 +976,21 @@ def create_app(config=None):
         a = r["area"] or ("left" if r["slug"] == "mass-intentions" else "full")
         return a if a in ("left", "right", "below", "above", "left3", "mid3", "right3", "left23", "right23") and r["slug"] != "cover" and r["pages"] == 1 else "full"
 
+    def keep_page_blank(bid, sid):
+        """Called before a section is deleted: a page that held only that section stays as a blank page."""
+        pages = layout(bid, include_pending=True)[0]
+        gone = []
+        for p in pages:
+            if p.get("duo") or p.get("blank") or p.get("ad_rows") is not None:
+                continue
+            rs = [r for r in rows_on(p) if r is not None]
+            if rs and all(r["id"] == sid for r in rs) and p["number"] >= 2:
+                gone.append(p["number"])
+        if gone:
+            cur = db().execute("SELECT blank_at FROM bulletins WHERE id=?", (bid,)).fetchone()["blank_at"] or ""
+            keep = [x for x in cur.split(",") if x.strip()]
+            db().execute("UPDATE bulletins SET blank_at=? WHERE id=?", (",".join(keep + [str(n) for n in gone]), bid))
+
     def rows_on(p):
         d = p.get("duo")
         rows = []
@@ -1128,6 +1143,13 @@ def create_app(config=None):
                         at += 1
                     slots[at] = [pg]
             pages[:] = [slots[k][0] for k in sorted(slots)]
+        try:
+            holes = [int(x) for x in (db().execute("SELECT blank_at FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()["blank_at"] or "").split(",") if x.strip()]
+        except Exception:
+            holes = []
+        for n in sorted(set(holes)):
+            if n >= 2:
+                pages.append({"row": None, "pin": n, "blank": True})
         keep_pinned_pages()
 
         def band_pos(pg):
@@ -1907,6 +1929,7 @@ def create_app(config=None):
                          (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in all_fonts() else "",
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")), bid, sid))
         if move == "remove":
+            keep_page_blank(bid, sid)
             sec = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
             if sec["bulletin_id"] == bid:
                 conn.execute("DELETE FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid))
@@ -2086,6 +2109,7 @@ def create_app(config=None):
             conn.execute("UPDATE items SET body=?, status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
                          (str(a.get("text", "")), "AI assistant", bid, sid))
         elif kind == "remove":
+            keep_page_blank(bid, sid)
             row = conn.execute("SELECT bulletin_id FROM sections WHERE id=?", (sid,)).fetchone()
             if row["bulletin_id"] == bid:
                 conn.execute("DELETE FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid))
@@ -2255,6 +2279,15 @@ def create_app(config=None):
         db().execute("UPDATE bulletins SET extra_pages=? WHERE id=?", (new, bid))
         db().commit()
         flash(f"{new} extra pages added." if new else "Extra pages removed.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
+    @app.route("/bulletins/<int:bid>/clear-blank-pages", methods=["POST"])
+    @need("admin", "editor")
+    def clear_blank_pages(bid):
+        open_bulletin(bid)
+        db().execute("UPDATE bulletins SET blank_at='' WHERE id=?", (bid,))
+        db().commit()
+        flash("The kept blank pages were removed.", "ok")
         return redirect(url_for("edit", bid=bid))
 
     @app.route("/bulletins/<int:bid>/total-pages", methods=["POST"])

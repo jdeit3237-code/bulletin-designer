@@ -24,6 +24,7 @@
   <button class="btn secondary" name="do" value="add">+ Add 4 pages</button>
   {% if b.extra_pages %}<button class="btn secondary" name="do" value="remove">&minus; Remove 4 added pages</button> <span class="meta">{{ b.extra_pages }} extra pages added (blank notes pages at the end).</span>{% endif %}
 </form>
+{% if b.blank_at %}<form class="inline" method="post" action="{{ url_for('clear_blank_pages', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Remove the blank pages kept from deleted sections</button> <span class="meta">When you remove a section, its page stays blank (page {{ b.blank_at }}).</span></form>{% endif %}
 {% endif %}
 {% if g.user.role in ('admin','editor') %}
 <form method="post" action="{{ url_for('publish', bid=b.id) }}" class="inline">

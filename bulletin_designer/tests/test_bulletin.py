@@ -1681,3 +1681,24 @@ def test_full_section_keeps_chosen_page_when_halves_added(app):
         for b in re.findall(r'Body(\d+)', parts[i + 1]):
             where.setdefault(int(b), int(parts[i]))
     assert where[9] == 4 and where[11] == 5 and where[5] == 3
+
+
+def test_removed_section_leaves_blank_page(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/5", data={"body": "Body5", "csrf": t})
+    c.post("/bulletins/1/section/9", data={"body": "Body9", "csrf": t})
+    c.post("/bulletins/1/section/10", data={"body": "Body10", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/layout/10", data={"area": "full", "page_no": "3", "pages": "1", "cols": "1", "csrf": t})
+    def pages():
+        h = c.get("/bulletins/1/preview").text
+        parts = re.split(r'id="pg(\d+)"', h)
+        return {int(parts[i]): parts[i + 1] for i in range(1, len(parts), 2)}
+    notes = lambda: c.get("/bulletins/1/preview").text.count("intentionally left for notes")
+    n0 = notes()
+    c.post("/bulletins/1/layout/9", data={"move": "remove", "csrf": t})
+    after = pages()
+    assert notes() == n0 + 1
+    assert "Body9" not in "".join(after.values()) and "Body10" in after[3]
