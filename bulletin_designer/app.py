@@ -2768,6 +2768,7 @@ def create_app(config=None):
                 'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
         html = build(pages)
+        doc = None
         # Measure the real spare room on pages where photos share space, then grow/shrink the photos to fit.
         for _ in range(2):
           try:
@@ -2793,10 +2794,14 @@ def create_app(config=None):
               if not changed:
                   break
               html = build(pages)
+              doc = None
           except Exception:
+              doc = None
               break
-        pdf = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).write_pdf(
-            pdf_variant="pdf/ua-1", optimize_images=True, **opts)
+        # Reuse the last measured render when photo sizes were already right, saving a full layout pass.
+        if doc is None:
+            doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+        pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
         return app.response_class(pdf, mimetype="application/pdf",
                                   headers={"Content-Disposition": f'attachment; filename="{name}"'})
