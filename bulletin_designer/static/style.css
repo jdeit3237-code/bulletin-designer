@@ -390,4 +390,5 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
   .sheet { overflow: hidden; }
   .sheet .pg-body { flex: 1 1 0; height: 0; min-height: 0; overflow: hidden; }
   .sheet .pg-foot { flex: none; }
+  .sheet:not(.cover) .pg-body { flex: none; height: 9.58in; max-height: 9.58in; }
 }
