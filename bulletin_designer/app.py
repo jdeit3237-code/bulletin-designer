@@ -1053,6 +1053,7 @@ def create_app(config=None):
             pages[at:at] = new_blocks
             if new_blocks:
                 full_on[r["page_no"]] = new_blocks[0]
+                new_blocks[0]["pin"] = r["page_no"]
         if not pages:
             pages.append({"row": None})
         halves = [r for r in printed if area_of(r) in ("left", "right", "left3", "mid3", "right3", "left23", "right23") and r not in p1_all]
@@ -1095,9 +1096,40 @@ def create_app(config=None):
                 idx = at
                 if page_wanted(r):
                     made.setdefault(want, new)
+                    new["pin"] = want
             pages[idx]["duo"][side] = r
             d = pages[idx]["duo"]
             pages[idx]["row"] = next(d[k] for k in ("left", "right", "left3", "mid3", "right3", "left23", "right23") if d[k])
+        def keep_pinned_pages():
+            """Halves and multi-page sections insert pages ahead of later ones; put each pinned page back on its chosen page number."""
+            if not any(pg.get("pin") for pg in pages[1:]):
+                return
+            groups = []
+            for k, pg in enumerate(pages):
+                if groups and pg.get("part", 1) > 1 and pg.get("row") is not None and groups[-1][-1].get("row") is pg["row"] and not pg.get("duo"):
+                    groups[-1].append(pg)
+                else:
+                    groups.append([pg])
+            slots, rest = {}, []
+            slots[0] = groups[0]
+            for g in sorted(range(1, len(groups)), key=lambda i: (groups[i][0].get("pin") or 999, i)):
+                grp, pin = groups[g], groups[g][0].get("pin")
+                start = (pin or 0) - 1
+                if pin and start >= 1 and all((start + j) not in slots for j in range(len(grp))) and \
+                        all((start + j) not in slots for j in range(len(grp))):
+                    for j in range(len(grp)):
+                        slots[start + j] = [grp[j]]
+                else:
+                    rest.append(g)
+            at = 0
+            for g in rest:
+                for pg in groups[g]:
+                    while at in slots:
+                        at += 1
+                    slots[at] = [pg]
+            pages[:] = [slots[k][0] for k in sorted(slots)]
+        keep_pinned_pages()
+
         def band_pos(pg):
             ps = [x["position"] for x in rows_on(pg) if x is not None]
             return (min(ps), max(ps)) if ps else None

@@ -1662,3 +1662,22 @@ def test_drag_crop_frame_present(app):
     c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Hi", "alt": "pic", "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
     h = c.get("/bulletins/1/section/9").text
     assert 'id="edge-frame"' in h and 'data-e="br"' in h
+
+
+def test_full_section_keeps_chosen_page_when_halves_added(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    for sid in (2, 5, 9, 10, 11):
+        c.post(f"/bulletins/1/section/{sid}", data={"body": f"Body{sid}", "csrf": t})
+    c.post("/bulletins/1/layout/12", data={"area": "left", "page_no": "2", "pages": "1", "cols": "1", "csrf": t})
+    c.post("/bulletins/1/section/12", data={"body": "Body12", "csrf": t})
+    for sid, pn in ((5, 3), (10, 3), (9, 4), (11, 5)):
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": "full", "page_no": str(pn), "pages": "1", "cols": "1", "csrf": t})
+    h = c.get("/bulletins/1/preview").text
+    parts = re.split(r'id="pg(\d+)"', h)
+    where = {}
+    for i in range(1, len(parts), 2):
+        for b in re.findall(r'Body(\d+)', parts[i + 1]):
+            where.setdefault(int(b), int(parts[i]))
+    assert where[9] == 4 and where[11] == 5 and where[5] == 3
