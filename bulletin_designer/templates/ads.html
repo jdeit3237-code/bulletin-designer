@@ -1,4 +1,11 @@
-{% extends "base.html" %}{% block title %}Advertisements{% endblock %}
+{% extends "base.html" %}{% block title %}Advertisements<dialog id="ad-big" aria-label="Larger advertisement"><p><button type="button" class="btn" id="ad-close">Close</button></p><img id="ad-big-img" alt="" style="max-width:90vw;max-height:80vh"></dialog>
+<script>
+(function(){var d=document.getElementById('ad-big'),i=document.getElementById('ad-big-img');
+document.querySelectorAll('.ad-zoom').forEach(function(b){b.addEventListener('click',function(){i.src=b.dataset.src;i.alt=b.dataset.name;d.showModal();});});
+document.getElementById('ad-close').addEventListener('click',function(){d.close();});
+d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
+</script>
+{% endblock %}
 {% block content %}
 <h1>Advertisements</h1>
 <p>Add each business card once. Active cards are placed automatically on the last two pages of every bulletin, sized to fit and centered. Cards stay here from week to week, so you only add or remove what changes.</p>
@@ -25,7 +32,7 @@
     {% for a in ads %}
       <tr class="sec-band" aria-hidden="true"><td colspan="5">Ad {{ loop.index }}: {{ a.name }}</td></tr>
       <tr class="sec-row {{ 'sr-a' if loop.index is odd else 'sr-b' }}">
-        <td><img src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="max-width:180px;max-height:120px;border:1px solid #bbb"><br><span class="meta">{{ 'Horizontal' if a.w >= a.h else 'Vertical' }}</span></td>
+        <td><button type="button" class="ad-zoom" data-src="{{ url_for('uploads', name=a.image) }}" data-name="{{ a.name }}" aria-label="Enlarge {{ a.name }}"><img src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="max-width:180px;max-height:120px;border:1px solid #bbb"></button><br><span class="meta">{{ 'Horizontal' if a.w >= a.h else 'Vertical' }}</span></td>
         <td><label class="sr-only" for="n{{ a.id }}">Name</label><input id="n{{ a.id }}" name="name_{{ a.id }}" type="text" value="{{ a.name }}"></td>
         <td><label class="sr-only" for="p{{ a.id }}">Order</label><input id="p{{ a.id }}" name="pos_{{ a.id }}" type="number" value="{{ a.position }}" style="width:5em"></td>
         <td><input type="checkbox" name="active_{{ a.id }}" value="1" {{ 'checked' if a.active }} aria-label="Print {{ a.name }}"></td>

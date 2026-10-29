@@ -1926,3 +1926,11 @@ def test_ads_page_alternating_banded_rows(app):
         c.post("/ads", data={"csrf": t, "name": f"Ad{n}", "image": (_card(300, 200, col), f"a{n}.png")}, content_type="multipart/form-data")
     h = c.get("/ads").text
     assert h.count("sec-band") == 2 and "sr-a" in h and "sr-b" in h
+
+
+def test_ads_click_to_enlarge(app):
+    c = setup_admin(app)
+    t = tok(c, "/ads")
+    c.post("/ads", data={"csrf": t, "name": "Ad0", "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
+    h = c.get("/ads").text
+    assert 'class="ad-zoom"' in h and 'id="ad-big"' in h

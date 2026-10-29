@@ -470,3 +470,5 @@ tr.sec-labels td { background: #cfe3d6; color: #14562a; font: bold 12pt Arial, s
 table.secs { table-layout: fixed; }
 table.secs .lgrid { grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); }
 table.adtbl tr.sec-row > td { vertical-align: middle; }
+.ad-zoom { background: none; border: 0; padding: 0; cursor: zoom-in; }
+#ad-big { max-width: 95vw; border: 3px solid #14562a; border-radius: 6px; }
