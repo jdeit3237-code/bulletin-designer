@@ -1,7 +1,7 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
 # Update this whenever the help text changes (Eastern time).
-LAST_UPDATED = "October 29, 2026, 9:15 AM Eastern Time (EDT)"
+LAST_UPDATED = "October 29, 2026, 7:19 PM Eastern Time (EDT)"
 
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
@@ -42,6 +42,7 @@ TOPICS = [
      ["Open the section. Choose a photo from the Photo library, or upload a new one (JPG or PNG).",
       "Use the Crop and zoom sliders; the picture is never stretched.",
       "'Where the photo goes' lets you put it below the text, above the title, beside the text, or Photo only (no text).",
+      "Column wrap: for a section set to 2 or 3 columns, choose 'Spans columns at the left' or 'at the right'. In 3 columns the photo takes two columns and the text fills the third beside it, then continues across all three columns under the photo (2 columns: the photo takes one). Most useful for plain text sections.",
       "To make the photo bigger or smaller, type a number in 'Photo width'. It is a percent of the page width: 0 keeps the standard size, 60 or 70 makes it bigger, 100 is the full width. If the photo is set to 'Inset at left/right, text wrapped', keep it at 60 or less so the words have room beside it (the app stops at 60). The height follows automatically, so the picture is never stretched.",
       "Add a short description of the picture for people who cannot see it (alt text), or tick Decorative.",
       "Drop shadow: below the crop preview, tick 'Give this photo a drop shadow'. Drag the dot in the square to move the shadow (or use the Across and Down sliders), set Blur for a soft edge and Darkness for strength. The preview shows it immediately. Each extra photo ('Photo 1', 'Photo 2' ...) has its own shadow setting. Advertisement cards get a shadow automatically."]),

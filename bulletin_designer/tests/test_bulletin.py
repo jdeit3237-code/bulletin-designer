@@ -2126,3 +2126,20 @@ def test_photo_caption_box_beside_photo_upload(app):
     assert 'name="ng_alt_0"' in html and "Photo caption" in html
     c.post("/bulletins/1/section/5", data={"body": "Hi", "caption": "Fr. John at the picnic", "csrf": tok(c, "/bulletins/1/section/5")})
     assert "Fr. John at the picnic" in c.get("/bulletins/1/section/5").text
+
+
+def test_photo_spans_columns_with_text_in_remaining_column(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    from io import BytesIO
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360f8cfc0f01f0005000201a5f645400000000049454e44ae426082")
+    for pos in ("cols-left", "cols-right"):
+        c.post("/bulletins/1/section/5", data={"body": "Hello there", "img_pos": pos, "alt": "x",
+               "image": (BytesIO(png), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
+        import sqlite3
+        db = sqlite3.connect(app.config["DATABASE"])
+        db.execute("UPDATE items SET cols=3 WHERE section_id=5")
+        db.commit()
+        html = c.get("/bulletins/1/preview").text
+        assert 'class="cs-photo"' in html and "column-count:1" in html
+        assert (html.index("cs-photo") < html.index("Hello there")) == (pos == "cols-left")

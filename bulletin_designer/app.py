@@ -744,6 +744,65 @@ def create_app(config=None):
                     img="position:absolute;max-width:none;width:%.3f%%;height:%.3f%%;left:-%.3f%%;top:-%.3f%%" % (100 / w, 100 / h, l / w * 100, t / h * 100))
     app.jinja_env.globals["edge_crop"] = edge_crop
 
+    def cs_plan(r, width_in, text_w_in):
+        """Split a prose section's paragraphs into those that sit beside a column-spanning photo and those that flow below it."""
+        import math
+        h = 0.0
+        try:
+            from PIL import Image
+            with Image.open(os.path.join(app.config["UPLOAD_DIR"], r["image"])) as im:
+                ratio = im.size[0] / im.size[1]
+            t, b_, l, rt = (float(r[k] or 0) / 100 for k in ("crop_t", "crop_b", "crop_l", "crop_r"))
+            ratio = ratio * (1 - l - rt) / (1 - t - b_)
+            h = float(r["crop_h"]) if r["crop_h"] else width_in / ratio
+        except Exception:
+            h = 0.0
+        h += 0.3 if r["caption"] else 0.06
+        cpl = max(8, int(text_w_in * 12))
+        avail = max(1, int(h / 0.245))
+        paras, beside, rest, used = soft_paras(r["body"]), [], [], 0
+        for i, para in enumerate(paras):
+            if used >= avail:
+                rest = paras[i:]
+                break
+            if isinstance(para, tuple):
+                items = para[1]
+                take = []
+                for k, it in enumerate(items):
+                    n = math.ceil(len(it) / cpl)
+                    if used + n > avail and take:
+                        rest = [("ul", items[k:])] + paras[i + 1:]
+                        break
+                    take.append(it)
+                    used += n
+                beside.append(("ul", take))
+                if rest:
+                    break
+                used += 0.4
+                continue
+            lines = list(para)
+            for k, ln in enumerate(lines):
+                n = math.ceil(len(ln) / cpl)
+                if used + n > avail and k > 0:
+                    beside.append(lines[:k])
+                    rest = [lines[k:]] + paras[i + 1:]
+                    break
+                if used + n > avail and not any(m in ln for m in ("**", "~~", "__", "{")):
+                    room = max(1, int(avail - used)) * cpl
+                    cut = ln.rfind(" ", 0, room)
+                    if cut > 0:
+                        beside.append([ln[:cut]])
+                        rest = [[ln[cut + 1:]] + lines[k + 1:]] + paras[i + 1:]
+                        break
+                used += n
+            else:
+                beside.append(lines)
+                used += 0.4
+                continue
+            break
+        return beside, rest
+    app.jinja_env.globals["cs_plan"] = cs_plan
+
     def tight(text, on=True):
         """With no-stragglers on, bind the last two words with a no-break space so a paragraph never ends with one word alone on a line."""
         from markupsafe import Markup, escape
@@ -1864,7 +1923,7 @@ def create_app(config=None):
                           *edge_values(request.form),
                           "" if new_title == s["title"] else new_title,
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")),
-                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "only") else "",
+                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "cols-left", "cols-right", "only") else "",
                           gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0,
                           gap_value(request.form.get("space_before")),

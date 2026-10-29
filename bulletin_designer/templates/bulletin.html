@@ -20,7 +20,13 @@
     {% if r.img_pos == 'above' %}{{ section_photo(r, p) }}{% endif %}
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
     {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ r.title }}</h2>{% else %}<h2{{ tg|safe }}>{{ r.title }} (continued)</h2>{% endif %}
-    {% if r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}<div class="body-cols" style="column-count:{{ r.cols }}">{% endif %}
+    {% set cspan = r.cols in (2, 3) and r.image and p.part == 1 and r.img_pos in ('cols-left', 'cols-right') and r.slug not in ('cover', 'mass-schedule') %}
+    {% set cs_n = (r.cols - 1) if cspan else 0 %}
+    {% set cs_aw = {'left': 3.5, 'right': 3.5, 'left23': 4.7, 'right23': 4.7, 'left3': 2.2, 'mid3': 2.2, 'right3': 2.2}.get(r.area, 7.2) - 0.05 %}
+    {% set cs_w = ((cs_aw - (r.cols - 1) * 0.35) * cs_n / r.cols + (cs_n - 1) * 0.35)|round(3) if cspan else 0 %}
+    {% set cs_tw = (cs_aw - cs_w - 0.35)|round(3) if cspan else 0 %}
+    {% if cspan %}<table class="cs-wrap"><tr>{% if r.img_pos == 'cols-left' %}<td class="cs-photo" style="width:{{ cs_w }}in">{{ section_photo(r, p) }}</td><td class="cs-gap"></td>{% endif %}<td class="cs-textcell" style="width:{{ cs_tw }}in"><div class="body-cols cs-text" style="column-count:{{ r.cols - cs_n }}">
+    {% elif r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}<div class="body-cols" style="column-count:{{ r.cols }}">{% endif %}
     {% if p.part == 1 %}
     {% if r.img_pos in ('inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {{ gallery_row(r, 'above') }}
@@ -73,10 +79,12 @@
         {% for line in m.notes.split('\n') if line.strip() %}<p>{{ line }}</p>{% endfor %}</div>
       {% endfor %}
     {% else %}
-      {% for para in soft_paras(r.body) %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}
+      {% set cs_prose = cspan %}{% if cs_prose %}{% set cs_split = cs_plan(r, cs_w, cs_tw) %}{% endif %}
+      {% for para in (cs_split[0] if cs_prose else soft_paras(r.body)) %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}
     {% endif %}
-    {% if r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}</div>{% endif %}
-    {% if r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
+    {% if cspan %}</div></td>{% if r.img_pos == 'cols-right' %}<td class="cs-gap"></td><td class="cs-photo" style="width:{{ cs_w }}in">{{ section_photo(r, p) }}</td>{% endif %}</tr></table>{% if cs_prose and cs_split[1] %}<div class="body-cols" style="column-count:{{ r.cols }}">{% for para in cs_split[1] %}{% if para is mapping or para[0] == 'ul' %}<ul class="bl b-{{ r.bullet_style or 'disc' }}">{% for it in para[1] %}<li>{{ tight(it, b.no_stragglers) }}</li>{% endfor %}</ul>{% else %}<p class="bp">{% for ln in para %}{{ tight(ln, b.no_stragglers) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}{% endfor %}</div>{% endif %}
+    {% elif r.cols in (2, 3) and r.slug not in ('cover', 'mass-schedule') %}</div>{% endif %}
+    {% if cspan %}{% elif r.img_pos not in ('above', 'inset-left', 'inset-right') %}{{ section_photo(r, p) }}{% endif %}
     {{ gallery_row(r, 'below') }}
     {% if r.source %}<p class="src">Source: {{ r.source }}</p>{% endif %}
     {% endif %}
