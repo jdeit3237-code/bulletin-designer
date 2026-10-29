@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1648"/><stop offset=".6" stop-color="#4a3a86"/><stop offset="1" stop-color="#8d6fae"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".95"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="480" height="360" fill="url(#sky)"/>
+  <circle cx="240" cy="120" r="120" fill="url(#glow)" opacity=".55"/>
+  <g fill="#fff" opacity=".85"><circle cx="40" cy="40" r="2"/><circle cx="110" cy="70" r="1.6"/><circle cx="170" cy="28" r="2"/><circle cx="330" cy="36" r="1.8"/><circle cx="410" cy="64" r="2.2"/><circle cx="450" cy="24" r="1.5"/><circle cx="80" cy="110" r="1.4"/><circle cx="440" cy="120" r="1.6"/></g>
+  <g stroke="#f4d98a" stroke-width="9" stroke-linecap="round"><path d="M240 52v110"/><path d="M200 88h80"/></g>
+  <g fill="#f4d98a" opacity=".95"><path d="M330 70c-18-6-30 4-38 14 12-2 22 0 30 6-8 0-16 4-20 10 14-2 24-6 34-14 6-4 8-12 -6-16z"/></g>
+  <path d="M0 360V290c40-14 70-10 110 0s80 8 130-4 90-10 130 2 80 8 110-2v74z" fill="#150f36"/>
+  <g>
+    <g transform="translate(60 250)"><circle cy="-14" r="34" fill="url(#glow)"/><rect x="-14" y="0" width="28" height="44" rx="3" fill="#f6f0dc"/><path d="M0 -18c8 8 6 14 0 18c-6-4-8-10 0-18z" fill="#ffb53d"/><rect x="-16" y="44" width="32" height="6" fill="#c9a24a"/></g>
+    <g transform="translate(150 262)"><circle cy="-14" r="30" fill="url(#glow)"/><rect x="-12" y="0" width="24" height="34" rx="3" fill="#f6f0dc"/><path d="M0 -16c7 7 5 12 0 16c-5-4-7-9 0-16z" fill="#ffb53d"/><rect x="-14" y="34" width="28" height="6" fill="#c9a24a"/></g>
+    <g transform="translate(240 246)"><circle cy="-16" r="38" fill="url(#glow)"/><rect x="-15" y="0" width="30" height="56" rx="3" fill="#f6f0dc"/><path d="M0 -20c9 9 7 15 0 20c-7-5-9-11 0-20z" fill="#ffb53d"/><rect x="-17" y="56" width="34" height="6" fill="#c9a24a"/></g>
+    <g transform="translate(330 262)"><circle cy="-14" r="30" fill="url(#glow)"/><rect x="-12" y="0" width="24" height="34" rx="3" fill="#f6f0dc"/><path d="M0 -16c7 7 5 12 0 16c-5-4-7-9 0-16z" fill="#ffb53d"/><rect x="-14" y="34" width="28" height="6" fill="#c9a24a"/></g>
+    <g transform="translate(420 250)"><circle cy="-14" r="34" fill="url(#glow)"/><rect x="-14" y="0" width="28" height="44" rx="3" fill="#f6f0dc"/><path d="M0 -18c8 8 6 14 0 18c-6-4-8-10 0-18z" fill="#ffb53d"/><rect x="-16" y="44" width="32" height="6" fill="#c9a24a"/></g>
+  </g>
+  <text x="240" y="196" text-anchor="middle" font-family="Gelasio, Georgia, serif" font-weight="bold" font-size="34" fill="#fff6d6">All Souls' Day</text>
+  <text x="240" y="222" text-anchor="middle" font-family="Gelasio, Georgia, serif" font-style="italic" font-size="19" fill="#f4d98a">November 2 &#183; In loving memory</text>
+</svg>

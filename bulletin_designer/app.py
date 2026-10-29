@@ -2416,7 +2416,7 @@ def create_app(config=None):
         db().execute("UPDATE bulletins SET hdr_image=?, hdr_alt=?, hdr_h=?, hdr_zoom=?, hdr_x=?, hdr_y=?, hdr_style=? WHERE id=?",
                      (image, alt, num("hdr_h", 0.5, 5, 2.4), num("hdr_zoom", 1, 4, 1), num("hdr_x", 0, 100, 50),
                       num("hdr_y", 0, 100, 50),
-                      style if (style := request.form.get("hdr_style")) in ("waves", "swell", "gentle", "straight") else "waves", bid))
+                      style if (style := request.form.get("hdr_style")) in ("waves", "swell", "gentle", "straight", "allsouls") else "waves", bid))
         db().commit()
         flash("Header photo saved.", "ok")
         return redirect(url_for("edit", bid=bid))

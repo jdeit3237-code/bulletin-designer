@@ -1774,3 +1774,14 @@ def test_area_access_chosen_per_user(app):
     assert y.get("/ads").status_code == 200 and y.get("/library/browse").status_code == 200
     assert y.get("/library").status_code == 403
     assert 'name="areas"' in c.get("/admin/users").text
+
+
+def test_allsouls_header_style(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "allsouls", "hdr_h": "2.4", "hdr_zoom": "1", "hdr_x": "50", "hdr_y": "50"})
+    html = c.get("/bulletins/1/preview").text
+    assert "m-allsouls" in html and "allsouls.svg" in html
+    assert "allsouls" in c.get("/bulletins/1").text
+    c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "waves"})
+    assert "allsouls.svg" not in c.get("/bulletins/1/preview").text

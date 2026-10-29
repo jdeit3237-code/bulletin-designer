@@ -422,3 +422,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
   .sheet.cover .pg-foot { position: absolute; left: .25in; right: .25in; bottom: .25in; }
   .sheet:not(.cover) .pg-foot { position: absolute; left: .25in; right: .25in; bottom: .25in; }
 }
+
+.masthead.m-allsouls .crop { position: relative; }
+.masthead.m-allsouls .crop img:first-child { width: 62%; }
+.masthead.m-allsouls .crop img.hdr-art { position: absolute; top: 0; right: 0; width: 38%; height: 100%; object-fit: cover; transform: none; border-left: 4px solid var(--gold-bright); }
