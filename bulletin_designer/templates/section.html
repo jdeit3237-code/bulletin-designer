@@ -1,5 +1,17 @@
 {% extends "base.html" %}{% block title %}{{ s.title }}{% endblock %}
 {% block content %}
+{% macro shadow_ctl(prefix, suffix, raw, target) %}{% set sd = shadow_parse(raw) %}<fieldset class="sh-ctl" data-target="{{ target }}"><legend>Drop shadow</legend>
+  <label><input type="checkbox" class="sh-on" name="{{ prefix }}on{{ suffix }}" value="1" {{ 'checked' if sd }}> Give this photo a drop shadow</label>
+  <p class="small">Drag the dot in the square to move the shadow (it sits where the dot is, away from the photo's centre). The preview next to it updates right away. Press Save section to keep it.</p>
+  <div class="sh-row">
+    <div class="sh-pad" tabindex="0" role="img" aria-label="Shadow position pad"><span class="sh-dot"></span></div>
+    <div class="sh-sl">
+      <label>Across (left &minus; / right +) <input type="range" class="sh-x" name="{{ prefix }}x{{ suffix }}" min="-30" max="30" step="1" value="{{ (sd.x if sd else 3)|round|int }}"></label>
+      <label>Down (up &minus; / down +) <input type="range" class="sh-y" name="{{ prefix }}y{{ suffix }}" min="-30" max="30" step="1" value="{{ (sd.y if sd else 3)|round|int }}"></label>
+      <label>Blur (soft edge) <input type="range" class="sh-b" name="{{ prefix }}b{{ suffix }}" min="0" max="30" step="1" value="{{ (sd.b if sd else 6)|round|int }}"></label>
+      <label>Darkness <input type="range" class="sh-o" name="{{ prefix }}o{{ suffix }}" min="5" max="100" step="5" value="{{ (sd.o if sd else 45)|round|int }}"></label>
+    </div>
+  </div></fieldset>{% endmacro %}
 {% include "_assistant_panel.html" %}
 <h1>{{ s.title }}</h1>
 <p class="meta">Bulletin {{ b.sunday }} &middot; {{ 'Changes weekly' if s.weekly else 'Standing section' }} &middot; {{ s.hint }}</p>
@@ -308,6 +320,7 @@
         </div></div>
       <p class="small" style="margin-top:.8em"><strong>As it will print</strong> (about {{ print_w }} inches wide on the page):</p>
       <div id="crop-prev" class="crop" data-w="{{ print_w }}" style="width:{{ print_w }}in;max-width:100%;border:2px solid #14562a"><img src="{{ url_for('uploads', name=item.image) }}" alt="Preview of the cropped picture"></div>
+      {{ shadow_ctl("sh_", "", item.img_shadow, "#crop-prev") }}
       <fieldset class="crop-frame"><legend>Crop: how tall is the picture frame?</legend>
         <p class="small">Click a size to crop the picture to a shorter frame, then use Zoom and Move below to choose which part shows. "Whole picture" shows everything with no cropping. The frame has to be <strong>shorter than the picture appears on the page</strong> to cut anything off: a frame taller than the picture (for example 6.75 inches on a picture that prints about 6 inches tall) does nothing. Try a smaller number, then check Preview.</p>
         <div class="at-btns" role="group" aria-label="Frame height"><button type="button" class="btn secondary ch-b" data-h="0">Whole picture</button>{% for k, v in PHOTO_SHAPES.items() %}<button type="button" class="btn secondary ch-b" data-h="{{ (print_w / v[0])|round(2) }}">{{ v[1] }}</button>{% endfor %}</div>
@@ -363,8 +376,8 @@
     {% set gal = gallery_data(item.gallery) %}
     <h3>More photos in this section</h3>
     <p class="meta">Each photo has its own crop (pick a shape, zoom, then slide the picture so the important part shows in the preview) and its own text setting. Add several photos, placed above the text and/or below the text. Photos in the same place sit side by side (up to 3 per row) at the same height, sized automatically.</p>
-    {% for gp in gal.photos %}{% set n = loop.index0 %}<div class="gp photo-card" data-n="{{ n }}">
-      <div class="pc-prev"><div class="crop pc-box" style="width:2.2in;height:{{ (2.2 / gp.ar)|round(2) }}in;border:1px solid #888"><img src="{{ url_for('uploads', name=gp.f) }}" alt="Preview" style="object-position:{{ gp.x }}% {{ gp.y }}%;transform:scale({{ gp.z }});transform-origin:{{ gp.x }}% {{ gp.y }}%"></div></div>
+    {% for gp in gal.photos %}{% set n = loop.index0 %}<div class="gp photo-card pc-{{ 'a' if n % 2 == 0 else 'b' }}" data-n="{{ n }}"><div class="pc-head">Photo {{ n + 1 }}</div>
+      <div class="pc-prev"><div class="crop pc-box" id="gpbox{{ n }}" style="width:2.2in;height:{{ (2.2 / gp.ar)|round(2) }}in;border:1px solid #888"><img src="{{ url_for('uploads', name=gp.f) }}" alt="Preview" style="object-position:{{ gp.x }}% {{ gp.y }}%;transform:scale({{ gp.z }});transform-origin:{{ gp.x }}% {{ gp.y }}%"></div></div>
       <div class="pc-ctl">
       <label>Caption <input name="gp_alt_{{ n }}" value="{{ gp.alt }}"></label>
       <label>Shape (crop) <select name="gp_shape_{{ n }}" class="pc-shape" data-ar0="{{ gp.ar0|round(3) }}"><option value="" data-ar="{{ gp.ar0|round(3) }}">Whole picture (no crop)</option>{% for k, v in PHOTO_SHAPES.items() %}<option value="{{ k }}" data-ar="{{ v[0]|round(3) }}" {{ 'selected' if gp.shape == k }}>{{ v[1] }}</option>{% endfor %}</select></label>
@@ -373,6 +386,7 @@
       <label>Move picture up / down <input type="range" name="gp_y_{{ n }}" class="pc-y" min="0" max="100" value="{{ gp.y|int }}"></label>
       <label>Text <select name="gp_wrap_{{ n }}"><option value="" {{ 'selected' if not gp.wrap }}>Photo does not have text beside it</option><option value="left" {{ 'selected' if gp.wrap == 'left' }}>Photo on the left, text wraps around it</option><option value="right" {{ 'selected' if gp.wrap == 'right' }}>Photo on the right, text wraps around it</option></select></label>
       <label>Place <select name="gp_w_{{ n }}"><option value="below" {{ 'selected' if gp.w != 'above' }}>Below the text</option><option value="above" {{ 'selected' if gp.w == 'above' }}>Above the text</option></select> <span class="small">(a photo with text around it always goes at the top)</span></label>
+      {{ shadow_ctl("gp_sh_", "_" ~ n, gp.sh, "#gpbox" ~ n) }}
       <label><input type="checkbox" name="gp_rm_{{ n }}" value="1"> Remove this photo</label>
       </div></div>{% endfor %}
     <script>
@@ -382,6 +396,16 @@
         im.style.objectPosition=x.value+'% '+y.value+'%';im.style.transform='scale('+z.value+')';im.style.transformOrigin=x.value+'% '+y.value+'%';}
       [sh,z,x,y].forEach(function(e){e.addEventListener('input',up);});up();});
     </script>
+<script>
+document.querySelectorAll('.sh-ctl').forEach(function(c){
+  var on=c.querySelector('.sh-on'),X=c.querySelector('.sh-x'),Y=c.querySelector('.sh-y'),B=c.querySelector('.sh-b'),O=c.querySelector('.sh-o'),pad=c.querySelector('.sh-pad'),dot=c.querySelector('.sh-dot'),t=document.querySelector(c.getAttribute('data-target'));
+  function up(){var x=+X.value,y=+Y.value;dot.style.left=(50+x/30*45)+'%';dot.style.top=(50+y/30*45)+'%';
+    if(t)t.style.boxShadow=on.checked?x+'pt '+y+'pt '+B.value+'pt rgba(0,0,0,'+(O.value/100)+')':'none';}
+  function mv(ev){var r=pad.getBoundingClientRect();X.value=Math.round(Math.max(-30,Math.min(30,((ev.clientX-r.left)/r.width-.5)*2/.9*30)));Y.value=Math.round(Math.max(-30,Math.min(30,((ev.clientY-r.top)/r.height-.5)*2/.9*30)));on.checked=true;up();}
+  var dr=false;pad.addEventListener('pointerdown',function(ev){dr=true;pad.setPointerCapture(ev.pointerId);mv(ev);ev.preventDefault();});
+  pad.addEventListener('pointermove',function(ev){if(dr)mv(ev);});pad.addEventListener('pointerup',function(){dr=false;});pad.addEventListener('pointercancel',function(){dr=false;});
+  [on,X,Y,B,O].forEach(function(e){e.addEventListener('input',up);e.addEventListener('change',up);});up();});
+</script>
     <fieldset class="align-tool"><legend>Alignment tool for the extra photos</legend>
       <p class="small">Pick where the photos sit and how much space is above and below them. The small page shows what you are choosing. Save the section to apply it.</p>
       <div class="at-wrap">
@@ -406,7 +430,7 @@
       document.getElementById('at_equal').addEventListener('click',function(){var m=Math.max(+a.value||0,+b.value||0);a.value=b.value=m;up();});up();})();
       </script>
     </fieldset>
-    {% for n in range(4) %}<div class="gp"><strong>Add photo {{ n + 1 }}</strong>
+    {% for n in range(4) %}<div class="gp gp-new pc-{{ 'a' if (gal.photos|length + n) % 2 == 0 else 'b' }}"><div class="pc-head">Add photo {{ gal.photos|length + n + 1 }}</div>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
       <label>Caption (shown under the photo in italics) <input name="ng_alt_{{ n }}"></label>

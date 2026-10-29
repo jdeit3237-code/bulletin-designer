@@ -10,6 +10,7 @@
   <a class="btn" href="{{ url_for('bulletin_check', bid=b.id) }}">Check my bulletin</a> {% if g.user.role in ('admin', 'editor') %}<a class="btn" href="{{ url_for('history_page', bid=b.id) }}">Undo / history</a>{% endif %} <a class="btn" href="{{ url_for('help_page') }}">Help</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Web PDF</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Print PDF</a>
+  <a class="btn" href="{{ url_for('download', bid=b.id, kind='booklet') }}">Print PDF booklet (11x17)</a>
   <a class="btn" href="{{ url_for('suggestions', bid=b.id) }}">Liturgical suggestions &amp; graphics</a></p>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
 <form class="inline" method="post" action="{{ url_for('total_pages', bid=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">

@@ -440,3 +440,23 @@ fieldset[data-clone], fieldset[data-event], fieldset[data-group] { border: 1px s
 fieldset[data-clone]:nth-of-type(even), fieldset[data-event]:nth-of-type(even), fieldset[data-group]:nth-of-type(even) { background: #dde2e6; }
 .step { font: 12pt Arial, sans-serif; color: #14562a; margin: .2em 0 .6em; }
 .sheet .ad-grid img.ad { border-right: 2.5pt solid #8a8a8a; border-bottom: 2.5pt solid #8a8a8a; }
+.shw { position: relative; }
+.shw .shl { position: absolute; display: block; }
+.shw .shw-in { position: relative; }
+.sh-ctl { border: 1px solid #bbb; border-radius: 6px; margin: .6em 0; background: #fff; }
+.sh-row { display: flex; flex-wrap: wrap; gap: 1em; align-items: flex-start; }
+.sh-pad { position: relative; width: 7em; height: 7em; border: 2px solid #14562a; border-radius: 6px; background: repeating-linear-gradient(45deg, #f3f6f4, #f3f6f4 8px, #e6ece8 8px, #e6ece8 16px); touch-action: none; cursor: crosshair; flex: none; }
+.sh-pad::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2.4em; height: 2.4em; transform: translate(-50%, -50%); background: #fff; border: 1px solid #888; }
+.sh-dot { position: absolute; width: 1.1em; height: 1.1em; margin: -.55em 0 0 -.55em; border-radius: 50%; background: #1f7a3a; border: 2px solid #fff; box-shadow: 0 0 0 1px #14562a; z-index: 1; }
+.sh-sl { flex: 1 1 14em; }
+.sh-sl label { display: block; margin: .3em 0; }
+.photo-card { padding: 0 .6em .6em; overflow: hidden; }
+.photo-card .pc-head { flex: 0 0 100%; margin: 0 -.6em; padding: .4em .8em; background: #1f7a3a; color: #fff; font: bold 13pt Arial, sans-serif; }
+.photo-card.pc-b .pc-head { background: #14562a; }
+.photo-card.pc-a { background: #f7f7f2; }
+.photo-card.pc-b { background: #dde2e6; }
+.gp-new { border: 1px solid #bbb; border-radius: 6px; margin: .5em 0; padding: 0 .6em .6em; overflow: hidden; }
+.gp-new .pc-head { margin: 0 -.6em .4em; padding: .4em .8em; background: #1f7a3a; color: #fff; font: bold 13pt Arial, sans-serif; }
+.gp-new.pc-b .pc-head { background: #14562a; }
+.gp-new.pc-a { background: #f7f7f2; }
+.gp-new.pc-b { background: #dde2e6; }

@@ -1,7 +1,7 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
 # Update this whenever the help text changes (Eastern time).
-LAST_UPDATED = "October 29, 2026, 6:20 AM Eastern Time (EDT)"
+LAST_UPDATED = "October 29, 2026, 7:30 AM Eastern Time (EDT)"
 
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
@@ -43,7 +43,8 @@ TOPICS = [
       "Use the Crop and zoom sliders; the picture is never stretched.",
       "'Where the photo goes' lets you put it below the text, above the title, beside the text, or Photo only (no text).",
       "To make the photo bigger or smaller, type a number in 'Photo width'. It is a percent of the page width: 0 keeps the standard size, 60 or 70 makes it bigger, 100 is the full width. If the photo is set to 'Inset at left/right, text wrapped', keep it at 60 or less so the words have room beside it (the app stops at 60). The height follows automatically, so the picture is never stretched.",
-      "Add a short description of the picture for people who cannot see it (alt text), or tick Decorative."]),
+      "Add a short description of the picture for people who cannot see it (alt text), or tick Decorative.",
+      "Drop shadow: below the crop preview, tick 'Give this photo a drop shadow'. Drag the dot in the square to move the shadow (or use the Across and Down sliders), set Blur for a soft edge and Darkness for strength. The preview shows it immediately. Each extra photo ('Photo 1', 'Photo 2' ...) has its own shadow setting. Advertisement cards get a shadow automatically."]),
     ("library", "Photo library: automatic keywords and search", "photo library metadata keywords tags exif camera date search find title description auto",
      ["When you add a photo to the library, the app reads the information stored inside the picture: its keywords, title, description, who took it, copyright, the date taken, the camera and the size. Keywords become tags, and the description is used as the alt text.",
       "Title is optional. If you leave it blank the app uses the picture's own title, or tidies up the file name.",
@@ -181,6 +182,10 @@ TOPICS = [
       "On the Users page, each person has an 'Areas this person may use' tick-box row for those three. Untick one and that person no longer sees its link in the top menu and cannot open the page. The same row appears when you invite someone.",
       "A contributor with Photo library can add photos one at a time or in bulk (many photos or a .zip). A contributor with Advertisements can add cards, which an editor must approve by ticking Print. Deleting, library management and saving ad changes stay with editors and admins.",
       "Two built-in sections both start with 'This Week in Our Parish'. They are now named '(Calendar of Events)' and ': Lectors, Sacristans & Ministers' so they are easy to tell apart on the Users page. Nothing was removed."]),
+    ("booklet", "Print PDF booklet (11x17)", "booklet saddle stitch 11x17 tabloid fold staple imposition print double sided",
+     ["Click 'Print PDF booklet (11x17)' on the bulletin or overview page.",
+      "The pages are rearranged two per sheet on 11 x 17 landscape paper (blank pages are added to reach a multiple of 4). For 16 pages the sides are: 16|1, 2|15, 14|3, 4|13, 12|5, 6|11, 10|7, 8|9.",
+      "Print double-sided, flipped on the SHORT edge, at 100% (Actual size), then fold the stack in half and staple on the fold."]),
     ("pdfmatch", "Web and print PDFs match the preview", "pdf web print preview match fonts font georgia arial myriad source sans condensed export download same",
      ["The Web PDF, Print PDF and the on-screen Preview use the same bundled fonts and layout, so they look the same. Only photo resolution differs (the print PDF is sharper).",
       "Font styles now show the real font in the menu: Condensed (Archivo Narrow), Classic serif (Georgia look), Clean sans-serif (Arial look), Humanist (Verdana), Friendly rounded (Trebuchet) and Myriad-style sans (Source Sans 3). The Style guide has a Font column and the admin Fonts page shows a live sample of each.",

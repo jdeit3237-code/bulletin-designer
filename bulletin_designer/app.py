@@ -373,6 +373,8 @@ def create_app(config=None):
                 conn.execute(f"ALTER TABLE items ADD COLUMN {col} REAL DEFAULT {default}")
         if "img_pos" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN img_pos TEXT DEFAULT ''")
+        if "img_shadow" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN img_shadow TEXT DEFAULT ''")
         if "bg_color" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN bg_color TEXT DEFAULT ''")
         if "img_align" not in have:
@@ -578,6 +580,32 @@ def create_app(config=None):
             return None
         return " ".join(out.stdout.split()) if out.returncode == 0 else None
 
+    def shadow_parse(raw):
+        try:
+            x, y, b, o = (float(v) for v in str(raw or "").split(","))
+        except ValueError:
+            return None
+        clamp = lambda v, lo, hi: max(lo, min(hi, v))
+        d = {"x": clamp(x, -30, 30), "y": clamp(y, -30, 30), "b": clamp(b, 0, 30), "o": clamp(o, 5, 100)}
+        a1 = 1 - (1 - d["o"] / 100) ** (1 / 8)
+        n = 8 if d["b"] > 0 else 1
+        al = a1 if n == 8 else d["o"] / 100
+        d["layers"] = [{"e": round(-d["b"] / 2 + d["b"] * (i + 0.5) / n, 2), "a": round(al, 4)} for i in range(n)]
+        d["raw"] = f'{d["x"]:g},{d["y"]:g},{d["b"]:g},{d["o"]:g}'
+        return d
+
+    def shadow_from_form(prefix, suffix=""):
+        if not request.form.get(f"{prefix}on{suffix}"):
+            return ""
+        vals = []
+        for k, dflt in (("x", 3), ("y", 3), ("b", 6), ("o", 45)):
+            try:
+                vals.append(float(request.form.get(f"{prefix}{k}{suffix}", dflt)))
+            except ValueError:
+                vals.append(dflt)
+        d = shadow_parse(",".join(str(v) for v in vals))
+        return d["raw"] if d else ""
+
     def gallery_data(raw):
         try:
             d = json.loads(raw or "")
@@ -613,6 +641,7 @@ def create_app(config=None):
                     p[k] = dflt
             p["wrap"] = p.get("wrap") if p.get("wrap") in ("left", "right") else ""
             p["crop"] = bool(p["shape"] or p["z"] > 1)
+            p["shd"] = shadow_parse(p.get("sh"))
         return d
 
     def is_dark(hexcolor):
@@ -626,6 +655,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["is_dark"] = is_dark
     app.jinja_env.globals["gallery_data"] = gallery_data
+    app.jinja_env.globals["shadow_parse"] = shadow_parse
     app.jinja_env.globals["PHOTO_SHAPES"] = PHOTO_SHAPES
 
     def edge_values(form):
@@ -967,7 +997,7 @@ def create_app(config=None):
                               old["caption"], old["source"], pos, pages, cols,
                               old["crop_zoom"], old["crop_x"], old["crop_y"], old["crop_h"], old["title"], old["title_gap"], old["item_gap"],
                               old["area"], old["page_no"], old["font_pt"], old["font_style"], old["min_h"], old["img_pos"], old["para_gap"], old["hide_title"], old["space_before"], old["bullet_style"], old["no_toc"]))
-                conn.execute("UPDATE items SET gallery=?, img_w=?, crop_t=?, crop_b=?, crop_l=?, crop_r=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, old["crop_t"] or 0, old["crop_b"] or 0, old["crop_l"] or 0, old["crop_r"] or 0, bulletin_id, s["id"]))
+                conn.execute("UPDATE items SET gallery=?, img_w=?, img_shadow=?, crop_t=?, crop_b=?, crop_l=?, crop_r=? WHERE bulletin_id=? AND section_id=?", (old["gallery"] or "", old["img_w"] or 0, old["img_shadow"] or "", old["crop_t"] or 0, old["crop_b"] or 0, old["crop_l"] or 0, old["crop_r"] or 0, bulletin_id, s["id"]))
             else:
                 conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols,area,page_no,font_pt,font_style,title,title_gap,item_gap,min_h,img_pos,para_gap,hide_title,space_before,bullet_style,no_toc) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                              (bulletin_id, s["id"], pos, pages, cols, old["area"] if old else "", old["page_no"] if old else 0,
@@ -1045,7 +1075,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.img_shadow, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1704,7 +1734,12 @@ def create_app(config=None):
                         p[k] = max(lo, min(hi, float(request.form.get(f"gp_{k}_{n}", p.get(k, dflt)))))
                     except ValueError:
                         p[k] = dflt
-                for k in ("ar", "ar0", "crop"):
+                sh = shadow_from_form("gp_sh_", f"_{n}")
+                if sh:
+                    p["sh"] = sh
+                else:
+                    p.pop("sh", None)
+                for k in ("ar", "ar0", "crop", "shd"):
                     p.pop(k, None)
                 keep.append(p)
             for n in range(4):
@@ -1753,7 +1788,7 @@ def create_app(config=None):
                     return default
             new_title = request.form.get("section_title", s["title"]).strip()[:120]
             db().execute("""UPDATE items SET body=?, image=?, alt=?, decorative=?, caption=?, source=?,
-                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, crop_t=?, crop_b=?, crop_l=?, crop_r=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?, img_align=?, bg_color=?,
+                crop_zoom=?, crop_x=?, crop_y=?, crop_h=?, crop_t=?, crop_b=?, crop_l=?, crop_r=?, title=?, title_gap=?, item_gap=?, img_pos=?, para_gap=?, hide_title=?, space_before=?, bullet_style=?, gallery=?, img_w=?, img_align=?, bg_color=?, img_shadow=?,
                 status=?, carried=0, updated_by=? WHERE id=?""",
                          (body, image, alt, decorative,
                           request.form.get("caption", "").strip(), request.form.get("source", "").strip(),
@@ -1769,6 +1804,7 @@ def create_app(config=None):
                           gal_json, num("img_w", 0, 100, 0),
                           request.form.get("img_align") if request.form.get("img_align") in ("left", "right", "center") else "",
                           (request.form.get("bg_color") or "").lower() if re.fullmatch(r"#[0-9a-fA-F]{6}", request.form.get("bg_color") or "") and request.form.get("use_bg") else "",
+                          shadow_from_form("sh_"),
                           status, g.user["username"], item["id"]))
             db().commit()
             if doc_added:
@@ -1789,7 +1825,7 @@ def create_app(config=None):
                                intent_header=intention_data(item["body"])[0],
                                groups=[dict(d, items=d["items"] + [{}]) for d in intention_data(item["body"])[1]] + [{"day": "", "date": "", "items": [{}, {}]}])
 
-    COPY_COLS = ("bg_color", "img_align", "body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "crop_t", "crop_b", "crop_l", "crop_r", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w")
+    COPY_COLS = ("bg_color", "img_align", "body", "image", "alt", "decorative", "caption", "source", "crop_zoom", "crop_x", "crop_y", "crop_h", "crop_t", "crop_b", "crop_l", "crop_r", "title", "title_gap", "item_gap", "img_pos", "para_gap", "hide_title", "space_before", "bullet_style", "gallery", "img_w", "img_shadow")
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>/copy-next", methods=["POST"])
     @need()
@@ -1834,7 +1870,7 @@ def create_app(config=None):
         if not can_edit_section(sid) or b["status"] == "published":
             abort(403)
         conn = db()
-        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', gallery='', img_w=0, carried=0, updated_by=? "
+        conn.execute("UPDATE items SET body='', image='', alt='', decorative=0, caption='', source='', gallery='', img_w=0, img_shadow='', carried=0, updated_by=? "
                      "WHERE bulletin_id=? AND section_id=?", (g.user["username"], bid, sid))
         conn.commit()
         flash("Section content deleted.", "ok")
@@ -2817,7 +2853,7 @@ def create_app(config=None):
     @need()
     def download(bid, kind):
         """kind=web: small, tagged (PDF/UA) file for the website. kind=print: 300 dpi tagged file for printing."""
-        if kind not in ("web", "print"):
+        if kind not in ("web", "print", "booklet"):
             abort(404)
         b = get_bulletin(bid)
         if g.user["role"] == "viewer" and b["status"] != "published":
@@ -2867,7 +2903,15 @@ def create_app(config=None):
         # Reuse the last measured render when photo sizes were already right, saving a full layout pass.
         if doc is None:
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
-        pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
+        if kind == "booklet":
+            try:
+                from bulletin_designer import booklet as _bk
+                pdf = _bk.make_booklet(doc.write_pdf(optimize_images=True, **opts))
+            except ImportError:
+                flash("Booklet export needs the 'pypdf' package (pip install pypdf).", "error")
+                return redirect(url_for("edit", bid=bid))
+        else:
+            pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
         return app.response_class(pdf, mimetype="application/pdf",
                                   headers={"Content-Disposition": f'attachment; filename="{name}"'})

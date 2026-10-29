@@ -1854,3 +1854,50 @@ def test_section_step_hints():
 def test_ad_images_have_drop_shadow():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
     assert ".sheet .ad-grid img.ad { border-right: 2.5pt" in css
+
+
+
+def test_photo_drop_shadows(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1/section/9")
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Words", "alt": "main", "image": (_card(300, 200, "red"), "m.png"),
+           "ng_alt_0": "Pic A", "ng_w_0": "above", "ng_file_0": (_card(300, 200, "blue"), "a.png"),
+           "ng_alt_1": "Pic B", "ng_w_1": "above", "ng_file_1": (_card(300, 200, "green"), "b.png")}, content_type="multipart/form-data")
+    form = c.get("/bulletins/1/section/9").text
+    assert "sh_on" in form and "gp_sh_on_1" in form and "Photo 1" in form and "Photo 2" in form
+    c.post("/bulletins/1/section/9", data={"csrf": t, "body": "Words", "alt": "main",
+           "sh_on": "1", "sh_x": "5", "sh_y": "-4", "sh_b": "10", "sh_o": "60",
+           "gp_alt_0": "Pic A", "gp_w_0": "above", "gp_sh_on_0": "1", "gp_sh_x_0": "2", "gp_sh_y_0": "3", "gp_sh_b_0": "0", "gp_sh_o_0": "50",
+           "gp_alt_1": "Pic B", "gp_w_1": "above"})
+    html = c.get("/bulletins/1/preview").text
+    assert html.count('class="shw"') == 2 and html.count('class="shl"') == 9
+    assert 'name="sh_x" min="-30" max="30" step="1" value="5"' in c.get("/bulletins/1/section/9").text
+    pdf = c.get("/bulletins/1/download/web")
+    assert pdf.data.startswith(b"%PDF")
+    open("/tmp/shadow_test.pdf", "wb").write(pdf.data)
+
+
+def test_help_mentions_drop_shadow():
+    from bulletin_designer import help_content
+    assert any("Drop shadow" in " ".join(t[3]) for t in help_content.TOPICS)
+
+
+def test_booklet_imposition_order():
+    from bulletin_designer.booklet import imposition_order
+    assert imposition_order(16)[:4] == [(16, 1), (2, 15), (14, 3), (4, 13)]
+    assert imposition_order(16)[-2:] == [(10, 7), (8, 9)]
+    assert len(imposition_order(6)) == 4 and imposition_order(6)[0] == (None, 1)
+
+
+def test_booklet_download(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": tok(c, "/bulletins/1")})
+    r = c.get("/bulletins/1/download/booklet")
+    assert r.data.startswith(b"%PDF")
+    from pypdf import PdfReader
+    rd = PdfReader(io.BytesIO(r.data))
+    assert len(rd.pages) % 2 == 0
+    assert abs(float(rd.pages[0].mediabox.width) - 1224) < 1 and abs(float(rd.pages[0].mediabox.height) - 792) < 1
+    assert "Print PDF booklet" in c.get("/bulletins/1").text

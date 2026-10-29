@@ -3,3 +3,4 @@ Werkzeug==3.0.3
 weasyprint==66.0
 pytest
 pymupdf
+pypdf
