@@ -1952,5 +1952,6 @@ def test_library_save_all(app):
     for n in range(2):
         c.post("/library", data={"csrf": t, "photo": (_card(100, 100, "red"), f"p{n}.png"), "title": f"P{n}", "alt": "x", "tags": "t"}, content_type="multipart/form-data")
     assert "Save all library changes" in c.get("/library").text
-    c.post("/library/libraries-all", data={"csrf": t, "pids": ["1", "2"], "libs_1": ["1"], "libs_2": ["1"]})
+    lid = re.search(r'name="libs_1" value="(\d+)"[^>]*>\s*L1', c.get("/library").text).group(1)
+    c.post("/library/libraries-all", data={"csrf": t, "pids": ["1", "2"], "libs_1": [lid], "libs_2": [lid]})
     assert "L1 (2)" in c.get("/library").text
