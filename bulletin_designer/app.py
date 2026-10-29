@@ -759,8 +759,15 @@ def create_app(config=None):
             h = 0.0
         h += (0.2 * (1 + len(r["caption"] or "") // int(width_in * 11)) + 0.05) if r["caption"] else 0.06
         cpl = max(8, int(text_w_in * 12))
-        avail = max(1, int(h / 0.245))
         paras, beside, rest, used = soft_paras(r["body"]), [], [], 0
+        total = 0.0
+        for para in paras:
+            if isinstance(para, tuple):
+                total += sum(math.ceil(len(it) / cpl) for it in para[1]) + 0.4
+            else:
+                total += sum(math.ceil(len(ln) / cpl) for ln in para) + 0.4
+        n = max(1, int(r["cols"] or 2) - 1)
+        avail = max(1, int((n * (h / 0.245) + total) / (n + 1)))
         for i, para in enumerate(paras):
             if used >= avail:
                 rest = paras[i:]
