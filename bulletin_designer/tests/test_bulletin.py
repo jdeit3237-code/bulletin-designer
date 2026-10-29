@@ -1785,3 +1785,23 @@ def test_allsouls_header_style(app):
     assert "allsouls" in c.get("/bulletins/1").text
     c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "waves"})
     assert "allsouls.svg" not in c.get("/bulletins/1/preview").text
+
+
+def test_youth_event_spacing_option(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    page = c.get("/admin/users").text
+    sid = re.search(r'value="(\d+)">\s*Youth Group Calendar', page).group(1)
+    c.post(f"/bulletins/1/section/{sid}", data={"event_count": "2", "e0_date": "2026-10-30", "e0_event": "A", "e1_date": "2026-11-06", "e1_event": "B",
+                                                "item_gap": "0.2", "csrf": tok(c, f"/bulletins/1/section/{sid}")})
+    html = c.get("/bulletins/1/preview").text
+    assert "has-ig" in html and "--ig:0.2in" in html.replace(" ", "")
+    assert "Space between the calendar events" in c.get(f"/bulletins/1/section/{sid}").text
+
+
+def test_jump_menu_has_header_and_toc(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    for i in ("area-hdr", "area-toc", "area-photo"):
+        assert f'<option value="{i}">' in h and f'id="{i}"' in h
