@@ -1805,3 +1805,17 @@ def test_jump_menu_has_header_and_toc(app):
     h = c.get("/bulletins/1").text
     for i in ("area-hdr", "area-toc", "area-photo"):
         assert f'<option value="{i}">' in h and f'id="{i}"' in h
+
+
+def test_split_header_second_photo(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    d = {"csrf": tok(c, "/bulletins/1"), "hdr_style": "allsouls", "hdr_h": "2.4", "hdr_split": "50", "hdr2_alt": "Garden at dusk",
+         "image2": (_card(600, 400, "navy"), "second.png")}
+    c.post("/bulletins/1/header-photo", data=d, content_type="multipart/form-data")
+    html = c.get("/bulletins/1/preview").text
+    assert "hdr-art2" in html and "Garden at dusk" in html and "--hs:50%" in html and "allsouls.svg" not in html
+    c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "allsouls", "reset2": "1"})
+    assert "allsouls.svg" in c.get("/bulletins/1/preview").text
+    c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "allsouls", "hdr2_alt": "", "image2": (_card(50, 50, "red"), "x.png")}, content_type="multipart/form-data")
+    assert "hdr-art2" not in c.get("/bulletins/1/preview").text

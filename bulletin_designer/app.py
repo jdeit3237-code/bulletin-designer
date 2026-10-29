@@ -186,6 +186,7 @@ def doc_text(path):
 
 
 BULLETIN_CARRY = ("footer", "hdr_image", "hdr_alt", "hdr_h", "hdr_zoom", "hdr_x", "hdr_y", "hdr_style",
+                  "hdr2_image", "hdr2_alt", "hdr2_zoom", "hdr2_x", "hdr2_y", "hdr_split",
                   "toc_title", "toc_before", "toc_title_gap", "toc_item_gap", "toc_start", "toc_show", "toc_pt", "toc_style",
                   "toc_place", "toc_cols", "no_stragglers", "no_underline")
 
@@ -347,7 +348,7 @@ def create_app(config=None):
         if "footer" not in {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}:
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
-        for col, ddl in (("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
+        for col, ddl in (("hdr2_image", "TEXT DEFAULT ''"), ("hdr2_alt", "TEXT DEFAULT ''"), ("hdr2_zoom", "REAL DEFAULT 1"), ("hdr2_x", "REAL DEFAULT 50"), ("hdr2_y", "REAL DEFAULT 50"), ("hdr_split", "REAL DEFAULT 62"), ("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
                          ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("blank_at", "TEXT DEFAULT ''"), ("total_pages", "INTEGER DEFAULT 0"), ("ad_page_count", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
@@ -2408,11 +2409,33 @@ def create_app(config=None):
             photo = db().execute("SELECT * FROM photos WHERE id=?", (lib,)).fetchone()
             if photo:
                 image, alt = photo["filename"], request.form.get("hdr_alt", "").strip()[:300] or photo["alt"] or "Parish photo"
+        image2, alt2 = b["hdr2_image"] or "", request.form.get("hdr2_alt", "").strip()[:300] or b["hdr2_alt"] or ""
+        f2 = request.files.get("image2")
+        lib2 = request.form.get("library_id2")
+        if request.form.get("reset2"):
+            image2, alt2 = "", ""
+        elif f2 and f2.filename:
+            ext = f2.filename.rsplit(".", 1)[-1].lower()
+            if ext not in IMAGE_EXT:
+                flash("Images must be PNG, JPG, GIF or WebP.", "error")
+                return redirect(url_for("edit", bid=bid))
+            if not request.form.get("hdr2_alt", "").strip():
+                flash("Alternative text is required for the second header photo.", "error")
+                return redirect(url_for("edit", bid=bid))
+            image2 = f"{uuid.uuid4().hex}_{secure_filename(f2.filename)}"
+            f2.save(os.path.join(app.config["UPLOAD_DIR"], image2))
+        elif lib2:
+            photo2 = db().execute("SELECT * FROM photos WHERE id=?", (lib2,)).fetchone()
+            if photo2:
+                image2, alt2 = photo2["filename"], request.form.get("hdr2_alt", "").strip()[:300] or photo2["alt"] or "Parish photo"
         def num(key, lo, hi, default):
             try:
                 return max(lo, min(hi, float(request.form.get(key, default))))
             except ValueError:
                 return default
+        db().execute("UPDATE bulletins SET hdr2_image=?, hdr2_alt=?, hdr2_zoom=?, hdr2_x=?, hdr2_y=?, hdr_split=? WHERE id=?",
+                     (image2, alt2, num("hdr2_zoom", 1, 4, 1), num("hdr2_x", 0, 100, 50), num("hdr2_y", 0, 100, 50),
+                      num("hdr_split", 30, 70, 62), bid))
         db().execute("UPDATE bulletins SET hdr_image=?, hdr_alt=?, hdr_h=?, hdr_zoom=?, hdr_x=?, hdr_y=?, hdr_style=? WHERE id=?",
                      (image, alt, num("hdr_h", 0.5, 5, 2.4), num("hdr_zoom", 1, 4, 1), num("hdr_x", 0, 100, 50),
                       num("hdr_y", 0, 100, 50),

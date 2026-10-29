@@ -428,3 +428,6 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .masthead.m-allsouls .crop img.hdr-art { position: absolute; top: 0; right: 0; width: 38%; height: 100%; object-fit: cover; transform: none; border-left: 4px solid var(--gold-bright); }
 .sec.has-ig .yev { margin: 0 0 var(--ig); }
 .sec.has-ig .yev:last-child { margin-bottom: 0; }
+.masthead.m-allsouls .crop img:first-child { width: var(--hs, 62%); }
+.masthead.m-allsouls .crop .hdr-art2 { position: absolute; top: 0; right: 0; height: 100%; overflow: hidden; border-left: 4px solid var(--gold-bright); }
+.masthead.m-allsouls .crop .hdr-art2 img { width: 100%; height: 100%; object-fit: cover; }

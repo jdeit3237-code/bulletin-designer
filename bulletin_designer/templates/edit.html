@@ -143,13 +143,26 @@
   <label for="hp_up">Or upload a new photo (PNG, JPG, GIF, WebP)</label><input id="hp_up" name="image" type="file" accept="image/*">
   <label for="hdr_alt">Alternative text (required for a new upload)</label><input id="hdr_alt" name="hdr_alt" type="text" value="{{ b.hdr_alt }}">
   <label for="hdr_style">Header edge design (the photo fits inside whichever you choose)</label>
-  <select id="hdr_style" name="hdr_style">{% for v, n in [('waves','Waves'),('swell','Big swell'),('gentle','Gentle waves'),('straight','Straight edges'),('allsouls',"All Souls' Day (church photo + candles)")] %}<option value="{{ v }}" {{ 'selected' if (b.hdr_style or 'waves') == v }}>{{ n }}</option>{% endfor %}</select>
+  <select id="hdr_style" name="hdr_style">{% for v, n in [('waves','Waves'),('swell','Big swell'),('gentle','Gentle waves'),('straight','Straight edges'),('allsouls',"Split header: two photos side by side (All Souls' Day art by default)")] %}<option value="{{ v }}" {{ 'selected' if (b.hdr_style or 'waves') == v }}>{{ n }}</option>{% endfor %}</select>
   <label for="hdr_h">Header photo height: <output id="hh_o">{{ b.hdr_h or 2.4 }}</output> in (make the header taller or shorter)</label>
   <input id="hdr_h" name="hdr_h" type="range" min="0.5" max="5" step="0.1" value="{{ b.hdr_h or 2.4 }}">
   <label for="hdr_zoom">Zoom: <output id="hz_o">{{ b.hdr_zoom or 1 }}</output>x</label><input id="hdr_zoom" name="hdr_zoom" type="range" min="1" max="4" step="0.1" value="{{ b.hdr_zoom or 1 }}">
   <label for="hdr_x">Move left / right</label><input id="hdr_x" name="hdr_x" type="range" min="0" max="100" value="{{ b.hdr_x if b.hdr_x is not none else 50 }}">
   <label for="hdr_y">Move up / down</label><input id="hdr_y" name="hdr_y" type="range" min="0" max="100" value="{{ b.hdr_y if b.hdr_y is not none else 50 }}">
   <label><input type="checkbox" name="reset" value="1"> Go back to the default church photo</label>
+  <fieldset><legend>Second photo (used only by the "Split header" design)</legend>
+    <p class="meta">Leave empty to show the All Souls' Day candle picture. The first photo above is the left side.</p>
+    <label for="hp_lib2">Second photo from library</label>
+    <select id="hp_lib2" name="library_id2"><option value="">- keep current -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}</select>
+    <label for="hp_up2">Or upload a new second photo</label><input id="hp_up2" name="image2" type="file" accept="image/*">
+    <label for="hdr2_alt">Alternative text for the second photo (required for a new upload)</label><input id="hdr2_alt" name="hdr2_alt" type="text" value="{{ b.hdr2_alt }}">
+    <label for="hdr_split">Width of the left photo: <output id="hs_o">{{ (b.hdr_split or 62)|int }}</output>%</label>
+    <input id="hdr_split" name="hdr_split" type="range" min="30" max="70" step="1" value="{{ (b.hdr_split or 62)|int }}" oninput="hs_o.textContent=this.value">
+    <label for="hdr2_zoom">Second photo zoom</label><input id="hdr2_zoom" name="hdr2_zoom" type="range" min="1" max="4" step="0.1" value="{{ b.hdr2_zoom or 1 }}">
+    <label for="hdr2_x">Second photo: move left / right</label><input id="hdr2_x" name="hdr2_x" type="range" min="0" max="100" value="{{ b.hdr2_x if b.hdr2_x is not none else 50 }}">
+    <label for="hdr2_y">Second photo: move up / down</label><input id="hdr2_y" name="hdr2_y" type="range" min="0" max="100" value="{{ b.hdr2_y if b.hdr2_y is not none else 50 }}">
+    <label><input type="checkbox" name="reset2" value="1"> Remove the second photo (show the candle picture)</label>
+  </fieldset>
   <p><button class="btn">Save header photo</button></p>
   <script>
   hdr_h.oninput=function(){hh_o.textContent=hdr_h.value;};hdr_zoom.oninput=function(){hz_o.textContent=hdr_zoom.value;};
