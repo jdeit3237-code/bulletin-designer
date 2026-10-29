@@ -255,7 +255,7 @@ def test_mass_times_section(app):
 
 def clear_mass_week(c):
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "0", "csrf": tok(c, "/bulletins/1")})
 
 
@@ -290,7 +290,7 @@ def test_this_week_ministers(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     form = c.get(f"/bulletins/1/section/{sid}").text
     assert "Lector(s)" in form and "Eucharistic Ministers" in form
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "Ministers This Week",
@@ -430,7 +430,7 @@ def test_section_on_page_one(app):
     c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
     c.post("/bulletins/1/layout/9", data={"area": "right", "page_no": "1", "pages": "1", "cols": "1", "csrf": t})
     pg = c.get("/bulletins/1").text
-    assert re.search(r"Readings[^<]*<br>.*?Page 1", pg, re.S)
+    assert re.search(r"Readings.*?Page 1", pg, re.S)
 
 
 def test_stack_below_and_same_column(app):
@@ -442,9 +442,9 @@ def test_stack_below_and_same_column(app):
     c.post("/bulletins/1/section/9", data={"body": "Gospel", "csrf": t})
     c.post("/bulletins/1/layout/9", data={"area": "below", "page_no": "0", "pages": "1", "cols": "1", "csrf": t})
     pg = c.get("/bulletins/1").text
-    assert re.search(r"Welcome Message[^<]*<br>.*?(Page 1|Page 2)", pg, re.S)
-    w = re.search(r"Readings[^<]*<br>.*?<td>(.*?)</td>", pg, re.S).group(1)
-    w2 = re.search(r"Welcome Message[^<]*<br>.*?<td>(.*?)</td>", pg, re.S).group(1)
+    assert re.search(r"Welcome Message.*?(Page 1|Page 2)", pg, re.S)
+    w = re.search(r"Readings.*?<td>(.*?)</td>", pg, re.S).group(1)
+    w2 = re.search(r"Welcome Message.*?<td>(.*?)</td>", pg, re.S).group(1)
     assert w == w2
     html = c.get("/bulletins/1/preview").text
     assert html.index("Welcome text") < html.index("Gospel")
@@ -740,7 +740,7 @@ def test_mass_notes_textarea(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     assert "Notes for this Mass" in c.get(f"/bulletins/1/section/{sid}").text
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
            "m0_notes": "Bring canned goods\nSecond collection", "csrf": tok(c, "/bulletins/1")})
@@ -753,7 +753,7 @@ def test_delete_mass_subsection(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "", "m0_date": "2026-10-24",
            "m0_lectors": "Anna Keep", "m1_date": "2026-10-25", "m1_lectors": "Bob Gone", "m1_remove": "1",
            "csrf": tok(c, "/bulletins/1")})
@@ -765,7 +765,7 @@ def test_mass_rows_sorted_by_date(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "2", "header": "", "m0_date": "2026-10-25",
            "m0_lectors": "Later Person", "m1_date": "2026-10-24", "m1_lectors": "Earlier Person",
            "csrf": tok(c, "/bulletins/1")})
@@ -777,7 +777,7 @@ def test_giving_structured_section(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">Stewardship &amp; Giving.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">Stewardship &amp; Giving.*?/section/(\d+)', page, re.S).group(1)
     data = {"g_date": "2026-10-25", "g_first": "1234.5", "g_second": "300", "g_no_second": "1",
             "g_deposit": "$2,000", "g_purpose": "Seminarian fund", "g_notes": "Thank you", "csrf": tok(c, "/bulletins/1")}
     c.post(f"/bulletins/1/section/{sid}", data=data)
@@ -856,7 +856,7 @@ def test_mass_schedule_heading_is_fitted_green_block(app):
     c = setup_admin(app)
     create_bulletin(c)
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     c.post(f"/bulletins/1/section/{sid}", data={"mass_count": "1", "header": "", "m0_date": "2026-10-25",
            "m0_lectors": "Ann Kay", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
@@ -867,7 +867,7 @@ def test_mass_week_autodated_and_carried(app):
     c = setup_admin(app)
     create_bulletin(c, "2026-10-25")
     page = c.get("/bulletins/1").text
-    sid = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
+    sid = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', page, re.S).group(1)
     form = c.get(f"/bulletins/1/section/{sid}").text
     for d in ("2026-10-24", "2026-10-25", "2026-11-01"):
         assert f'value="{d}"' in form
@@ -876,7 +876,7 @@ def test_mass_week_autodated_and_carried(app):
            "m7_date": "2026-10-31", "m7_lectors": "Sat Reader", "m7_notes": "Vigil\nnote",
            "m8_date": "2026-11-01", "m8_lectors": "Sun Reader"})
     create_bulletin(c, "2026-11-01")
-    sid2 = re.search(r'<th scope="row">This Week in Our Parish: Lectors.*?/section/(\d+)', c.get("/bulletins/2").text, re.S).group(1)
+    sid2 = re.search(r'<th scope="row"><span class="sr-only">This Week in Our Parish: Lectors.*?/section/(\d+)', c.get("/bulletins/2").text, re.S).group(1)
     form2 = c.get(f"/bulletins/2/section/{sid2}").text
     assert 'value="2026-10-31"' in form2 and 'value="2026-11-08"' in form2
     assert "Sat Reader" in form2 and "Sun Reader" in form2 and "Vigil\nnote" in form2
@@ -1923,7 +1923,7 @@ def test_ads_page_alternating_banded_rows(app):
     c = setup_admin(app)
     t = tok(c, "/ads")
     for n, col in enumerate(("red", "blue")):
-        c.post("/ads", data={"csrf": t, "name": f"Ad{n}", "image": (_card(300, 200, col), f"a{n}.png")}, content_type="multipart/form-data")
+        c.post("/ads", data={"csrf": t, "cards": [(_card(1050, 600, col), f"a{n}.png")]}, content_type="multipart/form-data")
     h = c.get("/ads").text
     assert h.count("sec-band") == 2 and "sr-a" in h and "sr-b" in h
 
@@ -1931,6 +1931,15 @@ def test_ads_page_alternating_banded_rows(app):
 def test_ads_click_to_enlarge(app):
     c = setup_admin(app)
     t = tok(c, "/ads")
-    c.post("/ads", data={"csrf": t, "name": "Ad0", "image": (_card(300, 200, "red"), "a.png")}, content_type="multipart/form-data")
+    c.post("/ads", data={"csrf": t, "cards": [(_card(1050, 600, "red"), "a.png")]}, content_type="multipart/form-data")
     h = c.get("/ads").text
     assert 'class="ad-zoom"' in h and 'id="ad-big"' in h
+
+
+def test_library_zoom_and_banded_cards(app):
+    c = setup_admin(app)
+    for n, col in enumerate(("red", "blue")):
+        c.post("/library", data={"csrf": tok(c, "/library"), "photo": (_card(100, 100, col), f"p{n}.png"), "title": f"Pic{n}", "alt": "x", "tags": "t"}, content_type="multipart/form-data")
+    for url in ("/library", "/library/browse"):
+        h = c.get(url).text
+        assert 'class="photo-zoom"' in h and 'id="photo-big"' in h and "See full page" in h and "ph-band" in h and "sr-a" in h and "sr-b" in h

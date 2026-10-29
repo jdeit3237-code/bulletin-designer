@@ -51,8 +51,9 @@
 {% endif %}
 <h2>Photos</h2>
 {% for p in photos %}
-<figure style="display:inline-block;width:230px;vertical-align:top;margin:.5em">
-  <img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" style="max-width:100%;height:auto">
+<figure class="phcard {{ 'sr-a' if loop.index is odd else 'sr-b' }}">
+  <div class="ph-band">{{ loop.index }}. {{ p.title }}</div>
+  <button type="button" class="photo-zoom" data-src="{{ url_for('uploads', name=p.filename) }}" data-name="{{ p.title }}" aria-label="Enlarge {{ p.title }}"><img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" style="max-width:100%;height:auto"></button>
   <figcaption><strong>{{ p.title }}</strong><br>{{ p.tags }}
     {% set m = metas[p.id] %}{% if m %}<br><span class="small">{% for k in (m.size, m.taken, m.camera, m.creator, m.copyright, ('Made with ' ~ m.ai_tool) if m.ai_tool, m.purpose) if k %}{{ k }}{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}</figcaption>
   {% if g.user.role in ('admin','editor') and libs %}<form method="post" action="{{ url_for('photo_libraries', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="back" value="{{ lib }}">
@@ -61,4 +62,5 @@
   {% if g.user.role in ('admin','editor') %}<form method="post" action="{{ url_for('library_delete', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary" onclick="return confirm('Delete this photo?')">Delete</button></form>{% endif %}
 </figure>
 {% else %}<p>No photos yet.</p>{% endfor %}
+{% include "_photo_zoom.html" %}
 {% endblock %}

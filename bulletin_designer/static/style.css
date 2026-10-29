@@ -472,3 +472,10 @@ table.secs .lgrid { grid-template-columns: repeat(auto-fill, minmax(11em, 1fr));
 table.adtbl tr.sec-row > td { vertical-align: middle; }
 .ad-zoom { background: none; border: 0; padding: 0; cursor: zoom-in; }
 #ad-big { max-width: 95vw; border: 3px solid #14562a; border-radius: 6px; }
+figure.phcard { display: inline-block; width: 230px; vertical-align: top; margin: .5em; padding: 0 0 .5em; border: 1px solid #bbb; border-radius: 6px; overflow: hidden; }
+figure.phcard.sr-a { background: #f7f7f2; }
+figure.phcard.sr-b { background: #dde2e6; }
+figure.phcard .ph-band { background: #1f7a3a; color: #fff; font: bold 12pt Arial, sans-serif; padding: .3em .6em; margin-bottom: .4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+figure.phcard figcaption, figure.phcard form { padding: 0 .5em; }
+.photo-zoom { background: none; border: 0; padding: 0 .5em; cursor: zoom-in; display: block; }
+#photo-big { max-width: 95vw; border: 3px solid #14562a; border-radius: 6px; }

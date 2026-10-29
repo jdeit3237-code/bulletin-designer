@@ -1,11 +1,4 @@
-{% extends "base.html" %}{% block title %}Advertisements<dialog id="ad-big" aria-label="Larger advertisement"><p><button type="button" class="btn" id="ad-close">Close</button></p><img id="ad-big-img" alt="" style="max-width:90vw;max-height:80vh"></dialog>
-<script>
-(function(){var d=document.getElementById('ad-big'),i=document.getElementById('ad-big-img');
-document.querySelectorAll('.ad-zoom').forEach(function(b){b.addEventListener('click',function(){i.src=b.dataset.src;i.alt=b.dataset.name;d.showModal();});});
-document.getElementById('ad-close').addEventListener('click',function(){d.close();});
-d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
-</script>
-{% endblock %}
+{% extends "base.html" %}{% block title %}Advertisements{% endblock %}
 {% block content %}
 <h1>Advertisements</h1>
 <p>Add each business card once. Active cards are placed automatically on the last two pages of every bulletin, sized to fit and centered. Cards stay here from week to week, so you only add or remove what changes.</p>
@@ -44,4 +37,11 @@ d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
   {% if g.user.role in ('admin','editor') %}<p><button class="btn">Save changes</button></p>{% endif %}
 </form>
 {% else %}<p>No cards yet.</p>{% endif %}
+<dialog id="ad-big" aria-label="Larger advertisement"><p><button type="button" class="btn" id="ad-close">Close</button></p><img id="ad-big-img" alt="" style="max-width:90vw;max-height:80vh"></dialog>
+<script>
+(function(){var d=document.getElementById('ad-big'),i=document.getElementById('ad-big-img');
+document.querySelectorAll('.ad-zoom').forEach(function(b){b.addEventListener('click',function(){i.src=b.dataset.src;i.alt=b.dataset.name;d.showModal();});});
+document.getElementById('ad-close').addEventListener('click',function(){d.close();});
+d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
+</script>
 {% endblock %}

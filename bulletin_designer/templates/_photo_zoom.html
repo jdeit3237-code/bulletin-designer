@@ -1,0 +1,7 @@
+<dialog id="photo-big" aria-label="Larger photo"><p><button type="button" class="btn" id="photo-close">Close</button> <a class="btn secondary" id="photo-full" href="#" target="_blank" rel="noopener">See full page</a></p><img id="photo-big-img" alt="" style="max-width:90vw;max-height:75vh"></dialog>
+<script>
+(function(){var d=document.getElementById('photo-big'),i=document.getElementById('photo-big-img'),f=document.getElementById('photo-full');
+document.querySelectorAll('.photo-zoom').forEach(function(b){b.addEventListener('click',function(){i.src=b.dataset.src;i.alt=b.dataset.name;f.href=b.dataset.src;d.showModal();});});
+document.getElementById('photo-close').addEventListener('click',function(){d.close();});
+d.addEventListener('click',function(e){if(e.target===d)d.close();});})();
+</script>
