@@ -1,7 +1,7 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
 # Update this whenever the help text changes (Eastern time).
-LAST_UPDATED = "October 29, 2026, 7:25 AM Eastern Time (EDT)"
+LAST_UPDATED = "October 29, 2026, 9:15 AM Eastern Time (EDT)"
 
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
@@ -170,7 +170,7 @@ TOPICS = [
     ("review", "Review, approve and publish", "review approve publish pending status proofread published lock",
      ["Contributors submit sections; an editor approves them. Pending sections do not print until approved.",
       "Press Publish when the bulletin is final. Published bulletins are locked. Admins and editors can press 'Unpublish (reopen for edits)' if something must change, then Publish again.",
-      "Viewers can only read. Access levels: Admin (everything), Editor (all sections, approve, publish, manage users at their level or below), Contributor (only assigned sections), Viewer (read only)."]),
+      "Viewers can only read. Access levels: Admin (everything), Editor (all sections, approve, publish, manage users at their level or below), Contributor (only assigned sections), Webmaster (only downloads the web PDF of published bulletins), Viewer (read only)."]),
     ("design", "Simple design rules (no designer needed)", "design tips good looking professional fonts colors font size readable consistent white space",
      ["Keep it consistent: the app already sets fonts and colors. Resist adding many colors or sizes.",
       "Use white space. A page that feels a little empty reads better than a crowded one.",

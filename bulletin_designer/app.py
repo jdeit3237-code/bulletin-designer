@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import itertools
 import re
 from urllib.parse import urlsplit
 import secrets
@@ -38,13 +39,15 @@ except ImportError:  # run as a script
 
 BULLETS = {"disc": "\u2022 Round dot", "circle": "\u25e6 Open circle", "square": "\u25aa Square", "dash": "\u2013 Dash", "check": "\u2713 Check mark", "arrow": "\u27a4 Arrow", "cross": "\u271d Cross", "star": "\u2605 Star"}
 
-ROLES = ("admin", "editor", "contributor", "viewer")
+ROLES = ("admin", "editor", "contributor", "webmaster", "viewer")
 ROLE_HELP = {
     "admin": "Manage users, sections and layout; everything an editor can do.",
     "editor": "Edit every section, approve contributions, publish the bulletin.",
     "contributor": "Edit only assigned sections; changes wait for editor approval.",
+    "webmaster": "Sees only the list of published bulletins and can download the web PDF of each (nothing else).",
     "viewer": "Read-only access to drafts and published bulletins.",
 }
+WEBMASTER_PAGES = {"dashboard", "download", "password", "logout", "static", "login", "forgot", "reset_with_token", "register"}
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 PHOTO_SHAPES = {"3:2": (1.5, "Wide (3 by 2)"), "1:1": (1.0, "Square"), "2:3": (2 / 3, "Tall (2 by 3)"), "3:1": (3.0, "Banner (3 by 1)"), "16:9": (16 / 9, "Widescreen (16 by 9)")}
 LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
@@ -128,57 +131,49 @@ def pack_ads(cards, scale, gap=AD_GAP_X, pad=(0.0, 0.0)):
 
 
 def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
-    """Fit all cards on the last pages (largest uniform scale that works). want = number of pages to spread them over (0 = automatic, up to 2)."""
+    """Fit all cards on the last pages. One size scale is used for every card on every page; the page break is chosen where that scale can be largest.
+    want = number of pages to spread them over (0 = automatic, 1 or 2)."""
     if not cards:
         return []
-    limit = want if want else 2
+
+    def row_h(r):
+        return max(i["h"] for i in r) + pad[1]
+
+    def factor(rows):
+        if not rows:
+            return 99.0, True
+        fw = min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r) for r in rows)
+        fh = (AD_H - gap * (len(rows) - 1)) / sum(row_h(r) for r in rows)
+        return min(fw, fh, 2.5), fh >= 0.9999
+
+    best = None
     for scale in [round(1.5 - 0.01 * k, 2) for k in range(0, 101)]:
-        pages = pack_ads(cards, scale, gap, pad)
-        if len(pages) <= limit:
-            break
+        rows = [r for pg in pack_ads(cards, scale, gap, pad) for r in pg]
+        parts = []
+        for n in ([want] if want else [1, 2]):
+            n = max(1, min(n, len(rows)))
+            for cuts in itertools.combinations(range(1, len(rows)), n - 1):
+                edges = (0,) + cuts + (len(rows),)
+                parts.append([rows[x:y] for x, y in zip(edges, edges[1:])])
+        if want != 1 and len(rows) == 1:
+            parts.append([rows, []])
+        for part in parts:
+            fs = [factor(pg) for pg in part]
+            if not all(ok for _, ok in fs):
+                continue
+            common = min(f for f, _ in fs)
+            score = scale * common
+            if best is None or score > best[0] + 1e-9:
+                best = (score, common, part)
+    if best:
+        _, common, pages = best
     else:
-        pages = pack_ads(cards, 0.5, gap, pad)
-    if want and len(pages) <= want:
-        rows = [r for pg in pages for r in pg]
-        total = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
-        n = min(want, len(rows))
-        pages, cur, acc = [], [], 0.0
-        for r in rows:
-            h = (max(i["h"] for i in r) + pad[1])
-            if cur and len(pages) < n - 1 and acc + h / 2 > total / n * (len(pages) + 1):
-                pages.append(cur)
-                cur = []
-            cur.append(r)
-            acc += h
-        pages.append(cur)
-    elif len(pages) == 1 and len(pages[0]) > 1:
-        rows = pages[0]
-        mid = (len(rows) + 1) // 2
-        pages = [rows[:mid], rows[mid:]]
-    elif len(pages) == 1:
-        pages = [pages[0], []]
+        pages, common = pack_ads(cards, 0.5, gap, pad), 1.0
+    k = common - 0.003 if common > 1.003 else 1.0
     out = []
     for rows in pages:
-        if rows:
-            def scaled(rs, fs):
-                return [[dict(i, w=round(i["w"] * k, 3), h=round(i["h"] * k, 3)) for i in r] for r, k in zip(rs, fs)]
-
-            def area(rs):
-                return sum(i["w"] * i["h"] for r in rs for i in r)
-
-            fw = min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r) for r in rows)
-            fh = (AD_H - pad[1] * len(rows) - gap * (len(rows) - 1)) / sum(max(i["h"] for i in r) for r in rows)
-            f = max(1.0, min(fw, fh, 2.5)) - 0.003 if min(fw, fh) > 1.003 else 1.0
-            best = scaled(rows, [f] * len(rows))
-            # Alternative: stretch every row to the full width, then shrink all rows together if too tall.
-            fr = [min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r), 2.5) for r in rows]
-            hs = sum(max(i["h"] for i in r) * k for r, k in zip(rows, fr))
-            g = min(1.0, (AD_H - pad[1] * len(rows) - gap * (len(rows) - 1)) / hs)
-            alt = scaled(rows, [max(k * g - 0.003, 1.0) for k in fr])
-            if all(sum(i["w"] for i in r) + (len(r) - 1) * (gap + pad[0]) <= AD_W + pad[0] + 0.001 for r in alt) and area(alt) > area(best):
-                best = alt
-            rows = best
-        used = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
+        rows = [[dict(i, w=round(i["w"] * k, 3), h=round(i["h"] * k, 3)) for i in r] for r in rows]
+        used = sum(row_h(r) for r in rows)
         top = max(gap, (AD_H - used - gap * max(len(rows) - 1, 0)) / 2) if rows else 0
         out.append({"rows": rows, "gap": round(gap, 3), "top": round(top, 3)})
     return out
@@ -509,6 +504,8 @@ def create_app(config=None):
         if (g.user and g.user["must_reset"] and request.endpoint
                 not in ("password", "logout", "static", "forgot", "reset_with_token", "register")):
             return redirect(url_for("password"))
+        if g.user and g.user["role"] == "webmaster" and request.endpoint not in WEBMASTER_PAGES:
+            abort(403)
 
     app.jinja_env.globals["csrf"] = lambda: session.get("csrf", "")
 
@@ -2945,7 +2942,9 @@ def create_app(config=None):
         if kind not in ("web", "print", "booklet"):
             abort(404)
         b = get_bulletin(bid)
-        if g.user["role"] == "viewer" and b["status"] != "published":
+        if g.user["role"] in ("viewer", "webmaster") and b["status"] != "published":
+            abort(403)
+        if g.user["role"] == "webmaster" and kind != "web":
             abort(403)
         try:
             from weasyprint import HTML

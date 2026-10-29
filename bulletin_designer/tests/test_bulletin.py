@@ -2075,3 +2075,22 @@ def test_ad_web_link_wraps_card_without_showing_address(app):
     assert 'class="ad-link" href="https://acme.com"' in html
     visible = re.sub(r"<[^>]+>", " ", html)
     assert "acme.com" not in visible
+
+
+def test_webmaster_only_downloads_web_pdf(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    w = register_user(app, c, "web@x.org", "webmaster")
+    dash = w.get("/").text
+    assert "Download web PDF" not in dash
+    import sqlite3
+    db = sqlite3.connect(app.config["DATABASE"])
+    assert w.get("/bulletins/1/download/web").status_code == 403
+    db.execute("UPDATE bulletins SET status='published' WHERE id=1")
+    db.commit()
+    assert "Download web PDF" in w.get("/").text
+    r = w.get("/bulletins/1/download/web")
+    assert r.status_code == 200 and r.data.startswith(b"%PDF")
+    for path in ("/bulletins/1/download/print", "/bulletins/1/download/booklet", "/bulletins/1", "/bulletins/1/preview", "/ads", "/library", "/admin/users", "/help"):
+        assert w.get(path).status_code == 403, path
+    assert "Design studio" not in w.get("/").text
