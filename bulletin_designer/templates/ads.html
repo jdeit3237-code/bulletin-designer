@@ -3,9 +3,10 @@
 <h1>Advertisements</h1>
 <p>Add each business card once. Active cards are placed automatically on the last two pages of every bulletin, sized to fit and centered. Cards stay here from week to week, so you only add or remove what changes.</p>
 {% if g.user.role in ('admin','editor') %}{% set sd = shadow_parse(ad_shadow_raw()) %}
-<h2>Drop shadow on the cards</h2>
+<h2>Gap and drop shadow on the cards</h2>
 <form method="post" action="{{ url_for('ads_shadow') }}" class="sh-ctl" id="adsh">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <p><label>Gap between cards (inches; smaller gap lets the cards print larger) <input type="number" name="adgap" min="0.05" max="0.6" step="0.05" value="{{ ad_gap_value() }}" style="width:5em"></label></p>
   <label><input type="checkbox" name="adon" value="1" {{ 'checked' if sd }}> Give the cards a drop shadow</label>
   <div class="sh-row" style="display:flex;flex-wrap:wrap;align-items:center">
     <div id="adsh-prev" aria-hidden="true"></div>
@@ -16,8 +17,8 @@
       <label>Darkness <input type="range" name="ado" min="5" max="100" step="5" value="{{ (sd.o if sd else 70)|round|int }}"></label>
     </div>
   </div>
-  <p class="small">The preview square updates right away. Click Save drop shadow to apply it to every card in the printed bulletin.</p>
-  <p><button class="btn">Save drop shadow</button></p>
+  <p class="small">The preview square updates right away. Click Save gap and shadow to apply it to every card in the printed bulletin. Room for the shadow is reserved between and below the cards; sideways it may run into the page margin.</p>
+  <p><button class="btn">Save gap and shadow</button></p>
 </form>
 <script>
 (function(){var f=document.getElementById('adsh'),p=document.getElementById('adsh-prev');

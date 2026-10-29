@@ -83,7 +83,7 @@ DEFAULT_SECTIONS = [
 AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 8.0, 0.25, 0.2
 
 
-def pack_ads(cards, scale):
+def pack_ads(cards, scale, gap=AD_GAP_X, pad=(0.0, 0.0)):
     """Shelf-pack cards (long edge 3.5in x scale, true aspect). Horizontal cards first, then vertical. Returns pages of rows."""
     def size(c):
         ratio = min(c["w"], c["h"]) / max(c["w"], c["h"]) if c["w"] and c["h"] else 0.57
@@ -94,44 +94,45 @@ def pack_ads(cards, scale):
     for c in ordered:
         w, h = size(c)
         item = {"name": c["name"], "image": c["image"], "w": round(w, 3), "h": round(h, 3)}
-        if row and (row_w + AD_GAP_X + w > AD_W + 0.001 or (row[0]["w"] >= row[0]["h"]) != (c["w"] >= c["h"])):
+        if row and (row_w + gap + pad[0] + w > AD_W + pad[0] + 0.001 or (row[0]["w"] >= row[0]["h"]) != (c["w"] >= c["h"])):
             rows.append(row)
             row, row_w = [], 0.0
-        row_w += (AD_GAP_X if row else 0) + w
+        row_w += (gap + pad[0] if row else 0) + w
+        item["ph"] = round(pad[1], 3)
         row.append(item)
     if row:
         rows.append(row)
     pages, cur, used = [], [], 0.0
     for r in rows:
-        h = max(i["h"] for i in r)
-        if cur and used + AD_GAP_Y + h > AD_H:
+        h = max(i["h"] for i in r) + pad[1]
+        if cur and used + gap + h > AD_H:
             pages.append(cur)
             cur, used = [], 0.0
-        used += (AD_GAP_Y if cur else 0) + h
+        used += (gap if cur else 0) + h
         cur.append(r)
     if cur:
         pages.append(cur)
     return pages
 
 
-def ad_pages(cards, want=0):
+def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
     """Fit all cards on the last pages (largest uniform scale that works). want = number of pages to spread them over (0 = automatic, up to 2)."""
     if not cards:
         return []
     limit = want if want else 2
     for scale in [round(1.0 - 0.01 * k, 2) for k in range(0, 51)]:
-        pages = pack_ads(cards, scale)
+        pages = pack_ads(cards, scale, gap, pad)
         if len(pages) <= limit:
             break
     else:
-        pages = pack_ads(cards, 0.5)
+        pages = pack_ads(cards, 0.5, gap, pad)
     if want and len(pages) <= want:
         rows = [r for pg in pages for r in pg]
-        total = sum(max(i["h"] for i in r) for r in rows)
+        total = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
         n = min(want, len(rows))
         pages, cur, acc = [], [], 0.0
         for r in rows:
-            h = max(i["h"] for i in r)
+            h = (max(i["h"] for i in r) + pad[1])
             if cur and len(pages) < n - 1 and acc + h / 2 > total / n * (len(pages) + 1):
                 pages.append(cur)
                 cur = []
@@ -146,8 +147,8 @@ def ad_pages(cards, want=0):
         pages = [pages[0], []]
     out = []
     for rows in pages:
-        used = sum(max(i["h"] for i in r) for r in rows)
-        gap = min(0.6, max(AD_GAP_Y, (AD_H - used) / (len(rows) + 1))) if rows else 0
+        used = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
+        gap = min(0.6, max(gap, (AD_H - used) / (len(rows) + 1))) if rows else 0
         out.append({"rows": rows, "gap": round(gap, 3)})
     return out
 
@@ -663,6 +664,21 @@ def create_app(config=None):
         r = db().execute("SELECT v FROM meta WHERE k='ad_shadow'").fetchone()
         return r["v"] if r else AD_SHADOW_DEFAULT
 
+    def ad_gap_value():
+        r = db().execute("SELECT v FROM meta WHERE k='ad_gap'").fetchone()
+        try:
+            return max(0.05, min(0.6, float(r["v"]))) if r else AD_GAP_X
+        except ValueError:
+            return AD_GAP_X
+
+    def ad_layout():
+        """(gap in inches, (sideways, downward) room in inches the shadow needs between and under cards)."""
+        sd = shadow_parse(ad_shadow_raw())
+        if not sd:
+            return ad_gap_value(), (0.0, 0.0)
+        return ad_gap_value(), ((abs(sd["x"]) + sd["b"] / 2) / 72, (abs(sd["y"]) + sd["b"] / 2) / 72)
+
+    app.jinja_env.globals["ad_gap_value"] = ad_gap_value
     app.jinja_env.globals["ad_shadow_raw"] = ad_shadow_raw
     app.jinja_env.globals["ad_shadow"] = lambda: shadow_parse(ad_shadow_raw())
     app.jinja_env.globals["PHOTO_SHAPES"] = PHOTO_SHAPES
@@ -1283,13 +1299,14 @@ def create_app(config=None):
         extra = (brow["extra_pages"] or 0) if brow else 0
         total_want = (brow["total_pages"] or 0) if brow else 0
         ads = [dict(r) for r in db().execute("SELECT name,image,w,h FROM ads WHERE active=1 ORDER BY position, id").fetchall()]
-        ad_pg = ad_pages(ads, (brow["ad_page_count"] or 0) if brow else 0)
+        ad_gap, ad_pad = ad_layout()
+        ad_pg = ad_pages(ads, (brow["ad_page_count"] or 0) if brow else 0, ad_gap, ad_pad)
         blanks = max(0, total_want - len(pages) - len(ad_pg)) if total_want else ((-(len(pages) + len(ad_pg))) % 4 if pages else 4) + extra
         for _ in range(blanks):
             pages.append({"row": None, "number": cur})
             cur += 1
         for k, pg_ in enumerate(ad_pg):
-            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_first": k == 0, "ad_last": k == len(ad_pg) - 1, "number": cur})
+            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_card_gap": ad_gap, "ad_first": k == 0, "ad_last": k == len(ad_pg) - 1, "number": cur})
             if k == 0:
                 toc.append({"title": "Our Advertisers", "page": cur, "pos": 99999})
             cur += 1
@@ -2554,7 +2571,7 @@ def create_app(config=None):
             flash(f"Added {added} card(s)." + (" An editor must tick Print before they appear in the bulletin." if added and not live else "") + (f" {bad} file(s) could not be read (use JPG, PNG, GIF, WebP or PDF)." if bad else ""), "error" if bad and not added else "ok")
             return redirect(url_for("ads"))
         rows = conn.execute("SELECT * FROM ads ORDER BY position, id").fetchall()
-        pg = ad_pages([dict(r) for r in rows if r["active"]])
+        pg = ad_pages([dict(r) for r in rows if r["active"]], 0, *ad_layout())
         return render_template("ads.html", ads=rows, ad_page_count=len(pg))
 
     @app.route("/ads/save", methods=["POST"])
@@ -2579,6 +2596,11 @@ def create_app(config=None):
         conn = db()
         raw = shadow_from_form("ad", "") or "off"
         conn.execute("INSERT OR REPLACE INTO meta(k,v) VALUES('ad_shadow',?)", (raw,))
+        try:
+            gap = max(0.05, min(0.6, float(request.form.get("adgap", ad_gap_value()))))
+        except ValueError:
+            gap = ad_gap_value()
+        conn.execute("INSERT OR REPLACE INTO meta(k,v) VALUES('ad_gap',?)", (str(gap),))
         conn.commit()
         flash("Advertisement drop shadow saved.", "ok")
         return redirect(url_for("ads"))

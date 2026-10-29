@@ -1857,7 +1857,7 @@ def test_ad_shadow_controls_and_render(app):
     t = tok(c, "/ads")
     c.post("/ads", data={"csrf": t, "cards": [(_card(1050, 600, "red"), "x.png")]}, content_type="multipart/form-data")
     h = c.get("/ads").text
-    assert "Drop shadow on the cards" in h and 'name="adb"' in h and 'name="ado"' in h
+    assert "Gap and drop shadow on the cards" in h and 'name="adb"' in h and 'name="ado"' in h
     c.post("/ads/shadow", data={"csrf": t, "adon": "1", "adx": "9", "ady": "7", "adb": "6", "ado": "50"})
     assert 'name="adx" min="-30" max="30" step="1" value="9"' in c.get("/ads").text
     pg = c.get("/bulletins/1/preview").text if c.get("/bulletins/1/preview").status_code == 200 else c.get("/bulletins/1").text
@@ -1987,3 +1987,18 @@ def test_ad_shadow_in_pdf(app):
     r = c.get("/bulletins/1/download/print")
     assert r.status_code == 200 and r.data[:4] == b"%PDF"
     open("/tmp/ad_shadow.pdf", "wb").write(r.data)
+
+
+def test_ad_gap_and_shadow_reserve_room(app):
+    from bulletin_designer.app import pack_ads
+    cards = [{"name": str(i), "image": "x", "w": 1050, "h": 600} for i in range(8)]
+    loose = pack_ads(cards, 1.0, 0.25, (0, 0))
+    tight = pack_ads(cards, 1.0, 0.05, (0, 0))
+    shadowed = pack_ads(cards, 1.0, 0.25, (0.3, 0.3))
+    n = lambda pg: sum(len(r) for p in pg for r in p)
+    assert n(loose) == n(tight) == n(shadowed) == 8
+    assert len(tight[0]) <= len(loose[0]) and len(shadowed) >= len(loose)
+    c = setup_admin(app)
+    t = tok(c, "/ads")
+    c.post("/ads/shadow", data={"csrf": t, "adgap": "0.1"})
+    assert 'name="adgap" min="0.05" max="0.6" step="0.05" value="0.1"' in c.get("/ads").text
