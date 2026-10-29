@@ -3224,7 +3224,7 @@ def create_app(config=None):
 
         if request.method == "POST":
             action = request.form.get("action")
-            if action in ("invite", "setemail", "role", "deactivate", "activate", "delete") and not may_manage(int(request.form.get("uid", 0))):
+            if action in ("invite", "getlink", "setemail", "role", "deactivate", "activate", "delete") and not may_manage(int(request.form.get("uid", 0))):
                 abort(403)
             if action == "create" and request.form.get("role") not in allowed:
                 abort(403)
@@ -3268,6 +3268,14 @@ def create_app(config=None):
                           "Email was not sent (" + (app.config.get("MAIL_ERROR") or "unknown reason") + "). Copy this link and send it yourself: %s" % link, "ok" if sent else "error")
                 else:
                     flash("That user has no email address. Add one first.", "error")
+            elif action == "getlink":
+                u = conn.execute("SELECT * FROM users WHERE id=?", (int(request.form["uid"]),)).fetchone()
+                if u and u["must_reset"]:
+                    link = url_for("register", token=make_token(u["id"], "invite", 24 * 7), _external=True)
+                    flash("Registration link for %s (good for 7 days; a new link replaces any earlier one): %s" % (u["display_name"], link), "ok")
+                elif u:
+                    link = url_for("reset_with_token", token=make_token(u["id"], "reset", 2), _external=True)
+                    flash("Password-reset link for %s (good for 2 hours): %s" % (u["display_name"], link), "ok")
             elif action in ("deactivate", "activate", "delete"):
                 uid = int(request.form["uid"])
                 target = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()

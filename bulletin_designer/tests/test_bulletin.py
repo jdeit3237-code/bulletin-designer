@@ -2094,3 +2094,16 @@ def test_webmaster_only_downloads_web_pdf(app):
     for path in ("/bulletins/1/download/print", "/bulletins/1/download/booklet", "/bulletins/1", "/bulletins/1/preview", "/ads", "/library", "/admin/users", "/help"):
         assert w.get(path).status_code == 403, path
     assert "Design studio" not in w.get("/").text
+
+
+def test_admin_can_get_user_link_without_email(app):
+    c = setup_admin(app)
+    c.post("/admin/users", data={"action": "create", "username": "n@x.org", "role": "viewer", "csrf": tok(c, "/admin/users")})
+    r = c.post("/admin/users", data={"action": "getlink", "uid": "2", "csrf": tok(c, "/admin/users")}, follow_redirects=True)
+    m = re.search(r"/register/[\w-]+", r.text)
+    assert m
+    u = app.test_client()
+    assert u.get(m.group(0)).status_code == 200
+    v = register_user(app, c, "m@x.org", "viewer")
+    r = c.post("/admin/users", data={"action": "getlink", "uid": "3", "csrf": tok(c, "/admin/users")}, follow_redirects=True)
+    assert "/reset/" in r.text or "reset" in r.text.lower()
