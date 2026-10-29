@@ -1,7 +1,7 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
 # Update this whenever the help text changes (Eastern time).
-LAST_UPDATED = "October 29, 2026, 7:16 AM Eastern Time (EDT)"
+LAST_UPDATED = "October 29, 2026, 7:25 AM Eastern Time (EDT)"
 
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
@@ -153,6 +153,7 @@ TOPICS = [
     ("ads", "Business card advertisements", "ads advertisement business card sponsor advertiser pdf upload last pages",
      ["Click Advertisements. Upload the cards (JPG, PNG or PDF), several at once if you like.",
       "They are sized and arranged automatically on the last two pages with the sponsor and 'Advertise With Us' banners.",
+      "Optional web link: type a company's website in the Web link box and click Save. The address is never printed on the page; the whole card simply becomes a clickable link to it in the PDF and on the web.",
       "To use a different number of pages, open the bulletin's Overview and set 'Pages for advertisements' (0 = automatic, up to 2). The cards are spread evenly over that many pages.",
       "Use the Active tick-box to leave a card out, and the position number to reorder. Cards usually stay the same week to week.",
       "Contributors who have been given the Advertisements area can add cards too, but their cards wait: an editor or admin must tick Print before they appear in the bulletin. Only editors and admins can save changes or remove cards."]),

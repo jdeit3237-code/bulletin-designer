@@ -5,6 +5,7 @@ import io
 import json
 import os
 import re
+from urllib.parse import urlsplit
 import secrets
 import sqlite3
 import shutil
@@ -83,6 +84,17 @@ DEFAULT_SECTIONS = [
 AD_W, AD_H, AD_GAP_X, AD_GAP_Y = 7.9, 8.0, 0.25, 0.2
 
 
+def clean_ad_url(raw):
+    """Optional link for an ad card: only http(s) addresses are kept; a bare domain gets https://."""
+    u = (raw or "").strip()[:500]
+    if not u or re.search(r"\s", u):
+        return ""
+    if not re.match(r"^[a-z][a-z0-9+.-]*:", u, re.I):
+        u = "https://" + u
+    p = urlsplit(u)
+    return u if p.scheme in ("http", "https") and p.netloc and "." in p.netloc else ""
+
+
 def pack_ads(cards, scale, gap=AD_GAP_X, pad=(0.0, 0.0)):
     """Shelf-pack cards (long edge 3.5in x scale, true aspect). Horizontal cards first, then vertical. Returns pages of rows."""
     def size(c):
@@ -93,7 +105,7 @@ def pack_ads(cards, scale, gap=AD_GAP_X, pad=(0.0, 0.0)):
     rows, row, row_w = [], [], 0.0
     for c in ordered:
         w, h = size(c)
-        item = {"name": c["name"], "image": c["image"], "w": round(w, 3), "h": round(h, 3)}
+        item = {"name": c["name"], "image": c["image"], "url": c.get("url") or "", "w": round(w, 3), "h": round(h, 3)}
         if row and (row_w + gap + pad[0] + w > AD_W + pad[0] + 0.001 or (row[0]["w"] >= row[0]["h"]) != (c["w"] >= c["h"])):
             rows.append(row)
             row, row_w = [], 0.0
@@ -148,12 +160,24 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
     out = []
     for rows in pages:
         if rows:
+            def scaled(rs, fs):
+                return [[dict(i, w=round(i["w"] * k, 3), h=round(i["h"] * k, 3)) for i in r] for r, k in zip(rs, fs)]
+
+            def area(rs):
+                return sum(i["w"] * i["h"] for r in rs for i in r)
+
             fw = min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r) for r in rows)
             fh = (AD_H - pad[1] * len(rows) - gap * (len(rows) - 1)) / sum(max(i["h"] for i in r) for r in rows)
-            f = max(1.0, min(fw, fh, 2.5))
-            if f > 1.0:
-                f -= 0.003
-                rows = [[dict(i, w=round(i["w"] * f, 3), h=round(i["h"] * f, 3)) for i in r] for r in rows]
+            f = max(1.0, min(fw, fh, 2.5)) - 0.003 if min(fw, fh) > 1.003 else 1.0
+            best = scaled(rows, [f] * len(rows))
+            # Alternative: stretch every row to the full width, then shrink all rows together if too tall.
+            fr = [min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r), 2.5) for r in rows]
+            hs = sum(max(i["h"] for i in r) * k for r, k in zip(rows, fr))
+            g = min(1.0, (AD_H - pad[1] * len(rows) - gap * (len(rows) - 1)) / hs)
+            alt = scaled(rows, [max(k * g - 0.003, 1.0) for k in fr])
+            if all(sum(i["w"] for i in r) + (len(r) - 1) * (gap + pad[0]) <= AD_W + pad[0] + 0.001 for r in alt) and area(alt) > area(best):
+                best = alt
+            rows = best
         used = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
         top = max(gap, (AD_H - used - gap * max(len(rows) - 1, 0)) / 2) if rows else 0
         out.append({"rows": rows, "gap": round(gap, 3), "top": round(top, 3)})
@@ -375,6 +399,8 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN is_template INTEGER DEFAULT 0")
         if "toc_before" not in bcols:
             conn.execute("ALTER TABLE bulletins ADD COLUMN toc_before REAL DEFAULT 0")
+        if "url" not in {r[1] for r in conn.execute("PRAGMA table_info(ads)")}:
+            conn.execute("ALTER TABLE ads ADD COLUMN url TEXT DEFAULT ''")
         have = {r[1] for r in conn.execute("PRAGMA table_info(items)")}
         for col, default in (("crop_zoom", 1), ("crop_x", 50), ("crop_y", 50), ("crop_h", 0), ("min_h", 0), ("crop_t", 0), ("crop_b", 0), ("crop_l", 0), ("crop_r", 0)):
             if col not in have:
@@ -1307,7 +1333,7 @@ def create_app(config=None):
         brow = db().execute("SELECT extra_pages, total_pages, ad_page_count FROM bulletins WHERE id=?", (bulletin_id,)).fetchone()
         extra = (brow["extra_pages"] or 0) if brow else 0
         total_want = (brow["total_pages"] or 0) if brow else 0
-        ads = [dict(r) for r in db().execute("SELECT name,image,w,h FROM ads WHERE active=1 ORDER BY position, id").fetchall()]
+        ads = [dict(r) for r in db().execute("SELECT name,image,w,h,url FROM ads WHERE active=1 ORDER BY position, id").fetchall()]
         ad_gap, ad_pad = ad_layout()
         ad_pg = ad_pages(ads, (brow["ad_page_count"] or 0) if brow else 0, ad_gap, ad_pad)
         blanks = max(0, total_want - len(pages) - len(ad_pg)) if total_want else ((-(len(pages) + len(ad_pg))) % 4 if pages else 4) + extra
@@ -2593,8 +2619,9 @@ def create_app(config=None):
                 pos = int(request.form.get(f"pos_{i}", "0"))
             except ValueError:
                 pos = 0
-            conn.execute("UPDATE ads SET name=?, position=?, active=? WHERE id=?",
-                         (request.form.get(f"name_{i}", "").strip()[:80] or "Advertiser", pos, 1 if request.form.get(f"active_{i}") else 0, i))
+            conn.execute("UPDATE ads SET name=?, position=?, active=?, url=? WHERE id=?",
+                         (request.form.get(f"name_{i}", "").strip()[:80] or "Advertiser", pos, 1 if request.form.get(f"active_{i}") else 0,
+                          clean_ad_url(request.form.get(f"url_{i}", "")), i))
         conn.commit()
         flash("Advertisements saved.", "ok")
         return redirect(url_for("ads"))

@@ -2051,3 +2051,27 @@ def test_ad_pages_fill_the_page():
 def test_shared_photo_height_accounts_for_shadow():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
     assert "calc(var(--ph) - var(--sp, 0pt))" in css
+
+
+def test_ad_pages_mixed_rows_are_larger_than_uniform():
+    from bulletin_designer.app import ad_pages
+    cards = [{"name": "h%d" % i, "image": "x", "w": 1050, "h": 600} for i in range(5)] + [{"name": "v%d" % i, "image": "x", "w": 600, "h": 1050} for i in range(8)]
+    pg = ad_pages(cards, 2, 0.25, (0.0, 0.0))
+    for p_ in pg:
+        for r in p_["rows"]:
+            assert sum(i["w"] for i in r) + 0.25 * (len(r) - 1) <= 7.91
+
+
+def test_ad_web_link_wraps_card_without_showing_address(app):
+    from bulletin_designer.app import clean_ad_url
+    assert clean_ad_url("example.com/x") == "https://example.com/x"
+    assert clean_ad_url("javascript:alert(1)") == "" and clean_ad_url("not a url") == "" and clean_ad_url("") == ""
+    c = setup_admin(app)
+    create_bulletin(c)
+    c.post("/ads", data={"csrf": tok(c, "/ads"), "cards": [(_card(1050, 600, "navy"), "a.png")]}, content_type="multipart/form-data", follow_redirects=True)
+    c.post("/ads/save", data={"csrf": tok(c, "/ads"), "name_1": "Acme", "pos_1": "1", "active_1": "1", "url_1": "acme.com"}, follow_redirects=True)
+    assert 'value="https://acme.com"' in c.get("/ads").text
+    html = c.get("/bulletins/1/preview").text
+    assert 'class="ad-link" href="https://acme.com"' in html
+    visible = re.sub(r"<[^>]+>", " ", html)
+    assert "acme.com" not in visible
