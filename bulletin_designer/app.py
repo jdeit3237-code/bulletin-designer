@@ -120,7 +120,7 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
     if not cards:
         return []
     limit = want if want else 2
-    for scale in [round(1.0 - 0.01 * k, 2) for k in range(0, 51)]:
+    for scale in [round(1.5 - 0.01 * k, 2) for k in range(0, 101)]:
         pages = pack_ads(cards, scale, gap, pad)
         if len(pages) <= limit:
             break
@@ -148,8 +148,8 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
     out = []
     for rows in pages:
         used = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
-        gap = min(0.6, max(gap, (AD_H - used) / (len(rows) + 1))) if rows else 0
-        out.append({"rows": rows, "gap": round(gap, 3)})
+        top = max(gap, (AD_H - used - gap * max(len(rows) - 1, 0)) / 2) if rows else 0
+        out.append({"rows": rows, "gap": round(gap, 3), "top": round(top, 3)})
     return out
 
 
@@ -1306,7 +1306,7 @@ def create_app(config=None):
             pages.append({"row": None, "number": cur})
             cur += 1
         for k, pg_ in enumerate(ad_pg):
-            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_card_gap": ad_gap, "ad_first": k == 0, "ad_last": k == len(ad_pg) - 1, "number": cur})
+            pages.append({"row": None, "ad_rows": pg_["rows"], "ad_gap": pg_["gap"], "ad_top": pg_["top"], "ad_card_gap": ad_gap, "ad_first": k == 0, "ad_last": k == len(ad_pg) - 1, "number": cur})
             if k == 0:
                 toc.append({"title": "Our Advertisers", "page": cur, "pos": 99999})
             cur += 1

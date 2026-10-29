@@ -111,7 +111,7 @@
   {% endif %}
   {% if p.ad_rows is defined %}
     {% if p.ad_first %}<div class="ad-banner"><strong>Please Patronize Our Sponsors</strong><span>Visit our website for direct links to sponsor websites.</span></div>{% endif %}
-    <div class="ad-grid" style="padding-top:{{ p.ad_gap }}in">{% for row in p.ad_rows %}<div class="ad-row" style="height:{{ (row|map(attribute='h')|max) + row[0].ph }}in;margin-bottom:{{ p.ad_gap }}in">{% for a in row %}{% call shw(ad_shadow(), 'display:inline-block;vertical-align:middle;margin:0 ' ~ (p.ad_card_gap / 2) ~ 'in') %}<img class="ad" src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="width:{{ a.w }}in;height:{{ a.h }}in">{% endcall %}{% endfor %}</div>{% endfor %}</div>
+    <div class="ad-grid" style="padding-top:{{ p.ad_top }}in">{% for row in p.ad_rows %}<div class="ad-row" style="height:{{ (row|map(attribute='h')|max) + row[0].ph }}in;margin-bottom:{{ p.ad_gap }}in">{% for a in row %}{% call shw(ad_shadow(), 'display:inline-block;vertical-align:middle;margin:0 ' ~ (p.ad_card_gap / 2) ~ 'in') %}<img class="ad" src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="width:{{ a.w }}in;height:{{ a.h }}in">{% endcall %}{% endfor %}</div>{% endfor %}</div>
     {% if p.ad_last %}<div class="ad-banner ad-contact"><strong>Advertise With Us!</strong><span>Contact Nancy in the Parish Office: (305) 872-2537 &middot; Email nancy@stpeterbpk.org</span></div>{% endif %}
   {% elif p.row %}
     {% set r = p.row %}<div id="pg{{ p.number }}" class="{{ 'shared' if p.photo_h }}" style="{{ '' }}{{ '--ph:' ~ p.photo_h ~ 'in;' if p.photo_h }}">

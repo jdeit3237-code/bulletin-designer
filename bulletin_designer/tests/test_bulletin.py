@@ -2002,3 +2002,11 @@ def test_ad_gap_and_shadow_reserve_room(app):
     t = tok(c, "/ads")
     c.post("/ads/shadow", data={"csrf": t, "adgap": "0.1"})
     assert 'name="adgap" min="0.05" max="0.6" step="0.05" value="0.1"' in c.get("/ads").text
+
+
+def test_ad_vertical_gap_equals_horizontal_and_smaller_gap_enlarges():
+    from bulletin_designer.app import ad_pages
+    cards = [{"name": str(i), "image": "x", "w": 1050, "h": 600} for i in range(9)]
+    wide, tight = ad_pages(cards, 0, 0.5), ad_pages(cards, 0, 0.05)
+    assert all(pg["gap"] == 0.5 for pg in wide) and all(pg["gap"] == 0.05 for pg in tight)
+    assert tight[0]["rows"][0][0]["w"] > wide[0]["rows"][0][0]["w"]
