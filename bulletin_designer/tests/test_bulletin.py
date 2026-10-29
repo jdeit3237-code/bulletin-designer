@@ -2107,3 +2107,12 @@ def test_admin_can_get_user_link_without_email(app):
     v = register_user(app, c, "m@x.org", "viewer")
     r = c.post("/admin/users", data={"action": "getlink", "uid": "3", "csrf": tok(c, "/admin/users")}, follow_redirects=True)
     assert "/reset/" in r.text or "reset" in r.text.lower()
+
+
+def test_last_sign_in_shown_in_eastern_time(app):
+    c = setup_admin(app)
+    import sqlite3
+    db = sqlite3.connect(app.config["DATABASE"])
+    db.execute("UPDATE users SET last_login='2026-10-29T17:11:00' WHERE id=1")
+    db.commit()
+    assert "1:11 PM EDT" in c.get("/admin/users").text

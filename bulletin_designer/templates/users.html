@@ -4,7 +4,7 @@
 <dl>{% for r in roles %}<dt><strong>{{ r|capitalize }}</strong></dt><dd>{{ help[r] }}</dd>{% endfor %}</dl>
 <h2>Who has an account</h2>
 <table>
-  <caption class="small">{{ users|length }} user{{ '' if users|length == 1 else 's' }}. "Online" means active in the last 10 minutes. Times are UTC.</caption>
+  <caption class="small">{{ users|length }} user{{ '' if users|length == 1 else 's' }}. "Online" means active in the last 10 minutes. Times are Eastern.</caption>
   <thead><tr><th scope="col">Name</th><th scope="col">Email / sign-in</th><th scope="col">Access</th><th scope="col">Verified</th><th scope="col">Status</th><th scope="col">Last sign-in</th></tr></thead>
   <tbody>{% for u in users %}
     <tr><td>{{ u.display_name }}</td><td>{{ u.email or u.username }}</td><td>{{ u.role|capitalize }}</td>

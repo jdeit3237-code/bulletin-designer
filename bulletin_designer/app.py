@@ -1442,6 +1442,16 @@ def create_app(config=None):
             return None
         return row
 
+    def eastern(iso):
+        if not iso:
+            return "never"
+        from zoneinfo import ZoneInfo
+        try:
+            t = datetime.fromisoformat(iso).replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("America/New_York"))
+        except (ValueError, KeyError):
+            return iso[:16].replace("T", " ")
+        return t.strftime("%b %-d, %Y %-I:%M %p ") + t.tzname()
+
     def invite_user(u):
         """Email the registration link. Returns (sent, link)."""
         link = url_for("register", token=make_token(u["id"], "invite", 24 * 7), _external=True)
@@ -3328,7 +3338,7 @@ def create_app(config=None):
             else:
                 state = "Registered"
             info[r["id"]] = {"active": r["active"] != 0, "online": online, "state": state, "verified": not r["must_reset"],
-                             "last": (r["last_login"] or "")[:16].replace("T", " ") or "never"}
+                             "last": eastern(r["last_login"])}
         secs = conn.execute("SELECT * FROM sections WHERE bulletin_id IS NULL ORDER BY position").fetchall()
         assigned = {r["id"]: {x["section_id"] for x in conn.execute(
             "SELECT section_id FROM user_sections WHERE user_id=?", (r["id"],))} for r in rows}
