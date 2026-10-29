@@ -1943,3 +1943,14 @@ def test_library_zoom_and_banded_cards(app):
     for url in ("/library", "/library/browse"):
         h = c.get(url).text
         assert 'class="photo-zoom"' in h and 'id="photo-big"' in h and "See full page" in h and "ph-band" in h and "sr-a" in h and "sr-b" in h
+
+
+def test_library_save_all(app):
+    c = setup_admin(app)
+    t = tok(c, "/library")
+    c.post("/library/libraries", data={"csrf": t, "action": "add", "name": "L1"})
+    for n in range(2):
+        c.post("/library", data={"csrf": t, "photo": (_card(100, 100, "red"), f"p{n}.png"), "title": f"P{n}", "alt": "x", "tags": "t"}, content_type="multipart/form-data")
+    assert "Save all library changes" in c.get("/library").text
+    c.post("/library/libraries-all", data={"csrf": t, "pids": ["1", "2"], "libs_1": ["1"], "libs_2": ["1"]})
+    assert "L1 (2)" in c.get("/library").text

@@ -2810,6 +2810,18 @@ def create_app(config=None):
         conn.commit()
         return redirect(url_for("library", lib=request.form.get("back", "")))
 
+    @app.route("/library/libraries-all", methods=["POST"])
+    @need("admin", "editor")
+    def photo_libraries_all():
+        conn = db()
+        for pid in {int(x) for x in request.form.getlist("pids") if x.isdigit()}:
+            if conn.execute("SELECT 1 FROM photos WHERE id=?", (pid,)).fetchone():
+                conn.execute("DELETE FROM photo_libs WHERE photo_id=?", (pid,))
+                put_in_libraries(pid, request.form.getlist(f"libs_{pid}"))
+        conn.commit()
+        flash("All library changes saved.", "ok")
+        return redirect(url_for("library", lib=request.form.get("back", "")))
+
     @app.route("/library/<int:pid>/delete", methods=["POST"])
     @need("admin", "editor")
     def library_delete(pid):

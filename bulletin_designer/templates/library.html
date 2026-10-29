@@ -50,15 +50,15 @@
 {% endfor %}
 {% endif %}
 <h2>Photos</h2>
+{% if g.user.role in ('admin','editor') and libs and photos %}<form id="liball" method="post" action="{{ url_for('photo_libraries_all') }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="back" value="{{ lib }}"><button class="btn">Save all library changes</button></form>{% endif %}
 {% for p in photos %}
 <figure class="phcard {{ 'sr-a' if loop.index is odd else 'sr-b' }}">
   <div class="ph-band">{{ loop.index }}. {{ p.title }}</div>
   <button type="button" class="photo-zoom" data-src="{{ url_for('uploads', name=p.filename) }}" data-name="{{ p.title }}" aria-label="Enlarge {{ p.title }}"><img src="{{ url_for('uploads', name='thumb_' ~ p.filename) }}" onerror="this.onerror=null;this.src='{{ url_for('uploads', name=p.filename) }}'" loading="lazy" alt="{{ p.alt }}" style="max-width:100%;height:auto"></button>
   <figcaption><strong>{{ p.title }}</strong><br>{{ p.tags }}
     {% set m = metas[p.id] %}{% if m %}<br><span class="small">{% for k in (m.size, m.taken, m.camera, m.creator, m.copyright, ('Made with ' ~ m.ai_tool) if m.ai_tool, m.purpose) if k %}{{ k }}{{ ' · ' if not loop.last }}{% endfor %}</span>{% endif %}</figcaption>
-  {% if g.user.role in ('admin','editor') and libs %}<form method="post" action="{{ url_for('photo_libraries', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="back" value="{{ lib }}">
-    {% for l in libs %}<label class="small"><input type="checkbox" name="libs" value="{{ l.id }}" {{ 'checked' if l.id in member.get(p.id, ()) }}> {{ l.name }}</label> {% endfor %}
-    <button class="btn secondary">Save libraries</button></form>{% elif libs %}<span class="small">{% for l in libs if l.id in member.get(p.id, ()) %}{{ l.name }}{{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}
+  {% if g.user.role in ('admin','editor') and libs %}<div class="small" style="padding:0 .5em"><input type="hidden" form="liball" name="pids" value="{{ p.id }}">
+    {% for l in libs %}<label class="small"><input type="checkbox" form="liball" name="libs_{{ p.id }}" value="{{ l.id }}" {{ 'checked' if l.id in member.get(p.id, ()) }}> {{ l.name }}</label> {% endfor %}</div>{% set has_edit = true %}{% elif libs %}<span class="small">{% for l in libs if l.id in member.get(p.id, ()) %}{{ l.name }}{{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}
   {% if g.user.role in ('admin','editor') %}<form method="post" action="{{ url_for('library_delete', pid=p.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary" onclick="return confirm('Delete this photo?')">Delete</button></form>{% endif %}
 </figure>
 {% else %}<p>No photos yet.</p>{% endfor %}
