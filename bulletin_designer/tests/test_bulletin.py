@@ -1901,3 +1901,19 @@ def test_booklet_download(app):
     assert len(rd.pages) % 2 == 0
     assert abs(float(rd.pages[0].mediabox.width) - 1224) < 1 and abs(float(rd.pages[0].mediabox.height) - 792) < 1
     assert "Print PDF booklet" in c.get("/bulletins/1").text
+
+
+def test_lower_sections_banded_and_footer_below_header(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    assert h.count('class="band"') >= 6
+    assert h.index('id="area-hdr"') < h.index('id="area-footer"') < h.index("Ask the assistant")
+    assert 'id="footer" name="footer"' in h
+
+
+def test_overview_section_bands(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    assert "sec-band" in h and "sec-labels" in h and "sr-a" in h and "sr-b" in h

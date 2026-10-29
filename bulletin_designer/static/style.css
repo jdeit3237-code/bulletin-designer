@@ -460,3 +460,12 @@ fieldset[data-clone]:nth-of-type(even), fieldset[data-event]:nth-of-type(even), 
 .gp-new.pc-b .pc-head { background: #14562a; }
 .gp-new.pc-a { background: #f7f7f2; }
 .gp-new.pc-b { background: #dde2e6; }
+h2.band { background: #1f7a3a; color: #fff; border: 2px solid #14562a; border-radius: 6px; font: bold 14pt Arial, sans-serif; padding: .4em .8em; margin: 1.2em 0 .6em; }
+tr.sec-band td { background: #1f7a3a; color: #fff; font: bold 14pt Arial, sans-serif; border: 2px solid #14562a; padding: .45em .8em; }
+tr.sec-row.sr-a > th, tr.sec-row.sr-a > td { background: #f7f7f2; }
+tr.sec-row.sr-b > th, tr.sec-row.sr-b > td { background: #dde2e6; }
+tr.sec-row > th { font-weight: normal; }
+tr.sec-labels td { background: #cfe3d6; color: #14562a; font: bold 12pt Arial, sans-serif; border-bottom: 2px solid #14562a; padding: .25em .5em; }
+.sr-only { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+table.secs { table-layout: fixed; }
+table.secs .lgrid { grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); }

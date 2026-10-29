@@ -2,7 +2,7 @@
 {% block content %}
 <h1>Bulletin for {{ b.sunday }} <span class="badge {{ 'ok' if b.status=='published' else 'pend' }}">{{ b.status }}</span></h1>
 <div class="jumpbar" role="navigation" aria-label="Jump to section"><label for="jump">&#9660; Jump to section</label>
-<select id="jump" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option><option value="area-hdr">Header, date and title</option><option value="area-photo">Header photo</option><option value="area-toc">In this issue (table of contents)</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></div>
+<select id="jump" onchange="var e=document.getElementById(this.value);if(e){e.scrollIntoView({behavior:'smooth',block:'start'});this.selectedIndex=0}"><option value="">Choose a section...</option><option value="area-hdr">Header, date and title</option><option value="area-footer">Footer text</option><option value="area-photo">Header photo</option><option value="area-toc">In this issue (table of contents)</option>{% for s in secs %}<option value="sec{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></div>
 <p>Printed length: <strong>{{ total }} pages</strong> (always a multiple of 4; blank pages become notes pages).</p>
 <p class="toolrow">
   <a class="btn" href="{{ url_for('preview', bid=b.id) }}">Preview / print</a>
@@ -42,13 +42,16 @@
   <button class="btn">Add new section</button>
 </form>
 {% endif %}
-<table>
+<table class="secs">
   <caption class="small">Sections in print order</caption>
+  <colgroup><col style="width:15%"><col style="width:9%"><col style="width:10%"><col style="width:11%"><col style="width:55%"></colgroup>
   <thead><tr><th scope="col">Section</th><th scope="col">Printed on</th><th scope="col">Type</th><th scope="col">State</th><th scope="col">Action</th></tr></thead>
   <tbody>
   {% for s in secs %}
-    <tr id="sec{{ s.id }}">
-      <th scope="row">{{ s.title }}<br><span class="meta">{{ s.hint }}</span></th>
+    <tr class="sec-band" aria-hidden="true"><td colspan="5">{{ loop.index }}. {{ s.title }}</td></tr>
+    <tr class="sec-labels" aria-hidden="true"><td>About this section</td><td>Printed on</td><td>Type</td><td>State</td><td>Action</td></tr>
+    <tr id="sec{{ s.id }}" class="sec-row {{ 'sr-a' if loop.index is odd else 'sr-b' }}">
+      <th scope="row"><span class="sr-only">{{ s.title }}</span><span class="meta">{{ s.hint }}</span></th>
       {% set w = where[s.id] %}
       <td>{% if w[2] %}{{ 'Page ' ~ w[0] if w[0] == w[1] else 'Pages ' ~ w[0] ~ '-' ~ w[1] }}{% else %}<span class="meta">Empty - would start on page {{ w[0] }}</span>{% endif %}{% if why.get(s.id) %}<br><strong style="color:#9a3412">Not on page {{ s.page_no }}: {{ why[s.id] }}</strong>{% endif %}</td>
       <td>{{ 'This week only' if s.bulletin_id else ('Changes weekly' if s.weekly else 'Standing (carried forward)') }}</td>
@@ -106,21 +109,21 @@
 {% for r in removed %}<form method="post" action="{{ url_for('restore_section', bid=b.id, sid=r.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf() }}">{{ r.title }} <button class="btn secondary">Add back</button></form> {% endfor %}
 {% endif %}
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
-<h2 id="area-photo">Header photo</h2>
+<h2 class="band" id="area-photo">Header photo</h2>
 {% if g.user.role in ('admin','editor') and b.status != 'published' %}
-<h2>No stragglers</h2>
+<h2 class="band">No stragglers</h2>
 <form method="post" action="{{ url_for('no_stragglers', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label><input type="checkbox" name="no_stragglers" value="1" {{ 'checked' if b.no_stragglers is none or b.no_stragglers }}> Never leave a single word alone on the last line of a paragraph</label>
   <p><button class="btn">Save</button></p>
 </form>
-<h2>Underlines</h2>
+<h2 class="band">Underlines</h2>
 <form method="post" action="{{ url_for('underlines', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label><input type="checkbox" name="no_underline" value="1" {{ 'checked' if b.no_underline }}> Remove the underlines from section subtitles and from the "In this issue" list</label>
   <p><button class="btn">Save</button></p>
 </form>
-<h2 id="area-toc">"In this issue" (table of contents)</h2>
+<h2 class="band" id="area-toc">"In this issue" (table of contents)</h2>
 <form method="post" action="{{ url_for('toc_settings', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label><input type="checkbox" name="toc_show" value="1" {{ 'checked' if b.toc_show is none or b.toc_show }}> Show the contents list on page 1</label>
@@ -169,8 +172,7 @@
   hdr_h.oninput=function(){hh_o.textContent=hdr_h.value;};hdr_zoom.oninput=function(){hz_o.textContent=hdr_zoom.value;};
   </script>
 </form>
-<h2>Footer text</h2>
-<h2 id="area-hdr">Header date and title (changes each week)</h2>
+<h2 class="band" id="area-hdr">Header date and title (changes each week)</h2>
 <form method="post" action="{{ url_for('set_header_text', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="hdr_date">Date shown in the header (pick from the calendar)</label>
@@ -179,21 +181,22 @@
   <input id="theme" name="theme" type="text" maxlength="120" value="{{ b.theme }}">
   <p><button class="btn">Save header date and title</button></p>
 </form>
-{% if b.status != 'published' %}<form method="post" action="{{ url_for('reset_layout', bid=b.id) }}" onsubmit="return confirm('Reset the layout of ALL sections to the standard settings? Text and photos are kept.');"><input type="hidden" name="csrf" value="{{ csrf() }}"><p><button class="btn secondary">Reset layout of all sections</button></p></form>{% endif %}
+<h2 class="band" id="area-footer">Footer text</h2>
 <form method="post" action="{{ url_for('set_footer', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="footer">Text shown in the footer of every page (the page number is added automatically)</label>
   <input id="footer" name="footer" type="text" maxlength="160" value="{{ b.footer }}" placeholder="St. Peter the Fisherman Catholic Parish">
   <p><button class="btn">Save footer</button></p>
 </form>
-<h2>Ask the assistant</h2>
+{% if b.status != 'published' %}<form method="post" action="{{ url_for('reset_layout', bid=b.id) }}" onsubmit="return confirm('Reset the layout of ALL sections to the standard settings? Text and photos are kept.');"><input type="hidden" name="csrf" value="{{ csrf() }}"><p><button class="btn secondary">Reset layout of all sections</button></p></form>{% endif %}
+<h2 class="band">Ask the assistant</h2>
 <form method="post" action="{{ url_for('assistant', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="ai">Describe the change you want (you will review it before it is applied)</label>
   <input id="ai" name="request" type="text" required placeholder="e.g. Add section Bishop Message, or make Food Pantry 2 columns">
   <p><button class="btn">Ask</button></p>
 </form>
-<h2>Add a section to this week's bulletin</h2>
+<h2 class="band">Add a section to this week's bulletin</h2>
 <form method="post" action="{{ url_for('add_section', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <label for="nt">Section title (e.g. Pumpkin Patch, Bishop's Message, Special Collection)</label>
