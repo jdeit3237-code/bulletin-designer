@@ -2035,3 +2035,19 @@ def test_toc_advertisers_link_has_target(app):
     html = c.get("/bulletins/1/preview").text
     m = re.search(r'<a href="#(pg\d+)">Our Advertisers</a>', html)
     assert m and html.count('id="%s"' % m.group(1)) == 1
+
+
+def test_ad_pages_fill_the_page():
+    from bulletin_designer.app import ad_pages, AD_W, AD_H
+    cards = [{"name": "c%d" % i, "image": "x", "w": 1050, "h": 600} for i in range(12)]
+    for pg in ad_pages(cards, 2, 0.25, (0.0, 0.0)):
+        rows = pg["rows"]
+        widest = max(sum(i["w"] for i in r) + 0.25 * (len(r) - 1) for r in rows)
+        used = sum(max(i["h"] for i in r) for r in rows) + 0.25 * (len(rows) - 1)
+        assert widest > AD_W - 0.1 or used > AD_H - 0.1
+        assert widest <= AD_W + 0.01 and used <= AD_H + 0.01
+
+
+def test_shared_photo_height_accounts_for_shadow():
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    assert "calc(var(--ph) - var(--sp, 0pt))" in css

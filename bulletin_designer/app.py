@@ -147,6 +147,13 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
         pages = [pages[0], []]
     out = []
     for rows in pages:
+        if rows:
+            fw = min((AD_W + pad[0] - (len(r) - 1) * (gap + pad[0])) / sum(i["w"] for i in r) for r in rows)
+            fh = (AD_H - pad[1] * len(rows) - gap * (len(rows) - 1)) / sum(max(i["h"] for i in r) for r in rows)
+            f = max(1.0, min(fw, fh, 2.5))
+            if f > 1.0:
+                f -= 0.003
+                rows = [[dict(i, w=round(i["w"] * f, 3), h=round(i["h"] * f, 3)) for i in r] for r in rows]
         used = sum((max(i["h"] for i in r) + pad[1]) for r in rows)
         top = max(gap, (AD_H - used - gap * max(len(rows) - 1, 0)) / 2) if rows else 0
         out.append({"rows": rows, "gap": round(gap, 3), "top": round(top, 3)})
