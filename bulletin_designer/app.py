@@ -656,6 +656,15 @@ def create_app(config=None):
     app.jinja_env.globals["is_dark"] = is_dark
     app.jinja_env.globals["gallery_data"] = gallery_data
     app.jinja_env.globals["shadow_parse"] = shadow_parse
+
+    AD_SHADOW_DEFAULT = "5,5,0,70"
+
+    def ad_shadow_raw():
+        r = db().execute("SELECT v FROM meta WHERE k='ad_shadow'").fetchone()
+        return r["v"] if r else AD_SHADOW_DEFAULT
+
+    app.jinja_env.globals["ad_shadow_raw"] = ad_shadow_raw
+    app.jinja_env.globals["ad_shadow"] = lambda: shadow_parse(ad_shadow_raw())
     app.jinja_env.globals["PHOTO_SHAPES"] = PHOTO_SHAPES
 
     def edge_values(form):
@@ -2562,6 +2571,16 @@ def create_app(config=None):
                          (request.form.get(f"name_{i}", "").strip()[:80] or "Advertiser", pos, 1 if request.form.get(f"active_{i}") else 0, i))
         conn.commit()
         flash("Advertisements saved.", "ok")
+        return redirect(url_for("ads"))
+
+    @app.route("/ads/shadow", methods=["POST"])
+    @need("admin", "editor")
+    def ads_shadow():
+        conn = db()
+        raw = shadow_from_form("ad", "") or "off"
+        conn.execute("INSERT OR REPLACE INTO meta(k,v) VALUES('ad_shadow',?)", (raw,))
+        conn.commit()
+        flash("Advertisement drop shadow saved.", "ok")
         return redirect(url_for("ads"))
 
     @app.route("/ads/<int:aid>/delete", methods=["POST"])

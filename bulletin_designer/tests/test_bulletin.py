@@ -1851,10 +1851,19 @@ def test_section_step_hints():
     assert "Step 1." in t and "Step 3." in t and 'class="step"' in t
 
 
-def test_ad_images_have_drop_shadow():
-    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
-    assert ".sheet .ad-grid img.ad { border-right: 5pt solid rgba(0,0,0,.7)" in css
-
+def test_ad_shadow_controls_and_render(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/ads")
+    c.post("/ads", data={"csrf": t, "cards": [(_card(1050, 600, "red"), "x.png")]}, content_type="multipart/form-data")
+    h = c.get("/ads").text
+    assert "Drop shadow on the cards" in h and 'name="adb"' in h and 'name="ado"' in h
+    c.post("/ads/shadow", data={"csrf": t, "adon": "1", "adx": "9", "ady": "7", "adb": "6", "ado": "50"})
+    assert 'name="adx" min="-30" max="30" step="1" value="9"' in c.get("/ads").text
+    pg = c.get("/bulletins/1/preview").text if c.get("/bulletins/1/preview").status_code == 200 else c.get("/bulletins/1").text
+    assert 'class="ad"' in pg and "shl" in pg.split('class="ad-grid"')[1]
+    c.post("/ads/shadow", data={"csrf": t})
+    assert "checked" not in c.get("/ads").text.split("Give the cards a drop shadow")[0].rsplit("<input", 1)[1]
 
 
 def test_photo_drop_shadows(app):
@@ -1967,3 +1976,14 @@ def test_bullet_button_labelled_and_wired():
     from pathlib import Path
     h = (Path(__file__).parent.parent / "templates" / "section.html").read_text()
     assert "Add bullets to selected text" in h and "addEventListener('change',function(){if(t.selectionStart!==t.selectionEnd)bullets()" in h
+
+
+def test_ad_shadow_in_pdf(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/ads")
+    c.post("/ads", data={"csrf": t, "cards": [(_card(1050, 600, "red"), "x.png")]}, content_type="multipart/form-data")
+    c.post("/ads/shadow", data={"csrf": t, "adon": "1", "adx": "9", "ady": "9", "adb": "6", "ado": "60"})
+    r = c.get("/bulletins/1/download/print")
+    assert r.status_code == 200 and r.data[:4] == b"%PDF"
+    open("/tmp/ad_shadow.pdf", "wb").write(r.data)

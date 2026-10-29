@@ -1,7 +1,7 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
 # Update this whenever the help text changes (Eastern time).
-LAST_UPDATED = "October 29, 2026, 7:30 AM Eastern Time (EDT)"
+LAST_UPDATED = "October 29, 2026, 7:50 AM Eastern Time (EDT)"
 
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
