@@ -1827,3 +1827,20 @@ def test_help_covers_recent_features(app):
     assert "Help last updated" in h and "Eastern Time" in h
     for t in ("Split header", "Space between the calendar events", "Areas this person may use", "Source Sans 3", "Header, date and title"):
         assert t in h
+
+
+def test_layout_boxes_have_captions(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    h = c.get("/bulletins/1").text
+    assert "How many pages this section may use" in h and "Split the text into 1, 2 or 3 columns" in h
+
+
+def test_alternating_subsection_shading_css():
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    assert "fieldset[data-clone]:nth-of-type(even)" in css and "#eceef1" in css
+
+
+def test_subsection_title_banner_css():
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    assert "fieldset[data-clone] > legend" in css and "#1f7a3a" in css

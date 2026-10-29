@@ -431,3 +431,10 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .masthead.m-allsouls .crop img:first-child { width: var(--hs, 62%); }
 .masthead.m-allsouls .crop .hdr-art2 { position: absolute; top: 0; right: 0; height: 100%; overflow: hidden; border-left: 4px solid var(--gold-bright); }
 .masthead.m-allsouls .crop .hdr-art2 img { width: 100%; height: 100%; object-fit: cover; }
+fieldset[data-clone]:nth-of-type(even), fieldset[data-event]:nth-of-type(even), fieldset[data-group]:nth-of-type(even) { background: #eceef1; }
+fieldset[data-clone]:nth-of-type(even) input, fieldset[data-clone]:nth-of-type(even) select, fieldset[data-clone]:nth-of-type(even) textarea,
+fieldset[data-event]:nth-of-type(even) input, fieldset[data-event]:nth-of-type(even) select, fieldset[data-event]:nth-of-type(even) textarea,
+fieldset[data-group]:nth-of-type(even) input, fieldset[data-group]:nth-of-type(even) select, fieldset[data-group]:nth-of-type(even) textarea { background: #fff; }
+fieldset[data-clone] > legend, fieldset[data-event] > legend, fieldset[data-group] > legend { background: #1f7a3a; color: #fff; border: 2px solid #14562a; border-radius: 6px; font: bold 13pt Arial, sans-serif; width: 100%; box-sizing: border-box; padding: .4em .8em; margin-bottom: .6em; }
+fieldset[data-clone], fieldset[data-event], fieldset[data-group] { border: 1px solid #bbb; border-radius: 6px; padding: .5em .8em .8em; margin: .8em 0; background: #f7f7f2; }
+fieldset[data-clone]:nth-of-type(even), fieldset[data-event]:nth-of-type(even), fieldset[data-group]:nth-of-type(even) { background: #eceef1; }
