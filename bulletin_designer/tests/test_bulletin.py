@@ -1838,9 +1838,19 @@ def test_layout_boxes_have_captions(app):
 
 def test_alternating_subsection_shading_css():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
-    assert "fieldset[data-clone]:nth-of-type(even)" in css and "#eceef1" in css
+    assert "fieldset[data-clone]:nth-of-type(even)" in css and "#dde2e6" in css
 
 
 def test_subsection_title_banner_css():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
     assert "fieldset[data-clone] > legend" in css and "#1f7a3a" in css
+
+
+def test_section_step_hints():
+    t = open(os.path.join(os.path.dirname(__file__), "..", "templates", "section.html")).read()
+    assert "Step 1." in t and "Step 3." in t and 'class="step"' in t
+
+
+def test_ad_images_have_drop_shadow():
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    assert ".sheet .ad-grid img.ad { border-right: 2.5pt" in css

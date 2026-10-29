@@ -27,7 +27,7 @@
 <form method="post" enctype="multipart/form-data" id="secform">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <fieldset {% if not can or b.status == 'published' %}disabled{% endif %}>
-    <legend>Content</legend>
+    <legend>Content</legend><p class="step"><b>Step 1.</b> Fill in the boxes below. <b>Step 2.</b> Optionally add a photo further down. <b>Step 3.</b> Click <b>Save section</b> (top or bottom). Empty boxes are simply left out of the bulletin.</p>
     <label for="section_title">Section title (printed in the bulletin; change it for this bulletin)</label>
     <input id="section_title" name="section_title" type="text" maxlength="120" value="{{ item.title or s.title }}">
     <label for="space_before">Space before the title, in inches (blank = default; 0 = none; for example 0.15)</label>
@@ -45,11 +45,11 @@
     {% endif %}
     {% if s.slug == 'cover' %}
     <p>These details are already filled in and appear in the header and footer of every page. Change them here only when something changes; the date and title are for this week.</p>
-    <fieldset><legend>Sunday date and title</legend>
+    <fieldset><legend>Sunday date and title</legend><p class="step">Type the Sunday and the liturgical title, e.g. "Thirtieth Sunday in Ordinary Time".</p>
       <label for="cover_date">Date (choose from the calendar)</label><input id="cover_date" name="cover_date" type="date" value="{{ iso_date(cover.date) }}">{% if cover.date and not iso_date(cover.date) %}<p>Previously entered: {{ cover.date }}. Choose a date to replace it.</p><input type="hidden" name="cover_date_old" value="{{ cover.date }}">{% endif %}
       <label for="cover_title">Title for the date (e.g. Thirtieth Sunday in Ordinary Time)</label><input id="cover_title" name="cover_title" type="text" value="{{ cover.title }}">
     </fieldset>
-    <fieldset><legend>Parish address</legend>
+    <fieldset><legend>Parish address</legend><p class="step">Mailing address and web or email details shown on the cover.</p>
       <label for="addr_street">Street address</label><input id="addr_street" name="addr_street" type="text" value="{{ cover.addr.street }}">
       <label for="addr_city">City, state, ZIP</label><input id="addr_city" name="addr_city" type="text" value="{{ cover.addr.city }}">
       <label for="addr_phone">Phone</label><input id="addr_phone" name="addr_phone" type="tel" value="{{ cover.addr.phone }}">
@@ -59,7 +59,7 @@
     <input type="hidden" name="hours_count" value="{{ cover.hours|length + 1 }}">
     <div id="hours-list" data-prefix="h" data-count="hours_count" data-label="Office hours">
     {% for h in cover.hours + [{}] %}{% set n = loop.index0 %}
-    <fieldset data-clone><legend>Office hours {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Office hours {{ loop.index }}</legend><p class="step">Enter the days and times. Use "+ Add office hours" for another line.</p>
       <label for="h{{ n }}_days">Days (e.g. Monday - Friday)</label><input id="h{{ n }}_days" name="h{{ n }}_days" type="text" value="{{ h.days or '' }}">
       <label for="h{{ n }}_time">Hours (e.g. 9:00am - 4:00pm)</label><input id="h{{ n }}_time" name="h{{ n }}_time" type="text" value="{{ h.time or '' }}">
       <label for="h{{ n }}_notes">Notes</label><input id="h{{ n }}_notes" name="h{{ n }}_notes" type="text" value="{{ h.notes or '' }}">
@@ -70,7 +70,7 @@
     <textarea id="extra" name="extra">{{ cover.extra }}</textarea>
     {% elif s.slug == 'giving' %}
     <p>Fill in the amounts for the week. Leave an amount empty to leave it out.</p>
-    <fieldset><legend>Dates</legend>
+    <fieldset><legend>Dates</legend><p class="step">Pick the dates this bulletin covers.</p>
       <label for="g_subtitle">Subtitle printed before the dates</label><input id="g_subtitle" name="g_subtitle" type="text" value="{{ giving.subtitle }}">
       <label for="g_date">Date (choose from the calendar)</label><input id="g_date" name="g_date" type="date" value="{{ giving.date }}">
       <label for="g_end_date">Last date, if it covers several days (optional)</label><input id="g_end_date" name="g_end_date" type="date" value="{{ giving.end_date }}">
@@ -104,7 +104,7 @@
     <input type="hidden" name="mass_count" value="{{ mass|length }}">
     <div id="mass-list" data-prefix="m" data-count="mass_count" data-label="Mass">
     {% for m in mass %}{% set n = loop.index0 %}
-    <fieldset data-clone><legend>Mass {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Mass {{ loop.index }}</legend><p class="step">Choose the day and time, then the intention or presider. Use "+ Add another Mass" for more.</p>
       <label for="m{{ n }}_date">Date (choose from the calendar)</label><input id="m{{ n }}_date" name="m{{ n }}_date" type="date" value="{{ iso_date(m.date) }}">{% if m.date and not iso_date(m.date) %}<p>Previously entered: {{ m.day }} {{ m.date }}. Choose a date to replace it.</p>{% endif %}
       <label for="m{{ n }}_time">Time (optional)</label><input id="m{{ n }}_time" name="m{{ n }}_time" type="text" value="{{ m.time or '' }}">
       <label for="m{{ n }}_lectors">Lector(s) - names separated by commas</label><input id="m{{ n }}_lectors" name="m{{ n }}_lectors" type="text" value="{{ m.lectors or '' }}">
@@ -122,7 +122,7 @@
     <input type="hidden" name="group_count" value="{{ groups|length }}">
     <div id="groups">
     {% for g in groups %}{% set gi = loop.index0 %}
-    <fieldset data-group="{{ gi }}"><legend>Date {{ loop.index }}</legend>
+    <fieldset data-group="{{ gi }}"><legend>Date {{ loop.index }}</legend><p class="step">Choose the date, then list each Mass time and the intention beneath it. Use "+ Add another date" for more.</p>
       <p><button type="button" class="btn danger del-group" aria-label="Delete this date and all its intentions">Delete this date</button></p>
       <label for="g{{ gi }}_date">Date (choose from the calendar)</label><input id="g{{ gi }}_date" name="g{{ gi }}_date" type="date" value="{{ iso_date(g.date) }}">{% if g.date and not iso_date(g.date) %}<p>Previously entered: {{ g.day }} {{ g.date }}. Choose a date to replace it.</p>{% endif %}
       <input type="hidden" name="g{{ gi }}_count" value="{{ g['items']|length }}">
@@ -164,7 +164,7 @@
     <datalist id="mass-times-list"><option value="5:30 pm"><option value="8:30 am"><option value="11 am"><option value="9 am"></datalist>
     <div id="events">
     {% for ev in events %}{% set n = loop.index0 %}{% set d = ev.date %}
-    <fieldset data-event><legend>Event {{ loop.index }}</legend>
+    <fieldset data-event><legend>Event {{ loop.index }}</legend><p class="step">Choose the date from the calendar, then add the time, title and details. Use "+ Add another event" for more.</p>
       <label for="e{{ n }}_date">Date (choose from the calendar)</label><input id="e{{ n }}_date" name="e{{ n }}_date" type="date" value="{{ iso_date(d) }}">{% if s.slug == 'youth-calendar' %}<label for="e{{ n }}_end_date">Last day, if the event runs several days (optional)</label><input id="e{{ n }}_end_date" name="e{{ n }}_end_date" type="date" value="{{ iso_date(ev.end_date) }}">{% endif %}{% if d and not iso_date(d) %}<p>Previously entered: {{ d }}. Choose a date to replace it.</p><input type="hidden" name="e{{ n }}_old" value="{{ d }}">{% endif %}
       <label for="e{{ n }}_time">Time (for Mass, choose or type)</label><input id="e{{ n }}_time" name="e{{ n }}_time" type="text" list="mass-times-list" value="{{ ev.time }}">
       {% if s.slug == 'youth-calendar' %}<label for="e{{ n }}_pick">Pick a regular event (or type your own below)</label><select id="e{{ n }}_pick" class="evpick"><option value="">- Choose -</option>{% for t in youth_titles() %}<option>{{ t }}</option>{% endfor %}</select>{% endif %}
@@ -204,7 +204,7 @@
     <input type="hidden" name="staff_count" value="{{ staff|length }}">
     <div id="staff-list" data-prefix="s" data-count="staff_count" data-label="Staff member">
     {% for t in staff %}{% set n = loop.index0 %}
-    <fieldset data-clone><legend>Staff member {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Staff member {{ loop.index }}</legend><p class="step">Enter name, title/role, phone and email. Use "+ Add another staff member" for more.</p>
       <label for="s{{ n }}_name">Name</label><input id="s{{ n }}_name" name="s{{ n }}_name" type="text" value="{{ t.name or '' }}">
       <label for="s{{ n }}_role">Title / role (e.g. Pastor, Deacon, Office Manager)</label><input id="s{{ n }}_role" name="s{{ n }}_role" type="text" value="{{ t.role or '' }}">
       <label for="s{{ n }}_phone">Phone</label><input id="s{{ n }}_phone" name="s{{ n }}_phone" type="text" value="{{ t.phone or '' }}">
@@ -217,7 +217,7 @@
     <input type="hidden" name="times_count" value="{{ times|length }}">
     <div id="times-list" data-prefix="t" data-count="times_count" data-label="Entry">
     {% for t in times %}{% set n = loop.index0 %}
-    <fieldset data-clone><legend>Entry {{ loop.index }}</legend>
+    <fieldset data-clone><legend>Entry {{ loop.index }}</legend><p class="step">Enter the day/time and a description. Use "+ Add another entry" for more.</p>
       <label for="t{{ n }}_title">Title (e.g. Weekend Masses)</label><input id="t{{ n }}_title" name="t{{ n }}_title" type="text" value="{{ t.title or '' }}">
       <label for="t{{ n }}_days">Days of the week (e.g. Saturday, Sunday)</label><input id="t{{ n }}_days" name="t{{ n }}_days" type="text" value="{{ t.days or '' }}">
       <label for="t{{ n }}_name">Name of Mass (e.g. Vigil Mass, Spanish Mass)</label><input id="t{{ n }}_name" name="t{{ n }}_name" type="text" value="{{ t.name or '' }}">
