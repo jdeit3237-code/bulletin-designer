@@ -489,3 +489,4 @@ figure.phcard figcaption, figure.phcard form { padding: 0 .5em; }
 input[type=checkbox], input[type=radio] { width: 1.35em; height: 1.35em; accent-color: #1f7a3a; vertical-align: middle; margin-right: .35em; cursor: pointer; outline: 2px solid #1f7a3a; outline-offset: 1px; border-radius: 3px; }
 label:has(> input[type=checkbox]) { font-weight: bold; }
 label:has(> input[type=checkbox]:checked) { color: #14572a; }
+@media screen { .masthead .hdr-photo .crop { clip-path: inset(0 0 1px 0); } .masthead .hdr-photo { background: #fff; } }
