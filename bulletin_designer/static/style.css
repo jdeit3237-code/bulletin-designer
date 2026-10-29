@@ -485,3 +485,4 @@ figure.phcard figcaption, figure.phcard form { padding: 0 .5em; }
 #adsh-prev { width: 120px; height: 70px; background: #fff; border: .5pt solid #bbb; margin: .6em 1.2em; }
 .adsh-sl label { display: block; margin: .3em 0; }
 .sheet .ad-grid .shw .shl { border-radius: 0 !important; }
+.sh-swatch { width: 120px; height: 70px; background: #fff; border: .5pt solid #bbb; margin: .6em 1.2em; flex: 0 0 auto; }

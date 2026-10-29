@@ -2010,3 +2010,9 @@ def test_ad_vertical_gap_equals_horizontal_and_smaller_gap_enlarges():
     wide, tight = ad_pages(cards, 0, 0.5), ad_pages(cards, 0, 0.05)
     assert all(pg["gap"] == 0.5 for pg in wide) and all(pg["gap"] == 0.05 for pg in tight)
     assert tight[0]["rows"][0][0]["w"] > wide[0]["rows"][0][0]["w"]
+
+
+def test_photo_shadow_has_preview_square():
+    from pathlib import Path
+    h = (Path(__file__).parent.parent / "templates" / "section.html").read_text()
+    assert 'class="sh-swatch"' in h and "sw.style.boxShadow=sh" in h

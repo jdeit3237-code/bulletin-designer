@@ -2,9 +2,10 @@
 {% block content %}
 {% macro shadow_ctl(prefix, suffix, raw, target) %}{% set sd = shadow_parse(raw) %}<fieldset class="sh-ctl" data-target="{{ target }}"><legend>Drop shadow</legend>
   <label><input type="checkbox" class="sh-on" name="{{ prefix }}on{{ suffix }}" value="1" {{ 'checked' if sd }}> Give this photo a drop shadow</label>
-  <p class="small">Drag the dot in the square to move the shadow (it sits where the dot is, away from the photo's centre). The preview next to it updates right away. Press Save section to keep it.</p>
+  <p class="small">Drag the dot in the square to move the shadow (it sits where the dot is, away from the photo's centre). The white preview square next to it shows the shadow right away. Press Save section to keep it.</p>
   <div class="sh-row">
     <div class="sh-pad" tabindex="0" role="img" aria-label="Shadow position pad"><span class="sh-dot"></span></div>
+    <div class="sh-swatch" aria-hidden="true"></div>
     <div class="sh-sl">
       <label>Across (left &minus; / right +) <input type="range" class="sh-x" name="{{ prefix }}x{{ suffix }}" min="-30" max="30" step="1" value="{{ (sd.x if sd else 3)|round|int }}"></label>
       <label>Down (up &minus; / down +) <input type="range" class="sh-y" name="{{ prefix }}y{{ suffix }}" min="-30" max="30" step="1" value="{{ (sd.y if sd else 3)|round|int }}"></label>
@@ -402,7 +403,7 @@
 document.querySelectorAll('.sh-ctl').forEach(function(c){
   var on=c.querySelector('.sh-on'),X=c.querySelector('.sh-x'),Y=c.querySelector('.sh-y'),B=c.querySelector('.sh-b'),O=c.querySelector('.sh-o'),pad=c.querySelector('.sh-pad'),dot=c.querySelector('.sh-dot'),t=document.querySelector(c.getAttribute('data-target'));
   function up(){var x=+X.value,y=+Y.value;dot.style.left=(50+x/30*45)+'%';dot.style.top=(50+y/30*45)+'%';
-    if(t)t.style.boxShadow=on.checked?x+'pt '+y+'pt '+B.value+'pt rgba(0,0,0,'+(O.value/100)+')':'none';}
+    var sh=on.checked?x+'pt '+y+'pt '+B.value+'pt rgba(0,0,0,'+(O.value/100)+')':'none';if(t)t.style.boxShadow=sh;var sw=c.querySelector('.sh-swatch');if(sw)sw.style.boxShadow=sh;}
   function mv(ev){var r=pad.getBoundingClientRect();X.value=Math.round(Math.max(-30,Math.min(30,((ev.clientX-r.left)/r.width-.5)*2/.9*30)));Y.value=Math.round(Math.max(-30,Math.min(30,((ev.clientY-r.top)/r.height-.5)*2/.9*30)));on.checked=true;up();}
   var dr=false;pad.addEventListener('pointerdown',function(ev){dr=true;pad.setPointerCapture(ev.pointerId);mv(ev);ev.preventDefault();});
   pad.addEventListener('pointermove',function(ev){if(dr)mv(ev);});pad.addEventListener('pointerup',function(){dr=false;});pad.addEventListener('pointercancel',function(){dr=false;});
