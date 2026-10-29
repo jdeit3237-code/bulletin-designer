@@ -496,7 +496,9 @@ label.cap-box { font-weight: bold; }
 input.cap-box { border: 2px solid #14562a; background: #f3faf5; }
 
 table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 0; }
-.cs-wrap td { padding: 0; vertical-align: top; }
+.cs-wrap td { padding: 0; border: 0; font-size: inherit; line-height: inherit; vertical-align: top; }
 .cs-wrap td.cs-gap { width: .35in; }
 .cs-wrap .cs-photo figure { margin: 0 0 .06in; width: 100%; }
-.cs-wrap .cs-photo img { max-width: 100%; height: auto; }
+.cs-wrap .cs-photo img { max-width: 100%; max-height: none; width: 100%; height: auto; display: block; }
+.cs-wrap .cs-photo .crop img { height: 100%; }
+.cs-wrap .cs-photo figcaption { margin: .03in 0 0; line-height: 1.2; }

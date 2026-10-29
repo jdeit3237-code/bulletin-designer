@@ -757,7 +757,7 @@ def create_app(config=None):
             h = float(r["crop_h"]) if r["crop_h"] else width_in / ratio
         except Exception:
             h = 0.0
-        h += 0.3 if r["caption"] else 0.06
+        h += (0.2 * (1 + len(r["caption"] or "") // int(width_in * 11)) + 0.05) if r["caption"] else 0.06
         cpl = max(8, int(text_w_in * 12))
         avail = max(1, int(h / 0.245))
         paras, beside, rest, used = soft_paras(r["body"]), [], [], 0
