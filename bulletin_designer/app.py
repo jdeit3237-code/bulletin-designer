@@ -2926,7 +2926,7 @@ def create_app(config=None):
                             (g.user["username"],)).fetchall()
         open_q = conn.execute("SELECT * FROM questions WHERE answer='' ORDER BY id DESC LIMIT 50").fetchall() \
             if g.user["role"] in ("admin", "editor") else []
-        return render_template("help.html", topics=help_content.TOPICS, q=q, found=found, mine=mine, open_q=open_q)
+        return render_template("help.html", updated=help_content.LAST_UPDATED, topics=help_content.TOPICS, q=q, found=found, mine=mine, open_q=open_q)
 
     @app.route("/help/answer/<int:qid>", methods=["POST"])
     @need("admin", "editor")

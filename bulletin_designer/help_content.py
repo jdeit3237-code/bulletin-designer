@@ -1,5 +1,8 @@
 """How-to guide topics for the Bulletin Designer. Each topic: id, title, keywords, steps (list of strings)."""
 
+# Update this whenever the help text changes (Eastern time).
+LAST_UPDATED = "October 28, 2026, 9:24 PM Eastern Time (EDT)"
+
 TOPICS = [
     ("start", "Start here: the weekly routine", "start begin weekly routine workflow new bulletin week steps overview how",
      ["Click Bulletins, type the Sunday date and press Create bulletin. Sections that are 'kept' arrive filled in from last week; weekly ones start blank. Or press Duplicate on an existing bulletin or template to start from a full copy (see 'Copy a bulletin').",
@@ -13,7 +16,7 @@ TOPICS = [
       "Anything else goes in Notes. Leave an amount empty to leave it out. Press Save section."]),
     ("jump", "Find your way around the overview", "jump menu overview navigate find section list top buttons check history suggestions graphics assistant",
      ["The top buttons are Preview / print, Check my bulletin, Undo / history, Help, Web PDF, Print PDF and 'Liturgical suggestions & graphics'.",
-      "Use the Jump to section menu to go straight to any section instead of scrolling.",
+      "Use the Jump to section menu to go straight to any section instead of scrolling. It also jumps to 'Header, date and title', 'Header photo' and 'In this issue (table of contents)'.",
       "Each section row has Up, Down and Remove buttons and its page settings (see 'Move sections, columns and pages'). Remove only takes it out of this bulletin (any section, admin or editor, before it is published). Removed sections are listed at the bottom with an 'Add back' button. The grid also has space before title, space between paragraphs, Hide the title and 'Leave out of Table of Contents' (the section still prints, it just is not listed).",
       "'Add a section to this week's bulletin' adds a one-time section. Admins add permanent sections on the Sections page.",
       "'Ask the assistant' answers questions about the bulletin. 'Liturgical suggestions & graphics' proposes readings, feast days and pictures for the week."]),
@@ -80,7 +83,8 @@ TOPICS = [
       "Fill in Date, Time, Event and Location for each event, then Save section. Use '+ Add another event' for more.",
       "For an event that lasts several days, also choose 'Last day'. The card then shows a range such as NOV 6-8 and 'Friday to Sunday'. Leave it empty for a one-day event.",
       "Click in the Event box to pick a regular event (Special Event, Edge Night, Rock the Universe, Ash Wednesday, End of Year Party) or type your own. At the bottom of the page, 'Add a regular or yearly event' adds a new name to the list for good.",
-      "When you start the next bulletin, events that already happened are dropped and upcoming ones carry over."]),
+      "When you start the next bulletin, events that already happened are dropped and upcoming ones carry over.",
+      "To put more room between the events, type a number in 'Space between the calendar events' (inches) near the top of the section page, for example 0.05 for a little more or 0.15 for roomy, then Save section. Blank uses the standard spacing."]),
     ("hidetitle", "Hide a section's title", "hide title heading remove title",
      ["Open the section and tick 'Hide this section's title in the bulletin', then Save section."]),
     ("spacing", "Spacing between lines, paragraphs and sections", "spacing space gap between paragraphs lines tight loose default",
@@ -149,11 +153,13 @@ TOPICS = [
      ["Click Advertisements. Upload the cards (JPG, PNG or PDF), several at once if you like.",
       "They are sized and arranged automatically on the last two pages with the sponsor and 'Advertise With Us' banners.",
       "To use a different number of pages, open the bulletin's Overview and set 'Pages for advertisements' (0 = automatic, up to 2). The cards are spread evenly over that many pages.",
-      "Use the Active tick-box to leave a card out, and the position number to reorder. Cards usually stay the same week to week."]),
+      "Use the Active tick-box to leave a card out, and the position number to reorder. Cards usually stay the same week to week.",
+      "Contributors who have been given the Advertisements area can add cards too, but their cards wait: an editor or admin must tick Print before they appear in the bulletin. Only editors and admins can save changes or remove cards."]),
     ("footer", "Header, footer and page numbers", "footer header page number date title theme office hours",
      ["On the overview, set the header date and title (for example Thirtieth Sunday in Ordinary Time) and the footer text.",
       "'Header photo' sets the picture across the top of page 1: zoom and position it, and choose a style. 'In this issue' (contents) has its own settings: title, which page it starts on, columns, size and spacing (see 'Remove the space above In this issue').",
       "'No stragglers' avoids a single leftover line at the top of a page, and 'Underlines' turns link underlines on or off.",
+      "Header design: besides Waves, Big swell, Gentle waves and Straight edges there is 'Split header: two photos side by side'. The first photo is the left side. Under 'Second photo' choose or upload the right-hand photo (with its own zoom and position) and use the slider to set how wide the left photo is. With no second photo the right side shows an All Souls' Day candle picture; tick 'Remove the second photo' to go back to it.",
       "Page 1 has the full footer; later pages have a slim one-line footer with only the footer text and the page number (no address) to save room."]),
     ("copy", "Carry content to next week", "copy next week carry forward keep weekly blank repeat",
      ["A new bulletin copies standing sections (and their layout, header, footer and contents settings) from the previous one. Weekly sections start blank, except Youth Group events that have not happened yet.",
@@ -170,6 +176,15 @@ TOPICS = [
       "Use photos that are sharp and well lit, at least 1000 pixels wide. Crop out empty background.",
       "Short paragraphs and one idea each. Put dates and times first.",
       "Always read the Preview start to finish before printing, and have a second person proofread names and times."]),
+    ("areas", "Who can use Advertisements and the Photo library", "areas access advertisements photo library browse photos contributor permission checkbox users who can",
+     ["Admins and editors always have Advertisements, Photo library and Browse photos.",
+      "On the Users page, each person has an 'Areas this person may use' tick-box row for those three. Untick one and that person no longer sees its link in the top menu and cannot open the page. The same row appears when you invite someone.",
+      "A contributor with Photo library can add photos one at a time or in bulk (many photos or a .zip). A contributor with Advertisements can add cards, which an editor must approve by ticking Print. Deleting, library management and saving ad changes stay with editors and admins.",
+      "Two built-in sections both start with 'This Week in Our Parish'. They are now named '(Calendar of Events)' and ': Lectors, Sacristans & Ministers' so they are easy to tell apart on the Users page. Nothing was removed."]),
+    ("pdfmatch", "Web and print PDFs match the preview", "pdf web print preview match fonts font georgia arial myriad source sans condensed export download same",
+     ["The Web PDF, Print PDF and the on-screen Preview use the same bundled fonts and layout, so they look the same. Only photo resolution differs (the print PDF is sharper).",
+      "Font styles now show the real font in the menu: Condensed (Archivo Narrow), Classic serif (Georgia look), Clean sans-serif (Arial look), Humanist (Verdana), Friendly rounded (Trebuchet) and Myriad-style sans (Source Sans 3). The Style guide has a Font column and the admin Fonts page shows a live sample of each.",
+      "If a page looks different from the preview, download the PDF again after the site is updated, and use 'Check my bulletin' first."]),
     ("login", "Sign-in and password problems", "login password forgot sign in reset account locked user",
      ["Sign in with your email address and password. Use Sign out at the top right; the Password link changes your password.",
       "Forgot it? On the sign-in page press 'Forgot your password?' and use the emailed link (see 'Invite someone, or recover a forgotten password').",

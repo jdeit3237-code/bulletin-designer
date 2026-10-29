@@ -1819,3 +1819,11 @@ def test_split_header_second_photo(app):
     assert "allsouls.svg" in c.get("/bulletins/1/preview").text
     c.post("/bulletins/1/header-photo", data={"csrf": tok(c, "/bulletins/1"), "hdr_style": "allsouls", "hdr2_alt": "", "image2": (_card(50, 50, "red"), "x.png")}, content_type="multipart/form-data")
     assert "hdr-art2" not in c.get("/bulletins/1/preview").text
+
+
+def test_help_covers_recent_features(app):
+    c = setup_admin(app)
+    h = c.get("/help").text
+    assert "Help last updated" in h and "Eastern Time" in h
+    for t in ("Split header", "Space between the calendar events", "Areas this person may use", "Source Sans 3", "Header, date and title"):
+        assert t in h
