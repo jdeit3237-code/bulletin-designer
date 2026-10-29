@@ -439,7 +439,7 @@ fieldset[data-clone] > legend, fieldset[data-event] > legend, fieldset[data-grou
 fieldset[data-clone], fieldset[data-event], fieldset[data-group] { border: 1px solid #bbb; border-radius: 6px; padding: .5em .8em .8em; margin: .8em 0; background: #f7f7f2; }
 fieldset[data-clone]:nth-of-type(even), fieldset[data-event]:nth-of-type(even), fieldset[data-group]:nth-of-type(even) { background: #dde2e6; }
 .step { font: 12pt Arial, sans-serif; color: #14562a; margin: .2em 0 .6em; }
-.sheet .ad-grid img.ad { border-right: 2.5pt solid #8a8a8a; border-bottom: 2.5pt solid #8a8a8a; }
+.sheet .ad-grid img.ad { border-right: 5pt solid rgba(0,0,0,.7); border-bottom: 5pt solid rgba(0,0,0,.7); }
 .shw { position: relative; }
 .shw .shl { position: absolute; display: block; }
 .shw .shw-in { position: relative; }
@@ -469,3 +469,4 @@ tr.sec-labels td { background: #cfe3d6; color: #14562a; font: bold 12pt Arial, s
 .sr-only { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 table.secs { table-layout: fixed; }
 table.secs .lgrid { grid-template-columns: repeat(auto-fill, minmax(11em, 1fr)); }
+table.adtbl tr.sec-row > td { vertical-align: middle; }

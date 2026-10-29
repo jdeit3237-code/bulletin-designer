@@ -1853,7 +1853,7 @@ def test_section_step_hints():
 
 def test_ad_images_have_drop_shadow():
     css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
-    assert ".sheet .ad-grid img.ad { border-right: 2.5pt" in css
+    assert ".sheet .ad-grid img.ad { border-right: 5pt solid rgba(0,0,0,.7)" in css
 
 
 
@@ -1917,3 +1917,12 @@ def test_overview_section_bands(app):
     create_bulletin(c)
     h = c.get("/bulletins/1").text
     assert "sec-band" in h and "sec-labels" in h and "sr-a" in h and "sr-b" in h
+
+
+def test_ads_page_alternating_banded_rows(app):
+    c = setup_admin(app)
+    t = tok(c, "/ads")
+    for n, col in enumerate(("red", "blue")):
+        c.post("/ads", data={"csrf": t, "name": f"Ad{n}", "image": (_card(300, 200, col), f"a{n}.png")}, content_type="multipart/form-data")
+    h = c.get("/ads").text
+    assert h.count("sec-band") == 2 and "sr-a" in h and "sr-b" in h

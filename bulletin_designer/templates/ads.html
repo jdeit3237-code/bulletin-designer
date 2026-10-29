@@ -18,12 +18,13 @@
 {% if ads %}
 <form method="post" action="{{ url_for('ads_save') }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">
-  <table>
+  <table class="adtbl">
     <caption class="small">Lower numbers print first within horizontal and vertical groups. Untick Print to leave a card out without deleting it.</caption>
     <thead><tr><th scope="col">Card</th><th scope="col">Name</th><th scope="col">Order</th><th scope="col">Print</th><th scope="col">Remove</th></tr></thead>
     <tbody>
     {% for a in ads %}
-      <tr>
+      <tr class="sec-band" aria-hidden="true"><td colspan="5">Ad {{ loop.index }}: {{ a.name }}</td></tr>
+      <tr class="sec-row {{ 'sr-a' if loop.index is odd else 'sr-b' }}">
         <td><img src="{{ url_for('uploads', name=a.image) }}" alt="Advertisement: {{ a.name }}" style="max-width:180px;max-height:120px;border:1px solid #bbb"><br><span class="meta">{{ 'Horizontal' if a.w >= a.h else 'Vertical' }}</span></td>
         <td><label class="sr-only" for="n{{ a.id }}">Name</label><input id="n{{ a.id }}" name="name_{{ a.id }}" type="text" value="{{ a.name }}"></td>
         <td><label class="sr-only" for="p{{ a.id }}">Order</label><input id="p{{ a.id }}" name="pos_{{ a.id }}" type="number" value="{{ a.position }}" style="width:5em"></td>
