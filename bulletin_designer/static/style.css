@@ -479,3 +479,5 @@ figure.phcard .ph-band { background: #1f7a3a; color: #fff; font: bold 12pt Arial
 figure.phcard figcaption, figure.phcard form { padding: 0 .5em; }
 .photo-zoom { background: none; border: 0; padding: 0 .5em; cursor: zoom-in; display: block; }
 #photo-big { max-width: 95vw; border: 3px solid #14562a; border-radius: 6px; }
+.photo-finder { padding-top: 0; overflow: hidden; }
+.photo-finder .pc-head { margin: 0 -.8em .5em; padding: .4em .8em; background: #1f7a3a; color: #fff; font: bold 13pt Arial, sans-serif; }

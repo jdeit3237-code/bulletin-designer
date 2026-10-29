@@ -1955,3 +1955,15 @@ def test_library_save_all(app):
     lid = re.search(r'name="libs_1" value="(\d+)"[^>]*>\s*L1', c.get("/library").text).group(1)
     c.post("/library/libraries-all", data={"csrf": t, "pids": ["1", "2"], "libs_1": [lid], "libs_2": [lid]})
     assert "L1 (2)" in c.get("/library").text
+
+
+def test_find_a_photo_has_green_header():
+    from pathlib import Path
+    h = (Path(__file__).parent.parent / "templates" / "section.html").read_text()
+    assert '<div class="photo-finder"><div class="pc-head">Find a photo</div>' in h
+
+
+def test_bullet_button_labelled_and_wired():
+    from pathlib import Path
+    h = (Path(__file__).parent.parent / "templates" / "section.html").read_text()
+    assert "Add bullets to selected text" in h and "addEventListener('change',function(){if(t.selectionStart!==t.selectionEnd)bullets()" in h
