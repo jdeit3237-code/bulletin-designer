@@ -592,6 +592,8 @@ def create_app(config=None):
         n = 8 if d["b"] > 0 else 1
         al = a1 if n == 8 else d["o"] / 100
         d["layers"] = [{"e": round(-d["b"] / 2 + d["b"] * (i + 0.5) / n, 2), "a": round(al, 4)} for i in range(n)]
+        d["L"], d["R"] = max(0, d["b"] / 2 - d["x"]), max(0, d["b"] / 2 + d["x"])
+        d["T"], d["B"] = max(0, d["b"] / 2 - d["y"]), max(0, d["b"] / 2 + d["y"])
         d["raw"] = f'{d["x"]:g},{d["y"]:g},{d["b"]:g},{d["o"]:g}'
         return d
 
@@ -2036,7 +2038,7 @@ def create_app(config=None):
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
             conn.execute("UPDATE items SET no_toc=?, space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
-                         (1 if request.form.get("no_toc") else 0, gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
+                         ((0 if request.form.get("in_toc") else 1) if request.form.get("toc_ui") else (1 if request.form.get("no_toc") else 0), gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0, bid, sid))
             conn.execute("UPDATE items SET area=?, page_no=?, font_pt=?, font_style=?, title_gap=?, item_gap=? WHERE bulletin_id=? AND section_id=?",
                          (area, page_no, font_pt, request.form.get("font_style") if request.form.get("font_style") in all_fonts() else "",

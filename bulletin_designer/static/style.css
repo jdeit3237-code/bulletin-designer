@@ -36,7 +36,7 @@ a { color: var(--blue); } a:hover { color: var(--navy); }
 :focus-visible { outline: 3px solid #ffbf47; outline-offset: 2px; }
 .skip { position: absolute; left: -999px; top: 0; background: #fff; padding: .5em 1em; z-index: 10; }
 .skip:focus { left: 8px; top: 8px; }
-header.site { background: var(--navy); color: #fff; padding: .6em 1.2em; }
+header.site { background: var(--navy); color: #fff; padding: .6em 1.2em; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
 header.site a, header.site button { color: #fff; font-size: 13pt; }
 header.site nav { display: flex; gap: 1.2em; flex-wrap: wrap; align-items: center; }
 header.site .brand img { height: 48px; width: auto; display: block; }
@@ -486,3 +486,6 @@ figure.phcard figcaption, figure.phcard form { padding: 0 .5em; }
 .adsh-sl label { display: block; margin: .3em 0; }
 .sheet .ad-grid .shw .shl { border-radius: 0 !important; }
 .sh-swatch { width: 120px; height: 70px; background: #fff; border: .5pt solid #bbb; margin: .6em 1.2em; flex: 0 0 auto; }
+input[type=checkbox], input[type=radio] { width: 1.35em; height: 1.35em; accent-color: #1f7a3a; vertical-align: middle; margin-right: .35em; cursor: pointer; outline: 2px solid #1f7a3a; outline-offset: 1px; border-radius: 3px; }
+label:has(> input[type=checkbox]) { font-weight: bold; }
+label:has(> input[type=checkbox]:checked) { color: #14572a; }

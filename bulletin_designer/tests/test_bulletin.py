@@ -564,9 +564,11 @@ def test_leave_section_out_of_toc(app):
     assert before
     import sqlite3
     sid = sqlite3.connect(app.config["DATABASE"]).execute("SELECT id FROM sections WHERE slug='mass-schedule'").fetchone()[0]
-    c.post("/bulletins/1/layout/%d" % sid, data={"area": "full", "no_toc": "1", "csrf": tok(c, "/bulletins/1")})
-    assert 'name="no_toc" value="1" checked' in c.get("/bulletins/1").text
+    c.post("/bulletins/1/layout/%d" % sid, data={"area": "full", "toc_ui": "1", "csrf": tok(c, "/bulletins/1")})
     assert len(toc_titles()) == len(before) - 1
+    assert 'name="in_toc"' in c.get("/bulletins/1").text
+    c.post("/bulletins/1/layout/%d" % sid, data={"area": "full", "toc_ui": "1", "in_toc": "1", "csrf": tok(c, "/bulletins/1")})
+    assert len(toc_titles()) == len(before)
 
 
 def test_ad_pages_setting(app):
@@ -2016,3 +2018,20 @@ def test_photo_shadow_has_preview_square():
     from pathlib import Path
     h = (Path(__file__).parent.parent / "templates" / "section.html").read_text()
     assert 'class="sh-swatch"' in h and "sw.style.boxShadow=sh" in h
+
+
+def test_photo_shadow_reserves_room_inside_box():
+    from bulletin_designer.app import create_app
+    from pathlib import Path
+    h = (Path(__file__).parent.parent / "templates" / "bulletin.html").read_text()
+    assert "box-sizing:border-box;padding:" in h and "wi0" in h
+
+
+def test_toc_advertisers_link_has_target(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    data = {"csrf": tok(c, "/ads"), "cards": [(_card(1050, 600, "navy"), "a.png")]}
+    c.post("/ads", data=data, content_type="multipart/form-data", follow_redirects=True)
+    html = c.get("/bulletins/1/preview").text
+    m = re.search(r'<a href="#(pg\d+)">Our Advertisers</a>', html)
+    assert m and html.count('id="%s"' % m.group(1)) == 1
