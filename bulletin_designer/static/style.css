@@ -491,3 +491,6 @@ label:has(> input[type=checkbox]) { font-weight: bold; }
 label:has(> input[type=checkbox]:checked) { color: #14572a; }
 @media screen { .masthead .hdr-photo .crop { clip-path: inset(0 0 1px 0); } .masthead .hdr-photo { background: #fff; } }
 .sheet a.ad-link, .sheet a.ad-link:hover { display: block; text-decoration: none; border: 0; color: inherit; }
+
+label.cap-box { font-weight: bold; }
+input.cap-box { border: 2px solid #14562a; background: #f3faf5; }

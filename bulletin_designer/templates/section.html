@@ -312,6 +312,8 @@
     <p class="meta">Or upload a new one below. <a href="{{ url_for('library') }}">Manage library</a></p>{% endif %}
     <label for="image">Photo or graphic (PNG, JPG, GIF, WebP; shown without distortion)</label>
     <input id="image" name="image" type="file" accept="image/*">
+    <label for="caption" class="cap-box">Photo caption (printed under the photo; leave blank for none)</label>
+    <input id="caption" name="caption" type="text" maxlength="300" class="cap-box" value="{{ item.caption }}">
     {% if item.image %}
       <p><label><input type="checkbox" name="remove_image" value="1"> Remove current image</label></p>
       <h3>Crop and zoom (the picture is never stretched)</h3>
@@ -382,7 +384,7 @@
     {% for gp in gal.photos %}{% set n = loop.index0 %}<div class="gp photo-card pc-{{ 'a' if n % 2 == 0 else 'b' }}" data-n="{{ n }}"><div class="pc-head">Photo {{ n + 1 }}</div>
       <div class="pc-prev"><div class="crop pc-box" id="gpbox{{ n }}" style="width:2.2in;height:{{ (2.2 / gp.ar)|round(2) }}in;border:1px solid #888"><img src="{{ url_for('uploads', name=gp.f) }}" alt="Preview" style="object-position:{{ gp.x }}% {{ gp.y }}%;transform:scale({{ gp.z }});transform-origin:{{ gp.x }}% {{ gp.y }}%"></div></div>
       <div class="pc-ctl">
-      <label>Caption <input name="gp_alt_{{ n }}" value="{{ gp.alt }}"></label>
+      <label class="cap-box">Photo caption <input name="gp_alt_{{ n }}" class="cap-box" value="{{ gp.alt }}"></label>
       <label>Shape (crop) <select name="gp_shape_{{ n }}" class="pc-shape" data-ar0="{{ gp.ar0|round(3) }}"><option value="" data-ar="{{ gp.ar0|round(3) }}">Whole picture (no crop)</option>{% for k, v in PHOTO_SHAPES.items() %}<option value="{{ k }}" data-ar="{{ v[0]|round(3) }}" {{ 'selected' if gp.shape == k }}>{{ v[1] }}</option>{% endfor %}</select></label>
       <label>Zoom in <input type="range" name="gp_z_{{ n }}" class="pc-z" min="1" max="4" step="0.1" value="{{ gp.z }}"></label>
       <label>Move picture left / right <input type="range" name="gp_x_{{ n }}" class="pc-x" min="0" max="100" value="{{ gp.x|int }}"></label>
@@ -436,7 +438,7 @@ document.querySelectorAll('.sh-ctl').forEach(function(c){
     {% for n in range(4) %}<div class="gp gp-new pc-{{ 'a' if (gal.photos|length + n) % 2 == 0 else 'b' }}"><div class="pc-head">Add photo {{ gal.photos|length + n + 1 }}</div>
       {% if photos %}<label>From library <select name="ng_lib_{{ n }}"><option value="">- none -</option>{% for p in photos %}<option value="{{ p.id }}">{{ p.title }}{% if p.libs %} ({{ p.libs }}){% endif %}</option>{% endfor %}</select></label>{% endif %}
       <label>or upload <input type="file" name="ng_file_{{ n }}" accept="image/*"></label>
-      <label>Caption (shown under the photo in italics) <input name="ng_alt_{{ n }}"></label>
+      <label class="cap-box">Photo caption (shown under the photo in italics) <input name="ng_alt_{{ n }}" class="cap-box"></label>
       <label>Place <select name="ng_w_{{ n }}"><option value="below">Below the text</option><option value="above">Above the text</option></select></label></div>{% endfor %}
     <label for="gal_dir">Arrange the photos</label>
     <select id="gal_dir" name="gal_dir"><option value="row">Side by side, left to right</option><option value="stack" {{ 'selected' if gal.dir == 'stack' }}>Stacked, top to bottom</option></select>
@@ -454,8 +456,6 @@ document.querySelectorAll('.sh-ctl').forEach(function(c){
     <label for="alt">Alternative text (describe the image for screen readers)</label>
     <input id="alt" name="alt" type="text" value="{{ item.alt }}">
     <label><input type="checkbox" name="decorative" value="1" {{ 'checked' if item.decorative }}> Image is purely decorative (no alt text needed)</label>
-    <label for="caption">Caption (optional)</label>
-    <input id="caption" name="caption" type="text" value="{{ item.caption }}">
   </fieldset>
   {% if can and b.status != 'published' %}<button class="btn">Save section</button>{% else %}<p>You have read-only access to this section.</p>{% endif %}
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back</a>

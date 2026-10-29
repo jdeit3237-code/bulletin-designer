@@ -2116,3 +2116,13 @@ def test_last_sign_in_shown_in_eastern_time(app):
     db.execute("UPDATE users SET last_login='2026-10-29T17:11:00' WHERE id=1")
     db.commit()
     assert "1:11 PM EDT" in c.get("/admin/users").text
+
+
+def test_photo_caption_box_beside_photo_upload(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    html = c.get("/bulletins/1/section/5").text
+    assert html.index('name="image"') < html.index('id="caption"')
+    assert 'name="ng_alt_0"' in html and "Photo caption" in html
+    c.post("/bulletins/1/section/5", data={"body": "Hi", "caption": "Fr. John at the picnic", "csrf": tok(c, "/bulletins/1/section/5")})
+    assert "Fr. John at the picnic" in c.get("/bulletins/1/section/5").text
