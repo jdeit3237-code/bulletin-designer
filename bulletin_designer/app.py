@@ -763,11 +763,11 @@ def create_app(config=None):
         total = 0.0
         for para in paras:
             if isinstance(para, tuple):
-                total += sum(math.ceil(len(it) / cpl) for it in para[1]) + 0.4
+                total += sum(math.ceil(len(it) / cpl) for it in para[1]) + 0.65
             else:
-                total += sum(math.ceil(len(ln) / cpl) for ln in para) + 0.4
+                total += sum(math.ceil(len(ln) / cpl) for ln in para) + 0.65
         n = max(1, int(r["cols"] or 2) - 1)
-        avail = max(1, int((n * (h / 0.245) + total) / (n + 1)))
+        avail = max(1, int((n * (h / 0.2) + total) / (n + 1)))
         for i, para in enumerate(paras):
             if used >= avail:
                 rest = paras[i:]
@@ -785,7 +785,7 @@ def create_app(config=None):
                 beside.append(("ul", take))
                 if rest:
                     break
-                used += 0.4
+                used += 0.65
                 continue
             lines = list(para)
             for k, ln in enumerate(lines):
@@ -804,7 +804,7 @@ def create_app(config=None):
                 used += n
             else:
                 beside.append(lines)
-                used += 0.4
+                used += 0.65
                 continue
             break
         return beside, rest
