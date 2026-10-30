@@ -3154,29 +3154,45 @@ def create_app(config=None):
 
     lite_cache = {}
 
-    def lite_image(path):
-        """A small copy of a photo for the quick preview; layout is set by CSS size, so the page looks the same."""
-        key = (path, os.path.getmtime(path))
-        if key not in lite_cache:
-            try:
-                from PIL import Image
-                with Image.open(path) as im:
-                    fmt = im.format or "PNG"
-                    if max(im.size) <= 700 or fmt not in ("JPEG", "PNG"):
-                        lite_cache[key] = None
+    sized_dir = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), os.path.basename(os.path.realpath(app.config["UPLOAD_DIR"])) + "_sized")
+
+    def lite_image(path, limit=700):
+        """A smaller copy of a photo (kept on disk); layout is set by CSS size, so the page looks the same."""
+        key = (path, os.path.getmtime(path), limit)
+        if key in lite_cache:
+            return lite_cache[key]
+        res = None
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                fmt = im.format or "PNG"
+                if max(im.size) > limit and fmt in ("JPEG", "PNG"):
+                    mime = "image/jpeg" if fmt == "JPEG" else "image/png"
+                    tag = hashlib.sha1(f"{path}|{key[1]}".encode()).hexdigest()[:16]
+                    f = os.path.join(sized_dir, f"{tag}-{limit}")
+                    if os.path.exists(f):
+                        res = (open(f, "rb").read(), mime)
                     else:
                         im.load()
-                        im.thumbnail((700, 700))
+                        im.thumbnail((limit, limit))
                         buf = io.BytesIO()
-                        im.save(buf, fmt, **({"quality": 70} if fmt == "JPEG" else {}))
-                        lite_cache[key] = (buf.getvalue(), "image/jpeg" if fmt == "JPEG" else "image/png")
-            except Exception:
-                lite_cache[key] = None
-            while len(lite_cache) > 300:
-                lite_cache.pop(next(iter(lite_cache)))
-        return lite_cache[key]
+                        im.save(buf, fmt, **({"quality": 70 if limit <= 700 else 85} if fmt == "JPEG" else {}))
+                        res = (buf.getvalue(), mime)
+                        try:
+                            os.makedirs(sized_dir, exist_ok=True)
+                            with open(f + ".tmp", "wb") as fh:
+                                fh.write(res[0])
+                            os.replace(f + ".tmp", f)
+                        except OSError:
+                            pass
+        except Exception:
+            res = None
+        lite_cache[key] = res
+        while len(lite_cache) > 300:
+            lite_cache.pop(next(iter(lite_cache)))
+        return res
 
-    def pdf_fetcher(url, lite=False):
+    def pdf_fetcher(url, limit=2000):
         from weasyprint import default_url_fetcher
         for prefix, folder in ((PDF_BASE + "uploads/", app.config["UPLOAD_DIR"]),
                                (PDF_BASE + "static/", app.static_folder)):
@@ -3185,8 +3201,8 @@ def create_app(config=None):
                 if not path.startswith(os.path.realpath(folder) + os.sep):
                     raise ValueError("blocked path")
                 import mimetypes
-                if lite and prefix.endswith("uploads/"):
-                    small = lite_image(path)
+                if prefix.endswith("uploads/"):
+                    small = lite_image(path, limit)
                     if small:
                         return {"file_obj": io.BytesIO(small[0]), "mime_type": small[1]}
                 return {"file_obj": open(path, "rb"),
@@ -3238,7 +3254,8 @@ def create_app(config=None):
         html = build(pages)
         doc = None
         lite = bool(request.args.get("inline"))
-        fetch = (lambda u: pdf_fetcher(u, True)) if lite else pdf_fetcher
+        limit = 700 if lite else (1200 if kind == "web" else 2000)
+        fetch = lambda u: pdf_fetcher(u, limit)
         t0 = time.time()
         ck = hashlib.sha1((kind + ("lite" if lite else "") + html).encode("utf-8", "ignore")).hexdigest()
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
