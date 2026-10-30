@@ -547,3 +547,5 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .sheet.fit2 .sec p, .sheet.fit2 .sec li { margin-bottom: .4em; }
 .sheet.fit3 .sec p, .sheet.fit3 .sec li { margin-bottom: .25em; }
 .sheet.fit1 .sec h2 { font-size: 17pt; } .sheet.fit2 .sec h2 { font-size: 16pt; } .sheet.fit3 .sec h2 { font-size: 15pt; }
+
+.sec .nm { white-space: nowrap; }

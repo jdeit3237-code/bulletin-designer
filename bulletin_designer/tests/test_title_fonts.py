@@ -61,3 +61,15 @@ def test_column_wrap_chrome_reflow_hooks(app):
     db.commit()
     html = c.get("/bulletins/1/preview").text
     assert 'class="cs-wrap"' in html and 'data-n="2"' in html and "function flow(wrap)" in html
+
+
+def test_ministers_names_stay_together(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    sid = [x for x in range(1, 40) if c.get(f"/bulletins/1/section/{x}").status_code == 200 and "m0_ministers" in c.get(f"/bulletins/1/section/{x}").text]
+    assert sid
+    c.post(f"/bulletins/1/section/{sid[0]}", data={"mass_count": "1", "m0_date": "2026-10-25", "m0_ministers": "Di Fox; Ed Poe", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert '<span class="nm">Di Fox,</span> <span class="nm">Ed Poe</span>' in html
+    assert ".sec .nm" in c.get("/static/style.css").text

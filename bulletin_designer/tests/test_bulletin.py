@@ -298,8 +298,8 @@ def test_this_week_ministers(app):
            "m0_ministers": "Di Fox; Ed Poe; Flo Qui", "m1_day": "", "csrf": tok(c, "/bulletins/1")})
     html = c.get("/bulletins/1/preview").text
     assert "Ministers This Week" in html and "Sunday, October 25, 2026" in html
-    assert "Lectors:" in html and "Ann Kay, Bo Roe" in html and "Sacristan:" in html
-    assert "Di Fox, Ed Poe, Flo Qui" in html
+    assert "Lectors:" in html and '<span class="nm">Ann Kay,</span> <span class="nm">Bo Roe</span>' in html and "Sacristan:" in html
+    assert '<span class="nm">Di Fox,</span> <span class="nm">Ed Poe,</span> <span class="nm">Flo Qui</span>' in html
 
 
 def test_youth_calendar_events(app):
@@ -481,7 +481,7 @@ def test_weekend_ministers_in_calendar(app):
     c.post("/bulletins/1/section/7", data={"event_count": "1", "e0_date": "2026-10-24", "e0_time": "5:30 pm", "e0_event": "Vigil Mass",
         "e0_lectors": "Ann, Bob", "e0_sacristans": "Cy", "e0_ministers": "Di", "csrf": t})
     html = c.get("/bulletins/1/preview").text
-    assert "Lectors:" in html and "Ann, Bob" in html and "Sacristan:" in html and "Eucharistic" in html
+    assert "Lectors:" in html and '<span class="nm">Ann,</span> <span class="nm">Bob</span>' in html and "Sacristan:" in html and "Eucharistic" in html
     form = c.get("/bulletins/1/section/7").text
     assert 'value="Ann, Bob"' in form and 'name="e0_ministers"' in form
 
