@@ -2150,7 +2150,21 @@ def test_exact_pdf_preview_inline_and_cached(app):
     import time
     t=time.time(); r=c.get("/bulletins/1/download/web?inline=1"); t1=time.time()-t
     assert r.headers["Content-Disposition"].startswith("inline")
-    t=time.time(); r2=c.get("/bulletins/1/download/web"); t2=time.time()-t
-    assert r2.headers["Content-Disposition"].startswith("attachment") and r2.data==r.data
+    t=time.time(); r2=c.get("/bulletins/1/download/web?inline=1"); t2=time.time()-t
+    assert r2.data == r.data
+    assert c.get("/bulletins/1/download/web").headers["Content-Disposition"].startswith("attachment")
     assert t2 < t1 / 3
     assert b"Exact PDF preview" in c.get("/bulletins/1").data
+
+
+def test_quick_preview_uses_small_photos(app):
+    import io as _io
+    from PIL import Image
+    c = setup_admin(app); create_bulletin(c)
+    im = Image.new("RGB", (2400, 1600), (200, 40, 40)); buf = _io.BytesIO(); im.save(buf, "JPEG", quality=95); buf.seek(0)
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "img_pos": "above", "alt": "x", "image": (buf, "big.jpg"), "csrf": tok(c, "/bulletins/1")},
+           content_type="multipart/form-data", follow_redirects=True)
+    full = c.get("/bulletins/1/download/web")
+    lite = c.get("/bulletins/1/download/web?inline=1")
+    assert lite.status_code == 200 and lite.data[:4] == b"%PDF" and "X-Build-Seconds" in lite.headers
+    assert len(lite.data) <= len(full.data)

@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import io
+import time
 import json
 import os
 import itertools
@@ -3151,7 +3152,31 @@ def create_app(config=None):
 
     PDF_BASE = "http://pdf.local/"
 
-    def pdf_fetcher(url):
+    lite_cache = {}
+
+    def lite_image(path):
+        """A small copy of a photo for the quick preview; layout is set by CSS size, so the page looks the same."""
+        key = (path, os.path.getmtime(path))
+        if key not in lite_cache:
+            try:
+                from PIL import Image
+                with Image.open(path) as im:
+                    fmt = im.format or "PNG"
+                    if max(im.size) <= 700 or fmt not in ("JPEG", "PNG"):
+                        lite_cache[key] = None
+                    else:
+                        im.load()
+                        im.thumbnail((700, 700))
+                        buf = io.BytesIO()
+                        im.save(buf, fmt, **({"quality": 70} if fmt == "JPEG" else {}))
+                        lite_cache[key] = (buf.getvalue(), "image/jpeg" if fmt == "JPEG" else "image/png")
+            except Exception:
+                lite_cache[key] = None
+            while len(lite_cache) > 300:
+                lite_cache.pop(next(iter(lite_cache)))
+        return lite_cache[key]
+
+    def pdf_fetcher(url, lite=False):
         from weasyprint import default_url_fetcher
         for prefix, folder in ((PDF_BASE + "uploads/", app.config["UPLOAD_DIR"]),
                                (PDF_BASE + "static/", app.static_folder)):
@@ -3160,6 +3185,10 @@ def create_app(config=None):
                 if not path.startswith(os.path.realpath(folder) + os.sep):
                     raise ValueError("blocked path")
                 import mimetypes
+                if lite and prefix.endswith("uploads/"):
+                    small = lite_image(path)
+                    if small:
+                        return {"file_obj": io.BytesIO(small[0]), "mime_type": small[1]}
                 return {"file_obj": open(path, "rb"),
                         "mime_type": mimetypes.guess_type(path)[0] or "application/octet-stream"}
         if url.startswith("data:"):
@@ -3207,7 +3236,10 @@ def create_app(config=None):
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
         html = build(pages)
         doc = None
-        ck = hashlib.sha1((kind + html).encode("utf-8", "ignore")).hexdigest()
+        lite = bool(request.args.get("inline"))
+        fetch = (lambda u: pdf_fetcher(u, True)) if lite else pdf_fetcher
+        t0 = time.time()
+        ck = hashlib.sha1((kind + ("lite" if lite else "") + html).encode("utf-8", "ignore")).hexdigest()
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
         disp = "inline" if request.args.get("inline") else "attachment"
         if ck in pdf_cache:
@@ -3217,7 +3249,7 @@ def create_app(config=None):
             shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
             for _ in range(4):
                 if doc is None:
-                    doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+                    doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=fetch).render()
                 changed = False
                 for page in doc.pages:
                     for box in page._page_box.descendants():
@@ -3248,7 +3280,7 @@ def create_app(config=None):
             doc = None
         # Reuse the last measured render when photo sizes were already right, saving a full layout pass.
         if doc is None:
-            doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+            doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=fetch).render()
         if kind == "booklet":
             try:
                 from bulletin_designer import booklet as _bk
@@ -3262,7 +3294,7 @@ def create_app(config=None):
         while len(pdf_cache) > 3:
             pdf_cache.pop(next(iter(pdf_cache)))
         return app.response_class(pdf, mimetype="application/pdf",
-                                  headers={"Content-Disposition": f'{disp}; filename="{name}"'})
+                                  headers={"Content-Disposition": f'{disp}; filename="{name}"', "X-Build-Seconds": f"{time.time() - t0:.1f}"})
 
     @app.route("/uploads/<path:name>")
     @need()
