@@ -85,6 +85,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .pg-head .head-title { flex: 1; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
 .sheet .pg-head .head-date { white-space: nowrap; color: var(--gold-bright); }
 .sheet .pg-body { flex: 1; overflow: hidden; padding-top: .5em; font-size: 12.5pt; line-height: 1.4; }
+.sheet h2 { font-family: "Serif Condensed", Georgia, serif; font-weight: bold; }
 .sheet h2 { margin: .2em 0 .03125in; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
 .sheet .pg-foot { display: flex; justify-content: space-between; align-items: center; gap: .2in; color: #fff;
   background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 4px solid var(--gold-bright);
