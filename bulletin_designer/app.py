@@ -614,6 +614,23 @@ def create_app(config=None):
         s = re.sub(r"(?<![\w#])(\d+)(st|nd|rd|th)\b", r"\1<sup>\2</sup>", s)
         return Markup(s)
 
+    def sup_ordinals(html):
+        """Superscript 1st/2nd/3rd/4th... in text everywhere (not inside tags, scripts, styles or an existing sup)."""
+        import re
+        rx = re.compile(r"(?<![\w#.$])(\d+)(st|nd|rd|th)\b(?![-'])", re.I)
+        out, skip = [], 0
+        for part in re.split(r"(<[^>]*>)", html):
+            if part.startswith("<") and part.endswith(">"):
+                m = re.match(r"</?\s*([a-zA-Z0-9]+)", part)
+                if m and m.group(1).lower() in ("script", "style", "sup", "textarea", "title"):
+                    skip += -1 if part.startswith("</") else 1
+                    skip = max(skip, 0)
+                out.append(part)
+            else:
+                out.append(part if skip else rx.sub(lambda m: m.group(1) + "<sup>" + m.group(2) + "</sup>", part))
+        return "".join(out)
+    app.jinja_env.globals["sup_ordinals"] = sup_ordinals
+
     def ocr_text(path):
         """Read text from a picture with the tesseract program; None when it is not installed or fails."""
         import shutil
@@ -2798,7 +2815,7 @@ def create_app(config=None):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         apply_fit_memory(bid, pages)
-        return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
+        return sup_ordinals(render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt))
 
     def save_ad_file(f):
         from PIL import Image, ImageOps
@@ -3338,7 +3355,7 @@ def create_app(config=None):
         apply_fit_memory(bid, pages)
         passes = []
         def build(pgs):
-            h = render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
+            h = sup_ordinals(render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt))
             return h.replace('url(/uploads/', f'url({PDF_BASE}uploads/').replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
                 'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})

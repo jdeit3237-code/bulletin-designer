@@ -33,3 +33,16 @@ def test_condensed_serif(app):
     c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "font_style": "condensed-serif", "csrf": t})
     assert "fs-condensed-serif" in c.get("/bulletins/1/preview").text
     assert c.get("/bulletins/1/download/web").status_code == 200
+
+
+def test_ordinals_superscript_everywhere(app):
+    from app import create_app  # noqa: F401
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "Hi on the 3rd day", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert "3<sup>rd</sup>" in html and "<sup><sup>" not in html
+    sup = app.jinja_env.globals["sup_ordinals"]
+    assert sup("<p>Fr. Bob 21st &amp; 2nd</p><script>1st</script><sup>th</sup>") == "<p>Fr. Bob 21<sup>st</sup> &amp; 2<sup>nd</sup></p><script>1st</script><sup>th</sup>"
+    assert sup("<p>$5th 1st-class</p>") == "<p>$5th 1st-class</p>"
