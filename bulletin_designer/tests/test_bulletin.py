@@ -2143,3 +2143,14 @@ def test_photo_spans_columns_with_text_in_remaining_column(app):
         html = c.get("/bulletins/1/preview").text
         assert 'class="cs-photo"' in html and "column-count:1" in html
         assert (html.index("cs-photo") < html.index("Hello there")) == (pos == "cols-left")
+
+
+def test_exact_pdf_preview_inline_and_cached(app):
+    c = setup_admin(app); create_bulletin(c)
+    import time
+    t=time.time(); r=c.get("/bulletins/1/download/web?inline=1"); t1=time.time()-t
+    assert r.headers["Content-Disposition"].startswith("inline")
+    t=time.time(); r2=c.get("/bulletins/1/download/web"); t2=time.time()-t
+    assert r2.headers["Content-Disposition"].startswith("attachment") and r2.data==r.data
+    assert t2 < t1 / 3
+    assert b"Exact PDF preview" in c.get("/bulletins/1").data

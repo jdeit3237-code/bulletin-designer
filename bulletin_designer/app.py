@@ -3166,6 +3166,8 @@ def create_app(config=None):
             return default_url_fetcher(url)
         raise ValueError("external resources are not allowed in PDFs")
 
+    pdf_cache = {}
+
     def page_overflow(doc):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
         out = {}
@@ -3205,6 +3207,11 @@ def create_app(config=None):
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
         html = build(pages)
         doc = None
+        ck = hashlib.sha1((kind + html).encode("utf-8", "ignore")).hexdigest()
+        name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
+        disp = "inline" if request.args.get("inline") else "attachment"
+        if ck in pdf_cache:
+            return app.response_class(pdf_cache[ck], mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"'})
         # One measuring loop: size shared-page photos to the real spare room, and tighten type on any page that still overflows.
         try:
             shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
@@ -3251,9 +3258,11 @@ def create_app(config=None):
                 return redirect(url_for("edit", bid=bid))
         else:
             pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
-        name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
+        pdf_cache[ck] = pdf
+        while len(pdf_cache) > 3:
+            pdf_cache.pop(next(iter(pdf_cache)))
         return app.response_class(pdf, mimetype="application/pdf",
-                                  headers={"Content-Disposition": f'attachment; filename="{name}"'})
+                                  headers={"Content-Disposition": f'{disp}; filename="{name}"'})
 
     @app.route("/uploads/<path:name>")
     @need()

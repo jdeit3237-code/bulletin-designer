@@ -6,6 +6,7 @@
 <p>Printed length: <strong>{{ total }} pages</strong> (always a multiple of 4; blank pages become notes pages).</p>
 <p class="toolrow">
   <a class="btn" href="{{ url_for('preview', bid=b.id) }}">Preview / print</a>
+  <a class="btn" href="{{ url_for('download', bid=b.id, kind='web', inline=1) }}" target="_blank" rel="noopener">Exact PDF preview</a>
   <a class="btn" href="{{ url_for('design_studio') }}" target="_blank" rel="noopener">Design studio</a>
   <a class="btn" href="{{ url_for('bulletin_check', bid=b.id) }}">Check my bulletin</a> {% if g.user.role in ('admin', 'editor') %}<a class="btn" href="{{ url_for('history_page', bid=b.id) }}">Undo / history</a>{% endif %} <a class="btn" href="{{ url_for('help_page') }}">Help</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Web PDF</a>
