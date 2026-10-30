@@ -2167,4 +2167,19 @@ def test_quick_preview_uses_small_photos(app):
     full = c.get("/bulletins/1/download/web")
     lite = c.get("/bulletins/1/download/web?inline=1")
     assert lite.status_code == 200 and lite.data[:4] == b"%PDF" and "X-Build-Seconds" in lite.headers
-    assert len(lite.data) <= len(full.data)
+
+
+def test_preview_pdf_built_per_page_matches_full_pdf(app):
+    import io as _io
+    from pypdf import PdfReader
+    c = setup_admin(app); create_bulletin(c)
+    full = PdfReader(_io.BytesIO(c.get("/bulletins/1/download/web").data))
+    lite = PdfReader(_io.BytesIO(c.get("/bulletins/1/download/web?inline=1").data))
+    assert len(lite.pages) == len(full.pages)
+    for a, b in zip(full.pages, lite.pages):
+        x, y = (a.extract_text() or "").split(), (b.extract_text() or "").split()
+        import difflib
+        assert x == y, [d for d in difflib.ndiff(x, y) if d[0] in "+-"][:20]
+    c.post("/bulletins/1/section/9", data={"body": "Changed words here", "csrf": tok(c, "/bulletins/1")}, follow_redirects=True)
+    again = PdfReader(_io.BytesIO(c.get("/bulletins/1/download/web?inline=1").data))
+    assert "Changed" in " ".join((p.extract_text() or "") for p in again.pages)

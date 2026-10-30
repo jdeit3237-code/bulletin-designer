@@ -3196,6 +3196,7 @@ def create_app(config=None):
         raise ValueError("external resources are not allowed in PDFs")
 
     pdf_cache = {}
+    page_cache = {}
 
     def page_overflow(doc):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
@@ -3230,7 +3231,7 @@ def create_app(config=None):
             return redirect(url_for("edit", bid=bid))
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         def build(pgs):
-            h = render_template("bulletin.html", b=b, pages=pgs, toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
+            h = render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
             return h.replace('url(/uploads/', f'url({PDF_BASE}uploads/').replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
                 'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
@@ -3244,6 +3245,54 @@ def create_app(config=None):
         disp = "inline" if request.args.get("inline") else "attachment"
         if ck in pdf_cache:
             return app.response_class(pdf_cache[ck], mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"'})
+        if lite:
+            try:
+                from pypdf import PdfReader, PdfWriter
+                writer = PdfWriter()
+                for pg in pages:
+                    one = build([pg])
+                    pk = hashlib.sha1(("page" + one).encode("utf-8", "ignore")).hexdigest()
+                    if pk not in page_cache:
+                        pdoc = None
+                        for _ in range(4):
+                            pdoc = HTML(string=one, base_url=PDF_BASE, url_fetcher=fetch).render()
+                            changed = False
+                            if pg.get("photo_h"):
+                                for box in pdoc.pages[0]._page_box.descendants():
+                                    el = getattr(box, "element", None)
+                                    if el is not None and box.element_tag == "div" and el.get("id") == f"pg{pg['number']}" and box.parent is not None:
+                                        par = box.parent
+                                        slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
+                                        n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
+                                        if slack > 0.12 or slack < 0:
+                                            new_h = round(max(1.0, min(6.5, pg["photo_h"] + (slack - 0.08) / n_ph)), 2)
+                                            if new_h != pg["photo_h"]:
+                                                pg["photo_h"] = new_h
+                                                changed = True
+                                        break
+                            if page_overflow(pdoc) and pg.get("fit", 0) < 3 and not changed:
+                                pg["fit"] = pg.get("fit", 0) + 1
+                                changed = True
+                            if not changed:
+                                break
+                            one = build([pg])
+                            pdoc = None
+                        if pdoc is None:
+                            pdoc = HTML(string=one, base_url=PDF_BASE, url_fetcher=fetch).render()
+                        page_cache[pk] = pdoc.write_pdf(optimize_images=True, **opts)
+                        while len(page_cache) > 200:
+                            page_cache.pop(next(iter(page_cache)))
+                    for rp in PdfReader(io.BytesIO(page_cache[pk])).pages:
+                        writer.add_page(rp)
+                out = io.BytesIO()
+                writer.write(out)
+                pdf = out.getvalue()
+                pdf_cache[ck] = pdf
+                while len(pdf_cache) > 3:
+                    pdf_cache.pop(next(iter(pdf_cache)))
+                return app.response_class(pdf, mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"', "X-Build-Seconds": f"{time.time() - t0:.1f}"})
+            except ImportError:
+                pass
         # One measuring loop: size shared-page photos to the real spare room, and tighten type on any page that still overflows.
         try:
             shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}

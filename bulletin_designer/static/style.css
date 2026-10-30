@@ -510,10 +510,10 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .mass.giving table.gv th { text-align: left; font-weight: bold; padding: 0 .8em 0 0; vertical-align: top; }
 .mass.giving table.gv td { padding: 0; vertical-align: top; }
 
-.sheet.fit1 .pg-body { font-size: 12pt; line-height: 1.3; }
-.sheet.fit2 .pg-body { font-size: 11.5pt; line-height: 1.22; }
-.sheet.fit3 .pg-body { font-size: 11pt; line-height: 1.15; }
-.sheet.fit1 .mass p, .sheet.fit1 .mass h3, .sheet.fit1 .ytitle, .sheet.fit1 .ymeta, .sheet.fit1 .cal td, .sheet.fit1 figcaption { font-size: 11.5pt; }
-.sheet.fit2 .mass p, .sheet.fit2 .mass h3, .sheet.fit2 .ytitle, .sheet.fit2 .ymeta, .sheet.fit2 .cal td, .sheet.fit2 figcaption { font-size: 11pt; }
-.sheet.fit3 .mass p, .sheet.fit3 .mass h3, .sheet.fit3 .ytitle, .sheet.fit3 .ymeta, .sheet.fit3 .cal td, .sheet.fit3 figcaption { font-size: 10.5pt; }
+.sheet.fit1 .pg-body { font-size: 12.25pt; line-height: 1.3; }
+.sheet.fit2 .pg-body { font-size: 12pt; line-height: 1.22; }
+.sheet.fit3 .pg-body { font-size: 12pt; line-height: 1.15; }
+.sheet.fit1 .sec p, .sheet.fit1 .sec li { margin-bottom: .6em; }
+.sheet.fit2 .sec p, .sheet.fit2 .sec li { margin-bottom: .4em; }
+.sheet.fit3 .sec p, .sheet.fit3 .sec li { margin-bottom: .25em; }
 .sheet.fit1 .sec h2 { font-size: 17pt; } .sheet.fit2 .sec h2 { font-size: 16pt; } .sheet.fit3 .sec h2 { font-size: 15pt; }
