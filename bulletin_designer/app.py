@@ -767,7 +767,7 @@ def create_app(config=None):
             else:
                 total += sum(math.ceil(len(ln) / cpl) for ln in para) + 0.65
         n = max(1, int(r["cols"] or 2) - 1)
-        avail = max(1, int((n * (h / 0.2) + total) / (n + 1)) - 2)
+        avail = max(1, int((n * (h / 0.2) + total) / (n + 1)) - 4)
         for i, para in enumerate(paras):
             if used >= avail:
                 rest = paras[i:]
