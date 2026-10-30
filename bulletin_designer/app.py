@@ -3304,6 +3304,10 @@ def create_app(config=None):
         except (ImportError, OSError):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
+        bk = (bid, kind, bool(request.args.get("inline")))
+        wait_ev = building.get(bk)
+        if wait_ev is not None:
+            wait_ev.wait(150)
         t_req = time.time()
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         t_layout = time.time() - t_req
@@ -3329,15 +3333,12 @@ def create_app(config=None):
         ck = hashlib.sha1((kind + ("lite" if lite else "") + html).encode("utf-8", "ignore")).hexdigest()
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
         disp = "inline" if request.args.get("inline") else "attachment"
-        ev = building.get(ck)
-        if ev is not None and ck not in pdf_cache:
-            ev.wait(150)
         if ck in pdf_cache:
             return app.response_class(pdf_cache[ck], mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"'})
         import threading
-        if ck not in building:
-            building[ck] = threading.Event()
-            g.building_ck = ck
+        if bk not in building:
+            building[bk] = threading.Event()
+            g.building_ck = bk
         if lite and os.environ.get("PER_PAGE_PREVIEW") == "1":
             try:
                 from pypdf import PdfReader, PdfWriter
@@ -3442,7 +3443,8 @@ def create_app(config=None):
             fit_memory[(bid, pg["number"])] = (pg.get("photo_h"), pg.get("fit", 0))
         save_fit_memory()
         pdf_cache[ck] = pdf
-        while len(pdf_cache) > 3:
+        pdf_cache[hashlib.sha1((kind + ("lite" if lite else "") + html).encode("utf-8", "ignore")).hexdigest()] = pdf
+        while len(pdf_cache) > 4:
             pdf_cache.pop(next(iter(pdf_cache)))
         timing = f"layout {t_layout:.1f}s; renders {','.join(f'{x:.1f}' for x in passes)}s; write {t_w:.1f}s; total {time.time() - t_req:.1f}s"
         app.logger.info("PDF %s", timing)
