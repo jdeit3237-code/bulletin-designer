@@ -510,6 +510,7 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .mass.giving table.gv { width: auto; border-collapse: collapse; margin: 0 0 .05in; font-size: 12pt; }
 .mass.giving table.gv th { text-align: left; font-weight: bold; padding: 0 .8em 0 0; vertical-align: top; }
 .mass.giving table.gv td { padding: 0; vertical-align: top; }
+.mass.giving table.gv th, .mass.giving table.gv td { background: none; border: 0; }
 
 .sheet.fit1 .pg-body { font-size: 12.25pt; line-height: 1.3; }
 .sheet.fit2 .pg-body { font-size: 12pt; line-height: 1.22; }
