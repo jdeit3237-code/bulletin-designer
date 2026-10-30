@@ -1455,6 +1455,11 @@ def create_app(config=None):
                 pages[0]["right_more"] = p1_side[1:]
                 pages[0]["p1_below"] = p1_under
         fulls = [r for r in printed if area_of(r) == "full" and r not in p1_all]
+        host_pages = {r["page_no"] for r in printed if r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"
+                      and area_of(r) not in ("above", "below") and r not in p1_all}
+        orphan_bands = [r for r in printed if area_of(r) in ("above", "below") and r not in p1_all and r["slug"] != "cover"
+                        and (r["page_no"] or 0) >= 2 and r["page_no"] not in host_pages]
+        fulls = fulls + orphan_bands
         for r in fulls:
             if not (r["page_no"] and r["page_no"] >= 2 and r["slug"] != "cover"):
                 pages.extend(blocks(r))
@@ -1562,7 +1567,7 @@ def create_app(config=None):
         def band_pos(pg):
             ps = [x["position"] for x in rows_on(pg) if x is not None]
             return (min(ps), max(ps)) if ps else None
-        for r in sorted((r for r in printed if area_of(r) in ("below", "above") and r not in p1_all), key=lambda r: r["position"]):
+        for r in sorted((r for r in printed if area_of(r) in ("below", "above") and r not in p1_all and r not in orphan_bands), key=lambda r: r["position"]):
             target = None
             if r["page_no"] and 2 <= r["page_no"] <= len(pages) and pages[r["page_no"] - 1].get("row") is not None:
                 target = pages[r["page_no"] - 1]
