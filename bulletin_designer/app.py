@@ -744,7 +744,7 @@ def create_app(config=None):
                     img="position:absolute;max-width:none;width:%.3f%%;height:%.3f%%;left:-%.3f%%;top:-%.3f%%" % (100 / w, 100 / h, l / w * 100, t / h * 100))
     app.jinja_env.globals["edge_crop"] = edge_crop
 
-    def cs_plan(r, width_in, text_w_in):
+    def cs_plan_est(r, width_in, text_w_in):
         """Split a prose section's paragraphs into those that sit beside a column-spanning photo and those that flow below it.
         Lines are measured with the real bundled fonts so every column ends level instead of running past the footer."""
         import re
@@ -832,6 +832,120 @@ def create_app(config=None):
             rest = [("ul", u[1]) if u[0] == "ul" else u[1] for u in units[idx:]]
             return beside, rest
         return beside, rest
+    cs_cache = {}
+
+    def cs_plan(r, width_in, text_w_in, no_str=True):
+        """Decide exactly where the text beside a column-spanning photo stops and the text under the photo begins.
+        The real PDF engine lays out the row for each candidate split, and the largest amount of text that keeps the
+        beside column no taller than the photo + continued-text block is chosen. Nothing is estimated."""
+        import hashlib
+        key = hashlib.sha1(repr((r["body"], r["image"], r["caption"], r["cols"], r["font_pt"], r["font_style"], r["para_gap"],
+                                 r["crop_t"], r["crop_b"], r["crop_l"], r["crop_r"], r["crop_h"], r["img_w"], r["bullet_style"],
+                                 r["slug"], r["img_pos"], round(width_in, 3), round(text_w_in, 3), no_str)).encode()).hexdigest()
+        if key in cs_cache:
+            return cs_cache[key]
+        try:
+            res = cs_plan_exact(r, width_in, text_w_in, no_str)
+        except Exception:
+            app.logger.exception("exact column-wrap layout failed; using estimate")
+            res = cs_plan_est(r, width_in, text_w_in)
+        if len(cs_cache) > 200:
+            cs_cache.clear()
+        cs_cache[key] = res
+        return res
+
+    def cs_plan_exact(r, width_in, text_w_in, no_str):
+        from weasyprint import HTML
+        from markupsafe import Markup, escape
+        from PIL import Image
+        n = max(1, int(r["cols"] or 2) - 1)
+        units = soft_paras(r["body"])
+        marked = lambda t: any(m in t for m in ("**", "~~", "__", "{"))
+        # every place the text may be cut: a paragraph boundary, or a word boundary inside a plain line
+        cuts = []
+        for u, para in enumerate(units):
+            cuts.append((u, 0, 0))
+            if isinstance(para, tuple):
+                continue
+            for l, ln in enumerate(para):
+                if marked(ln):
+                    continue
+                for q in range(1, len(ln.split(" "))):
+                    cuts.append((u, l, q))
+        cuts.append((len(units), 0, 0))
+
+        def split(c):
+            u, l, q = c
+            if not q:
+                return list(units[:u]), list(units[u:])
+            ws = units[u][l].split(" ")
+            head = list(units[:u]) + [units[u][:l] + [" ".join(ws[:q])]]
+            tail = [[" ".join(ws[q:])] + units[u][l + 1:]] + list(units[u + 1:])
+            return head, tail
+
+        def block(paras):
+            out = Markup("")
+            for para in paras:
+                if isinstance(para, tuple):
+                    out += Markup('<ul class="bl b-%s">' % escape(r["bullet_style"] or "disc")) + Markup("").join(
+                        Markup("<li>") + tight(it, no_str) + Markup("</li>") for it in para[1]) + Markup("</ul>")
+                else:
+                    out += Markup('<p class="bp">') + Markup("<br>").join(tight(ln, no_str) for ln in para) + Markup("</p>")
+            return out
+
+        try:
+            with Image.open(os.path.join(app.config["UPLOAD_DIR"], r["image"])) as im:
+                ratio = im.size[0] / im.size[1]
+            t, b_, l_, rt = (float(r[k] or 0) / 100 for k in ("crop_t", "crop_b", "crop_l", "crop_r"))
+            ratio = ratio * (1 - l_ - rt) / (1 - t - b_)
+        except Exception:
+            ratio = 1.5
+        photo_h = float(r["crop_h"]) if r["crop_h"] else width_in / ratio
+        fig_style = (' style="width:%d%%;margin-left:auto;margin-right:auto"' % int(r["img_w"])) if r["img_w"] else ""
+        cap = Markup("<figcaption>%s</figcaption>") % r["caption"] if r["caption"] else Markup("")
+        sty = ""
+        if r["font_pt"]:
+            sty += "--fs: %spt;" % r["font_pt"]
+        if r["para_gap"]:
+            sty += "--pg: %sin;" % r["para_gap"]
+        cls = "sec sec-%s %s %s %s" % (r["slug"], "has-pg" if r["para_gap"] else "", "custom-size" if r["font_pt"] else "",
+                                         "fs-" + r["font_style"] if r["font_style"] else "")
+        aw = width_in + 0.35 + text_w_in
+        has_rest_area = r["slug"] not in ("staff", "giving")
+
+        def measure(c):
+            head, tail = split(c)
+            rest = ('<div class="body-cols" style="column-count:%d">%s</div>' % (n, block(tail))) if (tail and has_rest_area) else ""
+            photo = ('<td class="cs-photo" style="width:%sin"><div data-m="c"><figure class="photo-%s"%s><div style="height:%sin"></div>%s</figure>%s</div></td>'
+                     % (width_in, r["img_pos"], fig_style, photo_h, cap, rest))
+            text = ('<td class="cs-textcell" style="width:%sin"><div data-m="b" class="body-cols cs-text" style="column-count:1">%s</div></td>'
+                    % (text_w_in, block(head)))
+            cells = (photo + '<td class="cs-gap"></td>' + text) if r["img_pos"] == "cols-left" else (text + '<td class="cs-gap"></td>' + photo)
+            html = ('<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%sstatic/style.css">'
+                    '<style>@page{size:9in 80in;margin:0}.sheet{display:block;width:9in;height:auto;margin:0;padding:0;border:0;overflow:visible}.sheet .pg-body{position:static!important;display:block;width:8in;height:auto!important;overflow:visible;flex:none}</style></head>'
+                    '<body><div class="sheet"><div class="pg-body"><div class="%s" style="%s"><table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></body></html>'
+                    % (PDF_BASE, cls, sty, aw, cells))
+            doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+            hs = {}
+            for page in doc.pages:
+                for box in page._page_box.descendants():
+                    el = getattr(box, "element", None)
+                    m = el.get("data-m") if el is not None else None
+                    if m and m not in hs:
+                        hs[m] = box.margin_height()
+            return hs.get("b", 0.0), hs.get("c", 0.0)
+
+        lo, hi = 0, len(cuts) - 1
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            bh, ch = measure(cuts[mid])
+            if bh <= ch + 0.5:
+                lo = mid
+            else:
+                hi = mid - 1
+        head, tail = split(cuts[lo])
+        conv = lambda ps: [("ul", p[1]) if isinstance(p, tuple) else p for p in ps]
+        return conv(head), conv(tail)
     app.jinja_env.globals["cs_plan"] = cs_plan
 
     def tight(text, on=True):
