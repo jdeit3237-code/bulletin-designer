@@ -564,3 +564,5 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 
 .sheet .sec.tc, .sheet .sec.tc p, .sheet .sec.tc li, .sheet .sec.tc h2 { text-align: center; }
 .sheet .sec.tc ul { list-style-position: inside; padding-left: 0; }
+.sheet table.ctr { width: 100%; border-collapse: collapse; }
+.sheet table.ctr td { vertical-align: middle; padding: 0; }

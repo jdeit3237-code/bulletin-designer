@@ -47,7 +47,7 @@
     <input id="space_before" name="space_before" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.space_before) }}" placeholder="default">
     <label for="text_nudge">Move the text down, in inches (blank or 0 = none; for example 0.3; works with a photo beside the text)</label>
     <input id="text_nudge" name="text_nudge" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.text_nudge) }}" placeholder="0">
-    <label class="chk"><input type="checkbox" name="text_center" value="1" {{ 'checked' if item.text_center }}> Center the text left to right in its box</label>
+    <label class="chk"><input type="checkbox" name="text_center" value="1" {{ 'checked' if item.text_center }}> Center the text left to right and top to bottom in its box</label>
     <label for="title_gap">Space between title and text, in inches (blank = default; 0 = no space; for example 0.1)</label>
     <input id="title_gap" name="title_gap" type="number" min="0" max="1" step="0.01" value="{{ gap_display(item.title_gap) }}" placeholder="default">
     <label for="item_gap">{% if s.slug == 'youth-calendar' %}Space between the calendar events, in inches (blank = default; for example 0.05 a little more, 0.15 roomy){% else %}Space between the items in this section, in inches (blank = default; 0 = no space; for example 0.05 tight, 0.15 loose){% endif %}</label>
