@@ -21,6 +21,7 @@
     {% set tg = ' style="margin-bottom:' ~ r.title_gap ~ 'in"' if r.title_gap else '' %}
     {% if r.slug == 'mass-schedule' %}{% set wpt = {'left': 250, 'right': 250, 'left23': 340, 'right23': 340, 'left3': 160, 'mid3': 160, 'right3': 160}.get(r.area, 520) %}{% set raw = wpt / ((r.title|length + 2) * 0.58) %}{% set fit = [[raw, 18]|min, 10]|max %}{% set tg = ' style="font-size:' ~ ('%.1f' % fit) ~ 'pt;white-space:' ~ ('nowrap' if raw >= 10 else 'normal') ~ (';margin-bottom:' ~ r.title_gap ~ 'in' if r.title_gap else '') ~ '"' %}{% endif %}{% if p.part == 1 %}<h2{{ tg|safe }}>{{ tight(r.title, False) }}</h2>{% else %}<h2{{ tg|safe }}>{{ tight(r.title, False) }} (continued)</h2>{% endif %}
     {% set beside = r.image and p.part == 1 and r.img_pos in ('beside-left', 'beside-right') and r.slug not in ('cover', 'mass-schedule') %}
+    {% if not beside and r.text_nudge %}<div class="nudge-sp" style="height:{{ r.text_nudge }}in"></div>{% endif %}
     {% if beside %}{% set bw = ([r.img_w|int if r.img_w else 30, 60]|min) %}<table class="beside"><tr>{% if r.img_pos == 'beside-left' %}<td class="beside-pic" style="width:{{ bw }}%">{{ section_photo(r, p) }}</td>{% endif %}<td class="beside-txt"><div class="nudge"{% if r.text_nudge %} style="position:relative;top:{{ r.text_nudge }}in"{% endif %}>{% endif %}
     {% set cspan = r.cols in (2, 3) and r.image and p.part == 1 and r.img_pos in ('cols-left', 'cols-right') and r.slug not in ('cover', 'mass-schedule') %}
     {% set cs_n = (r.cols - 1) if cspan else 0 %}

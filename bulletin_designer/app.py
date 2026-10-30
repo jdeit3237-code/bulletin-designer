@@ -2356,6 +2356,7 @@ def create_app(config=None):
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
             if request.form.get("toc_ui"):
+                conn.execute("UPDATE items SET text_center=?, text_nudge=? WHERE bulletin_id=? AND section_id=?", (1 if request.form.get("text_center") else 0, gap_value(request.form.get("text_nudge")) or 0, bid, sid))
                 conn.execute("UPDATE items SET vcenter=? WHERE bulletin_id=? AND section_id=?", (1 if request.form.get("vcenter") else 0, bid, sid))
             conn.execute("UPDATE items SET no_toc=?, space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
                          ((0 if request.form.get("in_toc") else 1) if request.form.get("toc_ui") else (1 if request.form.get("no_toc") else 0), gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
