@@ -11,6 +11,11 @@
 @font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
 @font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Italic-Regular.ttf) format("truetype"); font-weight: normal; font-style: italic; }
 @font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Italic-Bold.ttf) format("truetype"); font-weight: bold; font-style: italic; }
+@font-face { font-family: "Playfair Display"; src: url(fonts/PlayfairDisplay-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
+@font-face { font-family: "Lora"; src: url(fonts/Lora-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
+@font-face { font-family: "Montserrat"; src: url(fonts/Montserrat-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
+@font-face { font-family: "Oswald"; src: url(fonts/Oswald-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
+@font-face { font-family: "Raleway"; src: url(fonts/Raleway-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Italic-Regular.ttf) format("truetype"); font-weight: normal; font-style: italic; }
@@ -213,6 +218,11 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .fs-title-condserif h2 { font-family: "Serif Condensed", Georgia, serif; font-weight: bold; }
 .fs-title-source h2 { font-family: "Source Sans 3", sans-serif; font-weight: bold; }
 .fs-title-narrow h2 { font-family: "Arial Narrow", sans-serif; font-weight: bold; }
+.fs-title-playfair h2 { font-family: "Playfair Display", Georgia, serif; font-weight: bold; }
+.fs-title-lora h2 { font-family: "Lora", Georgia, serif; font-weight: bold; }
+.fs-title-montserrat h2 { font-family: "Montserrat", sans-serif; font-weight: bold; }
+.fs-title-oswald h2 { font-family: "Oswald", sans-serif; font-weight: bold; }
+.fs-title-raleway h2 { font-family: "Raleway", sans-serif; font-weight: bold; }
 .fs-title-pacifico h2 { font-family: "Pacifico", cursive; font-weight: normal; }
 .fs-title-kaushan h2 { font-family: "Kaushan Script", cursive; font-weight: normal; }
 .fs-title-lobster h2 { font-family: "Lobster", cursive; font-weight: normal; }
