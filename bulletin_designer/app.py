@@ -3174,7 +3174,7 @@ def create_app(config=None):
                 el = getattr(box, "element", None)
                 if el is None or box.element_tag != "div" or "pg-body" not in (el.get("class") or "").split():
                     continue
-                limit = box.content_box_y() + box.height - 0.05 * 96
+                limit = box.content_box_y() + box.height
                 low = max((d.position_y + d.margin_height() for d in box.descendants() if getattr(d, "height", None) is not None), default=0)
                 if low > limit + 1:
                     out[i] = low - limit
@@ -3205,46 +3205,35 @@ def create_app(config=None):
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
         html = build(pages)
         doc = None
-        # Measure the real spare room on pages where photos share space, then grow/shrink the photos to fit.
-        for _ in range(2):
-          try:
-              shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
-              if not shared:
-                  break
-              doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
-              changed = False
-              for page in doc.pages:
-                  for box in page._page_box.descendants():
-                      el = getattr(box, "element", None)
-                      m = re.fullmatch(r"pg(\d+)", el.get("id") or "") if el is not None and box.element_tag == "div" else None
-                      if not m or int(m.group(1)) not in shared or box.parent is None:
-                          continue
-                      par = box.parent
-                      slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
-                      pg = shared[int(m.group(1))]
-                      n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
-                      if slack > 0.12 or slack < 0:
-                          pg["photo_h"] = round(max(1.0, min(6.5, pg["photo_h"] + (slack - 0.08) / n_ph)), 2)
-                          changed = True
-                      break
-              if not changed:
-                  break
-              html = build(pages)
-              doc = None
-          except Exception:
-              doc = None
-              break
-        # Measure real overflow on every page and step the page through tighter type tiers until nothing is hidden by the footer.
+        # One measuring loop: size shared-page photos to the real spare room, and tighten type on any page that still overflows.
         try:
-            for _ in range(3):
-                doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
-                over = page_overflow(doc)
-                bumped = False
-                for k, px in over.items():
-                    if k < len(pages) and pages[k].get("fit", 0) < 3:
-                        pages[k]["fit"] = pages[k].get("fit", 0) + 1
-                        bumped = True
-                if not bumped:
+            shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
+            for _ in range(4):
+                if doc is None:
+                    doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+                changed = False
+                for page in doc.pages:
+                    for box in page._page_box.descendants():
+                        el = getattr(box, "element", None)
+                        m = re.fullmatch(r"pg(\d+)", el.get("id") or "") if el is not None and box.element_tag == "div" else None
+                        if not m or int(m.group(1)) not in shared or box.parent is None:
+                            continue
+                        par = box.parent
+                        slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
+                        pg = shared[int(m.group(1))]
+                        n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
+                        if slack > 0.12 or slack < 0:
+                            new_h = round(max(1.0, min(6.5, pg["photo_h"] + (slack - 0.08) / n_ph)), 2)
+                            if new_h != pg["photo_h"]:
+                                pg["photo_h"] = new_h
+                                changed = True
+                        break
+                for k in page_overflow(doc):
+                    pg = pages[k] if k < len(pages) else None
+                    if pg is not None and pg.get("fit", 0) < 3 and not (pg.get("photo_h") and pg["photo_h"] > 1.0 and changed):
+                        pg["fit"] = pg.get("fit", 0) + 1
+                        changed = True
+                if not changed:
                     break
                 html = build(pages)
                 doc = None
