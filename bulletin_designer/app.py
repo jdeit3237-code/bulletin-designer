@@ -794,7 +794,7 @@ def create_app(config=None):
                 units.append(("p", para, sum(len(wrap(ln, text_w_in)) for ln in para) * lh_in + gap_in))
         total = sum(u[2] for u in units)
         n = max(1, int(r["cols"] or 2) - 1)
-        target = (total + n * h) / (n + 1) - 0.5 * lh_in
+        target = (total + n * h) / (n + 1) - 2.5 * lh_in
         beside, rest, used = [], [], 0.0
         for idx, (kind, content, uh) in enumerate(units):
             if used + uh <= target + gap_in:
