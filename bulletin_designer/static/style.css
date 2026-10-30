@@ -209,6 +209,10 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .fs-sans, .fs-sans * { font-family: Arial, "Liberation Sans", Helvetica, sans-serif; }
 .fs-humanist, .fs-humanist * { font-family: Verdana, "DejaVu Sans", Tahoma, sans-serif; }
 .fs-source, .fs-source * { font-family: "Source Sans 3", Arial, sans-serif; }
+.fs-title-georgia h2 { font-family: "Georgia", serif; font-weight: bold; }
+.fs-title-condserif h2 { font-family: "Serif Condensed", Georgia, serif; font-weight: bold; }
+.fs-title-source h2 { font-family: "Source Sans 3", sans-serif; font-weight: bold; }
+.fs-title-narrow h2 { font-family: "Arial Narrow", sans-serif; font-weight: bold; }
 .fs-title-pacifico h2 { font-family: "Pacifico", cursive; font-weight: normal; }
 .fs-title-kaushan h2 { font-family: "Kaushan Script", cursive; font-weight: normal; }
 .fs-title-lobster h2 { font-family: "Lobster", cursive; font-weight: normal; }
