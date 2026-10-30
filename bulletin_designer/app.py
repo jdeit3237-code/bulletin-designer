@@ -886,6 +886,9 @@ def create_app(config=None):
         cs_cache[key] = res
         return res
 
+    class ContPara(list):
+        cont = True
+
     def cs_plan_exact(r, width_in, text_w_in, no_str):
         from weasyprint import HTML
         from markupsafe import Markup, escape
@@ -912,7 +915,7 @@ def create_app(config=None):
                 return list(units[:u]), list(units[u:])
             ws = units[u][l].split(" ")
             head = list(units[:u]) + [units[u][:l] + [" ".join(ws[:q])]]
-            tail = [[" ".join(ws[q:])] + units[u][l + 1:]] + list(units[u + 1:])
+            tail = [ContPara([" ".join(ws[q:])] + units[u][l + 1:])] + list(units[u + 1:])
             return head, tail
 
         def block(paras):
