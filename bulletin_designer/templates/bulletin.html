@@ -95,7 +95,7 @@
 {% for p in pages %}
 <section class="sheet {{ 'cover' if p.number == 1 }} {{ 'fit' ~ p.fit if p.fit }} {{ 'no-ul' if b.no_underline }}" aria-label="Page {{ p.number }}">
   <header class="pg-head"><img class="logo-badge" src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church"><span class="head-title">Weekly Parish Bulletin</span><span class="head-date">{{ cover_dt[0] or (long_sunday(b.hdr_date) if b.hdr_date else '') or long_sunday(b.sunday) }}</span></header>
-  <div class="pg-body">
+  {% set vc = page_vcenter(p) %}<div class="pg-body{{ ' vc' if vc }}">{% if vc %}<div class="vc-in">{% endif %}
   {% set side_by_side = p.number == 1 and p.row and (not p.duo or p.p1_full) and p.row.slug != 'cover' %}
   {% if p.number == 1 %}
     <div class="masthead m-{{ b.hdr_style or 'waves' }}">
@@ -142,7 +142,7 @@
   {% elif not p.number == 1 %}
     <h2>Notes</h2><p>This page is intentionally left for notes.</p>
   {% endif %}
-  </div>
+  {% if vc %}</div>{% endif %}</div>
   {% if p.number == 1 %}<footer class="pg-foot"><div class="foot-row"><span class="foot-name">{{ b.footer or 'St. Peter the Fisherman Catholic Parish' }}</span><span class="foot-addr foot-right">{{ foot_addr }}</span></div><div class="foot-row"><span class="foot-addr">Office Hours: {{ foot_hours }}</span><span class="foot-page">{% if foot_phone %}<span class="foot-phone">Phone {{ foot_phone }}</span> &middot; {% endif %}Page {{ p.number }} of {{ n_pages or pages|length }}</span></div></footer>
   {% else %}<footer class="pg-foot slim"><div class="foot-row"><span class="foot-name">{{ b.footer or 'St. Peter the Fisherman Catholic Parish' }}</span><span class="foot-page">Page {{ p.number }} of {{ n_pages or pages|length }}</span></div></footer>{% endif %}
 </section>
@@ -238,6 +238,24 @@
   function run() { document.querySelectorAll('.sheet table.cs-wrap[data-n]').forEach(flow); }
   window.addEventListener('load', function () { run(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(run); });
   window.addEventListener('beforeprint', run);
+})();
+</script>
+<script>
+/* Shows how much empty space is left above and below the text on each page (screen only). */
+(function () {
+  function measure() {
+    document.querySelectorAll('.space-note').forEach(function (n) { n.remove(); });
+    document.querySelectorAll('.sheet .pg-body').forEach(function (b) {
+      var host = b.querySelector(':scope > .vc-in') || b, kids = Array.prototype.slice.call(host.children).filter(function (k) { return k.getBoundingClientRect().height > 0; });
+      if (!kids.length) return;
+      var br = b.getBoundingClientRect(), top = Math.min.apply(null, kids.map(function (k) { return k.getBoundingClientRect().top; })), bot = Math.max.apply(null, kids.map(function (k) { return k.getBoundingClientRect().bottom; }));
+      var a = Math.max(0, (top - br.top) / 96), z = Math.max(0, (br.bottom - bot) / 96);
+      var sh = b.closest('.sheet'), p = document.createElement('p'); p.className = 'space-note';
+      p.textContent = 'Page ' + ((sh.getAttribute('aria-label') || '').replace('Page ', '')) + ' empty space: ' + a.toFixed(2) + ' in above the text, ' + z.toFixed(2) + ' in below.' + (b.classList.contains('vc') ? ' (centered)' : '');
+      sh.parentNode.insertBefore(p, sh.nextSibling);
+    });
+  }
+  window.addEventListener('load', function () { setTimeout(measure, 400); });
 })();
 </script>
 <script>

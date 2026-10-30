@@ -549,3 +549,8 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .sheet.fit1 .sec h2 { font-size: 17pt; } .sheet.fit2 .sec h2 { font-size: 16pt; } .sheet.fit3 .sec h2 { font-size: 15pt; }
 
 .sec .nm { white-space: nowrap; }
+
+.sheet .pg-body.vc { display: table; width: 100%; height: 9.58in; max-height: 9.58in; }
+.sheet .pg-body.vc > .vc-in { display: table-cell; vertical-align: middle; }
+.space-note { font: 600 12pt/1.3 Arial, sans-serif; color: #444; margin: .25rem auto 1rem; max-width: 8.5in; }
+@media print { .space-note { display: none; } }

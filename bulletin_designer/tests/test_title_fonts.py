@@ -73,3 +73,17 @@ def test_ministers_names_stay_together(app):
     html = c.get("/bulletins/1/preview").text
     assert '<span class="nm">Di Fox,</span> <span class="nm">Ed Poe</span>' in html
     assert ".sec .nm" in c.get("/static/style.css").text
+
+
+def test_vcenter_option_and_space_note(app):
+    c = setup_admin(app)
+    create_bulletin(c)
+    t = tok(c, "/bulletins/1")
+    c.post("/bulletins/1/section/9", data={"body": "Hello", "csrf": t})
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "toc_ui": "1", "in_toc": "1", "vcenter": "1", "csrf": t})
+    html = c.get("/bulletins/1/preview").text
+    assert 'class="pg-body vc"' in html and 'class="vc-in"' in html and "empty space" in html
+    assert 'name="vcenter"' in c.get("/bulletins/1").text
+    c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "toc_ui": "1", "in_toc": "1", "csrf": t})
+    assert 'class="pg-body vc"' not in c.get("/bulletins/1/preview").text
+    assert c.get("/bulletins/1/download/web").status_code == 200

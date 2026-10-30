@@ -437,6 +437,8 @@ def create_app(config=None):
             conn.execute("ALTER TABLE items ADD COLUMN hide_title INTEGER DEFAULT 0")
         if "para_gap" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN para_gap REAL DEFAULT 0")
+        if "vcenter" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN vcenter INTEGER DEFAULT 0")
         if "item_gap" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN item_gap REAL DEFAULT 0")
         if "title_gap" not in have:
@@ -630,6 +632,20 @@ def create_app(config=None):
                 out.append(part if skip else rx.sub(lambda m: m.group(1) + "<sup>" + m.group(2) + "</sup>", part))
         return "".join(out)
     app.jinja_env.globals["sup_ordinals"] = sup_ordinals
+
+    def page_vcenter(pg):
+        """True when any section placed on this page asks for its text to be centered top-to-bottom."""
+        def walk(x):
+            if hasattr(x, "keys"):
+                ks = list(x.keys())
+                if "vcenter" in ks and x["vcenter"]:
+                    return True
+                return any(walk(x[k]) for k in ks if k not in ("body", "image"))
+            if isinstance(x, (list, tuple)):
+                return any(walk(v) for v in x)
+            return False
+        return pg["number"] != 1 and not pg.get("photo_h") and walk([pg.get(k) for k in ("row", "more", "duo", "left_more", "right_more")])
+    app.jinja_env.globals["page_vcenter"] = page_vcenter
 
     def ocr_text(path):
         """Read text from a picture with the tesseract program; None when it is not installed or fails."""
@@ -1388,7 +1404,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.img_shadow, i.no_toc FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.img_shadow, i.no_toc, i.vcenter FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1872,7 +1888,7 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.no_toc, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.no_toc, i.vcenter, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
         removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
@@ -2333,6 +2349,8 @@ def create_app(config=None):
             except ValueError:
                 font_pt = 0
             font_pt = font_pt if font_pt == 0 or 8 <= font_pt <= 16 else 0
+            if request.form.get("toc_ui"):
+                conn.execute("UPDATE items SET vcenter=? WHERE bulletin_id=? AND section_id=?", (1 if request.form.get("vcenter") else 0, bid, sid))
             conn.execute("UPDATE items SET no_toc=?, space_before=?, para_gap=?, hide_title=? WHERE bulletin_id=? AND section_id=?",
                          ((0 if request.form.get("in_toc") else 1) if request.form.get("toc_ui") else (1 if request.form.get("no_toc") else 0), gap_value(request.form.get("space_before")), gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0, bid, sid))

@@ -87,6 +87,7 @@
           <div class="lf"><label for="sb{{ s.id }}">Space before title (in)</label><input id="sb{{ s.id }}" name="space_before" aria-describedby="sbh{{ s.id }}" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.space_before) }}" placeholder="default"><span class="meta" id="sbh{{ s.id }}">Room above the title, in inches. Blank = standard.</span></div>
           <div class="lf"><label for="pgp{{ s.id }}">Space between paragraphs (in)</label><input id="pgp{{ s.id }}" name="para_gap" aria-describedby="pgph{{ s.id }}" type="number" min="0" max="1" step="0.01" value="{{ gap_display(s.para_gap) }}" placeholder="default"><span class="meta" id="pgph{{ s.id }}">Room between paragraphs, in inches. Blank = standard.</span></div>
           <div class="lf"><label><input type="checkbox" name="hide_title" value="1" {{ 'checked' if s.hide_title }}> Hide the title</label></div>
+          <div class="lf"><label><input type="checkbox" name="vcenter" value="1" {{ 'checked' if s.vcenter }}> Center the page's text top to bottom</label></div>
           <div class="lf"><label><input type="hidden" name="toc_ui" value="1"><input type="checkbox" name="in_toc" value="1" {{ 'checked' if not s.no_toc }}> In this Issue</label></div>
           </div>
           <p class="meta lnote">Space settings: blank = default, 0 = none.</p>
