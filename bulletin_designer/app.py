@@ -3214,6 +3214,64 @@ def create_app(config=None):
     pdf_cache = {}
     page_cache = {}
     fit_memory = {}
+    fit_file = sized_dir + "_fit.json"
+    try:
+        with open(fit_file) as fh:
+            for k, v in json.load(fh).items():
+                a, b_ = k.split(":")
+                fit_memory[(int(a), int(b_))] = (v[0], v[1])
+    except (OSError, ValueError):
+        pass
+
+    def save_fit_memory():
+        try:
+            tmp = fit_file + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump({f"{a}:{b_}": list(v) for (a, b_), v in fit_memory.items()}, fh)
+            os.replace(tmp, fit_file)
+        except OSError:
+            pass
+
+    building = {}
+    bg_timers = {}
+
+    @app.teardown_request
+    def release_building(exc):
+        ck_ = g.pop("building_ck", None)
+        if ck_:
+            ev_ = building.pop(ck_, None)
+            if ev_:
+                ev_.set()
+
+    def bg_preview(bid, sess):
+        """Build the Exact PDF preview in the background so it is cached by the time it is opened."""
+        try:
+            c = app.test_client()
+            with c.session_transaction() as st:
+                st.update(sess)
+            c.get(f"/bulletins/{bid}/download/web?inline=1")
+        except Exception:
+            app.logger.exception("background preview failed")
+
+    @app.after_request
+    def schedule_preview(resp):
+        try:
+            if (request.method == "POST" and resp.status_code < 400 and not app.config.get("TESTING")
+                    and g.get("user") and request.view_args and request.view_args.get("bid")
+                    and "/download" not in request.path):
+                import threading
+                bid = request.view_args["bid"]
+                sess = dict(session)
+                old = bg_timers.pop(bid, None)
+                if old:
+                    old.cancel()
+                t = threading.Timer(8.0, bg_preview, (bid, sess))
+                t.daemon = True
+                bg_timers[bid] = t
+                t.start()
+        except Exception:
+            pass
+        return resp
 
     def page_overflow(doc):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
@@ -3271,8 +3329,15 @@ def create_app(config=None):
         ck = hashlib.sha1((kind + ("lite" if lite else "") + html).encode("utf-8", "ignore")).hexdigest()
         name = f"St-Peter-Bulletin-{b['sunday']}-{kind}.pdf"
         disp = "inline" if request.args.get("inline") else "attachment"
+        ev = building.get(ck)
+        if ev is not None and ck not in pdf_cache:
+            ev.wait(150)
         if ck in pdf_cache:
             return app.response_class(pdf_cache[ck], mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"'})
+        import threading
+        if ck not in building:
+            building[ck] = threading.Event()
+            g.building_ck = ck
         if lite and os.environ.get("PER_PAGE_PREVIEW") == "1":
             try:
                 from pypdf import PdfReader, PdfWriter
@@ -3375,6 +3440,7 @@ def create_app(config=None):
         t_w = time.time() - t_w
         for pg in pages:
             fit_memory[(bid, pg["number"])] = (pg.get("photo_h"), pg.get("fit", 0))
+        save_fit_memory()
         pdf_cache[ck] = pdf
         while len(pdf_cache) > 3:
             pdf_cache.pop(next(iter(pdf_cache)))
