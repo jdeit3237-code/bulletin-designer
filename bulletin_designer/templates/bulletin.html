@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% block title %}Bulletin {{ b.sunday }}{% endblock %}
 {% block content %}
-<p class="noprint"><button class="btn" onclick="window.print()">Print from browser</button>
+<p class="noprint"><button class="btn" onclick="window.print()">Print / Save as PDF from Chrome</button>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='web') }}">Download web PDF (accessible, screen size)</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='print') }}">Download print PDF (300 dpi)</a>
   <a class="btn" href="{{ url_for('download', bid=b.id, kind='booklet') }}">Download print PDF booklet (11x17)</a>
   <a class="btn secondary" href="{{ url_for('edit', bid=b.id) }}">Back to sections</a>
   <a class="btn secondary" href="{{ url_for('design_studio') }}" target="_blank" rel="noopener">Design studio (make a picture or ad prompt)</a>
   {% if g.user.role == 'admin' %}<a class="btn secondary" href="{{ url_for('preview', bid=b.id, resize=(None if request.args.get('resize') else 1)) }}">{{ 'Turn off resize handles' if request.args.get('resize') else 'Resize sections (drag corners)' }}</a>{% endif %}
-  <span class="small">Letter size, {{ pages|length }} pages. In the print dialog, turn off headers and footers.</span></p>
+  <span class="small">Letter size, {{ pages|length }} pages. In Chrome's print dialog: Destination = Save as PDF (or your printer), Margins = None, Background graphics on, Headers and footers off. Then compare with the server PDF buttons.</span></p>
 {% include "_assistant_panel.html" %}
 {% macro shw(sd, style='', room=true) %}{% if sd %}{% set L = sd.L if room else 0 %}{% set R = sd.R if room else 0 %}{% set T = sd.T if room else 0 %}{% set B = sd.B if room else 0 %}<div class="shw" style="{{ style }}{{ ';--sp:' ~ ((T + B)|round(2)) ~ 'pt' if room }}{{ ';box-sizing:border-box;padding:' ~ (T|round(2)) ~ 'pt ' ~ (R|round(2)) ~ 'pt ' ~ (B|round(2)) ~ 'pt ' ~ (L|round(2)) ~ 'pt' if room }}">{% for l in sd.layers %}<span class="shl" style="left:{{ (L + sd.x - l.e)|round(2) }}pt;right:{{ (R - sd.x - l.e)|round(2) }}pt;top:{{ (T + sd.y - l.e)|round(2) }}pt;bottom:{{ (B - sd.y - l.e)|round(2) }}pt;border-radius:{{ [4 + l.e, 0]|max|round(2) }}pt;background:rgba(0,0,0,{{ l.a }})"></span>{% endfor %}<div class="shw-in">{{ caller() }}</div></div>{% else %}{{ caller() }}{% endif %}{% endmacro %}
 {% macro section_photo(r, p, hh=none) %}{% if r.image and p.part == 1 %}
