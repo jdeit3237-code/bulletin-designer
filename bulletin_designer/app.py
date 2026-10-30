@@ -3256,7 +3256,7 @@ def create_app(config=None):
     @app.after_request
     def schedule_preview(resp):
         try:
-            if (request.method == "POST" and resp.status_code < 400 and not app.config.get("TESTING")
+            if (request.method == "POST" and resp.status_code < 400 and os.environ.get("BULLETIN_BG_PREVIEW") == "1"
                     and g.get("user") and request.view_args and request.view_args.get("bid")
                     and "/download" not in request.path):
                 import threading
