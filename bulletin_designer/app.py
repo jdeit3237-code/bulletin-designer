@@ -3245,7 +3245,10 @@ def create_app(config=None):
         except (ImportError, OSError):
             flash("PDF export is not available on this server (WeasyPrint and its system libraries are not installed).", "error")
             return redirect(url_for("edit", bid=bid))
+        t_req = time.time()
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
+        t_layout = time.time() - t_req
+        passes = []
         def build(pgs):
             h = render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
             return h.replace('url(/uploads/', f'url({PDF_BASE}uploads/').replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
@@ -3315,7 +3318,9 @@ def create_app(config=None):
             shared = {pg["number"]: pg for pg in pages if pg.get("photo_h")}
             for _ in range(4):
                 if doc is None:
+                    t_p = time.time()
                     doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=fetch).render()
+                    passes.append(time.time() - t_p)
                 changed = False
                 for page in doc.pages:
                     for box in page._page_box.descendants():
@@ -3346,7 +3351,10 @@ def create_app(config=None):
             doc = None
         # Reuse the last measured render when photo sizes were already right, saving a full layout pass.
         if doc is None:
+            t_p = time.time()
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=fetch).render()
+            passes.append(time.time() - t_p)
+        t_w = time.time()
         if kind == "booklet":
             try:
                 from bulletin_designer import booklet as _bk
@@ -3356,11 +3364,14 @@ def create_app(config=None):
                 return redirect(url_for("edit", bid=bid))
         else:
             pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
+        t_w = time.time() - t_w
         pdf_cache[ck] = pdf
         while len(pdf_cache) > 3:
             pdf_cache.pop(next(iter(pdf_cache)))
+        timing = f"layout {t_layout:.1f}s; renders {','.join(f'{x:.1f}' for x in passes)}s; write {t_w:.1f}s; total {time.time() - t_req:.1f}s"
+        app.logger.info("PDF %s", timing)
         return app.response_class(pdf, mimetype="application/pdf",
-                                  headers={"Content-Disposition": f'{disp}; filename="{name}"', "X-Build-Seconds": f"{time.time() - t0:.1f}"})
+                                  headers={"Content-Disposition": f'{disp}; filename="{name}"', "X-Build-Seconds": f"{time.time() - t0:.1f}", "X-Timing": timing})
 
     @app.route("/uploads/<path:name>")
     @need()
