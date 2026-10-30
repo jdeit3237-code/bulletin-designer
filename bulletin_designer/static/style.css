@@ -503,4 +503,4 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .cs-wrap .cs-photo .crop img { height: 100%; }
 .cs-wrap .cs-photo figcaption { margin: .03in 0 0; line-height: 1.2; }
 .cs-wrap .cs-photo .body-cols { margin-top: .05in; }
-.cs-wrap .cs-photo .body-cols p, .cs-wrap .cs-photo .body-cols ul { margin-top: 0; margin-bottom: .12in; }
+.cs-wrap .body-cols p, .cs-wrap .body-cols ul { margin-top: 0; margin-bottom: 1em; }

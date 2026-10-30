@@ -745,11 +745,34 @@ def create_app(config=None):
     app.jinja_env.globals["edge_crop"] = edge_crop
 
     def cs_plan(r, width_in, text_w_in):
-        """Split a prose section's paragraphs into those that sit beside a column-spanning photo and those that flow below it."""
-        import math
-        h = 0.0
+        """Split a prose section's paragraphs into those that sit beside a column-spanning photo and those that flow below it.
+        Lines are measured with the real bundled fonts so every column ends level instead of running past the footer."""
+        import re
+        from PIL import Image, ImageFont
+        fdir = os.path.join(app.root_path, "static", "fonts")
+        fam = {"sans": ("LiberationSans-Regular.ttf", 1.0), "source": ("SourceSans3-Regular.ttf", 1.0),
+               "condensed": ("ArchivoNarrow-Regular.ttf", 1.0), "humanist": ("LiberationSans-Regular.ttf", 1.1),
+               "rounded": ("LiberationSans-Regular.ttf", 1.08)}.get(r["font_style"] or "", ("Gelasio-Regular.ttf", 1.0))
+        font = ImageFont.truetype(os.path.join(fdir, fam[0]), 100)
+        fs = float(r["font_pt"] or 12.5)
+        lh_in = fs * 1.4 / 72
+        gap_in = fs / 72
+        plain = lambda t: re.sub(r"\*\*|~~|__|[{}]", "", t)
+
+        def wrap(text, w_in, fsz=fs, f=font, k=fam[1]):
+            avail = w_in * 72
+            words, out, cur = plain(text).split(" "), [], ""
+            for wd in words:
+                trial = (cur + " " + wd) if cur else wd
+                if cur and f.getlength(trial) * fsz / 100 * k > avail:
+                    out.append(cur)
+                    cur = wd
+                else:
+                    cur = trial
+            out.append(cur)
+            return out
+
         try:
-            from PIL import Image
             with Image.open(os.path.join(app.config["UPLOAD_DIR"], r["image"])) as im:
                 ratio = im.size[0] / im.size[1]
             t, b_, l, rt = (float(r[k] or 0) / 100 for k in ("crop_t", "crop_b", "crop_l", "crop_r"))
@@ -757,56 +780,57 @@ def create_app(config=None):
             h = float(r["crop_h"]) if r["crop_h"] else width_in / ratio
         except Exception:
             h = 0.0
-        h += (0.2 * (1 + len(r["caption"] or "") // int(width_in * 11)) + 0.05) if r["caption"] else 0.06
-        cpl = max(8, int(text_w_in * 11))
-        paras, beside, rest, used = soft_paras(r["body"]), [], [], 0
-        total = 0.0
+        if r["caption"]:
+            ital = ImageFont.truetype(os.path.join(fdir, "Gelasio-Italic-Regular.ttf"), 100)
+            h += len(wrap(r["caption"], width_in, 12, ital, 1.0)) * 12 * 1.2 / 72 + 0.1
+        else:
+            h += 0.06
+        paras = soft_paras(r["body"])
+        units = []
         for para in paras:
             if isinstance(para, tuple):
-                total += sum(math.ceil(len(it) / cpl) for it in para[1]) + 0.65
+                units.append(("ul", para[1], sum(len(wrap(it, text_w_in - 0.3)) for it in para[1]) * lh_in + gap_in))
             else:
-                total += sum(math.ceil(len(ln) / cpl) for ln in para) + 0.65
+                units.append(("p", para, sum(len(wrap(ln, text_w_in)) for ln in para) * lh_in + gap_in))
+        total = sum(u[2] for u in units)
         n = max(1, int(r["cols"] or 2) - 1)
-        avail = max(1, int((n * (h / 0.2) + total) / (n + 1)) - 4)
-        for i, para in enumerate(paras):
-            if used >= avail:
-                rest = paras[i:]
-                break
-            if isinstance(para, tuple):
-                items = para[1]
-                take = []
-                for k, it in enumerate(items):
-                    n = math.ceil(len(it) / cpl)
-                    if used + n > avail and take:
-                        rest = [("ul", items[k:])] + paras[i + 1:]
-                        break
-                    take.append(it)
-                    used += n
-                beside.append(("ul", take))
-                if rest:
-                    break
-                used += 0.65
+        target = (total + n * h) / (n + 1) - 0.5 * lh_in
+        beside, rest, used = [], [], 0.0
+        for idx, (kind, content, uh) in enumerate(units):
+            if used + uh <= target + gap_in:
+                beside.append(("ul", content) if kind == "ul" else content)
+                used += uh
                 continue
-            lines = list(para)
-            for k, ln in enumerate(lines):
-                n = math.ceil(len(ln) / cpl)
-                if used + n > avail and k > 0:
+            room = int((target - used) / lh_in)
+            if kind == "p" and room >= 2:
+                lines = content
+                # whole lines first, then a word-level cut inside the first line that does not fit
+                taken, k = 0, 0
+                while k < len(lines) and taken + len(wrap(lines[k], text_w_in)) <= room:
+                    taken += len(wrap(lines[k], text_w_in))
+                    k += 1
+                if k:
                     beside.append(lines[:k])
-                    rest = [lines[k:]] + paras[i + 1:]
-                    break
-                if used + n > avail and not any(m in ln for m in ("**", "~~", "__", "{")):
-                    room = max(1, int(avail - used)) * cpl
-                    cut = ln.rfind(" ", 0, room)
-                    if cut > 0:
-                        beside.append([ln[:cut]])
-                        rest = [[ln[cut + 1:]] + lines[k + 1:]] + paras[i + 1:]
-                        break
-                used += n
-            else:
-                beside.append(lines)
-                used += 0.65
-                continue
-            break
+                if k < len(lines):
+                    ln = lines[k]
+                    if not any(m in ln for m in ("**", "~~", "__", "{")) and room - taken >= 1:
+                        ws = ln.split(" ")
+                        cut, cnt = 0, 0
+                        for q in range(1, len(ws) + 1):
+                            if len(wrap(" ".join(ws[:q]), text_w_in)) > room - taken:
+                                break
+                            cut = q
+                        if 0 < cut < len(ws):
+                            beside.append([" ".join(ws[:cut])])
+                            lines = [" ".join(ws[cut:])] + lines[k + 1:]
+                            rest = [lines] + [("ul", u[1]) if u[0] == "ul" else u[1] for u in units[idx + 1:]]
+                            return beside, rest
+                    rest = [lines[k:]] + [("ul", u[1]) if u[0] == "ul" else u[1] for u in units[idx + 1:]]
+                    return beside, rest
+                rest = [("ul", u[1]) if u[0] == "ul" else u[1] for u in units[idx + 1:]]
+                return beside, rest
+            rest = [("ul", u[1]) if u[0] == "ul" else u[1] for u in units[idx:]]
+            return beside, rest
         return beside, rest
     app.jinja_env.globals["cs_plan"] = cs_plan
 
