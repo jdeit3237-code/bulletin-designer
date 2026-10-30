@@ -3,6 +3,14 @@
 @font-face { font-family: "Source Sans 3"; src: url(fonts/SourceSans3-Italic-Regular.ttf) format("truetype"); font-weight: normal; font-style: italic; }
 @font-face { font-family: "Source Sans 3"; src: url(fonts/SourceSans3-Italic-Bold.ttf) format("truetype"); font-weight: bold; font-style: italic; }
 /* Bundled fonts so the web preview and the PDF use identical typefaces (Georgia/Arial metric-compatible). */
+@font-face { font-family: "Pacifico"; src: url(fonts/Pacifico-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Kaushan Script"; src: url(fonts/KaushanScript-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Lobster"; src: url(fonts/Lobster-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Great Vibes"; src: url(fonts/GreatVibes-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
+@font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Italic-Regular.ttf) format("truetype"); font-weight: normal; font-style: italic; }
+@font-face { font-family: "Serif Condensed"; src: url(fonts/NotoSerifCondensed-Italic-Bold.ttf) format("truetype"); font-weight: bold; font-style: italic; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Regular.ttf) format("truetype"); font-weight: normal; font-style: normal; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Bold.ttf) format("truetype"); font-weight: bold; font-style: normal; }
 @font-face { font-family: "Georgia"; src: url(fonts/Gelasio-Italic-Regular.ttf) format("truetype"); font-weight: normal; font-style: italic; }
@@ -196,10 +204,15 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .custom-size p, .custom-size td, .custom-size th, .custom-size li, .custom-size dd, .custom-size dt, .custom-size h3, .custom-size h4, .custom-size caption { font-size: var(--fs); }
 .fs-condensed, .fs-condensed * { font-family: "Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif; font-stretch: condensed; }
+.fs-condensed-serif, .fs-condensed-serif * { font-family: "Serif Condensed", Georgia, serif; }
 .fs-serif, .fs-serif * { font-family: Georgia, "Liberation Serif", "Times New Roman", serif; }
 .fs-sans, .fs-sans * { font-family: Arial, "Liberation Sans", Helvetica, sans-serif; }
 .fs-humanist, .fs-humanist * { font-family: Verdana, "DejaVu Sans", Tahoma, sans-serif; }
 .fs-source, .fs-source * { font-family: "Source Sans 3", Arial, sans-serif; }
+.fs-title-pacifico h2 { font-family: "Pacifico", cursive; font-weight: normal; }
+.fs-title-kaushan h2 { font-family: "Kaushan Script", cursive; font-weight: normal; }
+.fs-title-lobster h2 { font-family: "Lobster", cursive; font-weight: normal; }
+.fs-title-vibes h2 { font-family: "Great Vibes", cursive; font-weight: normal; }
 .fs-rounded, .fs-rounded * { font-family: "Trebuchet MS", "Ubuntu", "DejaVu Sans", sans-serif; }
 
 .staff-item { margin: 0 0 .35em; break-inside: avoid; line-height: 1.2; }
@@ -219,7 +232,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .duo .third h2 { margin-top: 0; }
 .toc-box h2 { margin-top: 0; }
 .toc-box.custom-size .toc li { font-size: var(--fs); }
-.toc-box.fs-source .toc li, .toc-box.fs-condensed .toc li, .toc-box.fs-serif .toc li, .toc-box.fs-sans .toc li, .toc-box.fs-humanist .toc li, .toc-box.fs-rounded .toc li { font-family: inherit; }
+.toc-box.fs-source .toc li, .toc-box.fs-condensed .toc li, .toc-box.fs-condensed-serif .toc li, .toc-box.fs-serif .toc li, .toc-box.fs-sans .toc li, .toc-box.fs-humanist .toc li, .toc-box.fs-rounded .toc li { font-family: inherit; }
 
 .resize-handle { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; padding: 0; border: 2px solid #fff; background: var(--gold-bright, #c9a84c); cursor: nwse-resize; border-radius: 3px; touch-action: none; }
 @media print { .resize-handle { display: none; } }

@@ -57,11 +57,16 @@ LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
 # needed every week; weekly=0 means "standing" content carried forward automatically.
 FONT_STYLES = {
     "condensed": "Condensed - Archivo Narrow (fits more text)",
+    "condensed-serif": "Condensed serif - Georgia-style narrow (fits more text)",
     "serif": "Classic serif - Georgia",
     "sans": "Clean sans-serif - Arial",
     "humanist": "Humanist - Verdana (easy to read)",
     "rounded": "Friendly rounded - Trebuchet",
     "source": "Myriad-style sans - Source Sans 3",
+    "title-pacifico": "Fun title - Pacifico script (body unchanged)",
+    "title-kaushan": "Fun title - Kaushan brush script (body unchanged)",
+    "title-lobster": "Fun title - Lobster bold script (body unchanged)",
+    "title-vibes": "Fun title - Great Vibes elegant script (body unchanged)",
 }
 
 DEFAULT_SECTIONS = [
@@ -752,7 +757,7 @@ def create_app(config=None):
         from PIL import Image, ImageFont
         fdir = os.path.join(app.root_path, "static", "fonts")
         fam = {"sans": ("LiberationSans-Regular.ttf", 1.0), "source": ("SourceSans3-Regular.ttf", 1.0),
-               "condensed": ("ArchivoNarrow-Regular.ttf", 1.0), "humanist": ("LiberationSans-Regular.ttf", 1.1),
+               "condensed": ("ArchivoNarrow-Regular.ttf", 1.0), "condensed-serif": ("NotoSerifCondensed-Regular.ttf", 1.0), "humanist": ("LiberationSans-Regular.ttf", 1.1),
                "rounded": ("LiberationSans-Regular.ttf", 1.08)}.get(r["font_style"] or "", ("Gelasio-Regular.ttf", 1.0))
         font = ImageFont.truetype(os.path.join(fdir, fam[0]), 100)
         fs = float(r["font_pt"] or 12.5)
