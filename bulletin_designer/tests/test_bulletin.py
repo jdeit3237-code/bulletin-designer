@@ -2170,6 +2170,7 @@ def test_quick_preview_uses_small_photos(app):
 
 
 def test_preview_pdf_built_per_page_matches_full_pdf(app):
+    os.environ["PER_PAGE_PREVIEW"] = "1"
     import io as _io
     from pypdf import PdfReader
     c = setup_admin(app); create_bulletin(c)

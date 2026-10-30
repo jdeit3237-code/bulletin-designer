@@ -3245,7 +3245,7 @@ def create_app(config=None):
         disp = "inline" if request.args.get("inline") else "attachment"
         if ck in pdf_cache:
             return app.response_class(pdf_cache[ck], mimetype="application/pdf", headers={"Content-Disposition": f'{disp}; filename="{name}"'})
-        if lite:
+        if lite and os.environ.get("PER_PAGE_PREVIEW") == "1":
             try:
                 from pypdf import PdfReader, PdfWriter
                 writer = PdfWriter()
