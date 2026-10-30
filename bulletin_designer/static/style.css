@@ -414,6 +414,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
   .sheet .pg-foot { flex: none; }
   .toc li { align-items: baseline; }
   .toc li .dots { border-bottom: 0; margin: 0 .3em; overflow: hidden; white-space: nowrap; }
+  .toc li .dots::after { content: "........................................................................................................"; color: #555; }
   .toc li .dots::after { content: leader('.'); color: #555; }
   .sheet:not(.cover) { position: relative; }
   .sheet:not(.cover) .pg-body { position: absolute; left: .25in; right: .25in; top: .863in; flex: none; height: 9.58in; max-height: 9.58in; overflow: hidden; }
