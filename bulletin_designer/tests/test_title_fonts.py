@@ -87,3 +87,22 @@ def test_vcenter_option_and_space_note(app):
     c.post("/bulletins/1/layout/9", data={"area": "full", "page_no": "2", "toc_ui": "1", "in_toc": "1", "csrf": t})
     assert 'class="pg-body vc"' not in c.get("/bulletins/1/preview").text
     assert c.get("/bulletins/1/download/web").status_code == 200
+
+
+def test_photo_beside_text_centered(app):
+    from io import BytesIO
+    c = setup_admin(app)
+    create_bulletin(c)
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (200, 200), "navy").save(buf, "PNG")
+    png = buf.getvalue()
+    c.post("/bulletins/1/section/5", data={"body": "Hello there", "img_pos": "beside-left", "alt": "x", "text_nudge": "0.3", "text_center": "1",
+           "image": (BytesIO(png), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
+    html = c.get("/bulletins/1/preview").text
+    assert '<table class="beside">' in html
+    i = html.index('class="beside-pic"')
+    assert i < html.index('class="beside-txt"') < html.index("Hello there")
+    assert "top:0.3in" in html and "sec-welcome" in html and "tc" in html
+    assert html.count('class="photo-beside-left"') == 1
+    assert c.get("/bulletins/1/download/web").status_code == 200

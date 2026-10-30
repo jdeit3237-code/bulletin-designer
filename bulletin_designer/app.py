@@ -437,6 +437,10 @@ def create_app(config=None):
             conn.execute("ALTER TABLE items ADD COLUMN hide_title INTEGER DEFAULT 0")
         if "para_gap" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN para_gap REAL DEFAULT 0")
+        if "text_center" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN text_center INTEGER DEFAULT 0")
+        if "text_nudge" not in have:
+            conn.execute("ALTER TABLE items ADD COLUMN text_nudge REAL DEFAULT 0")
         if "vcenter" not in have:
             conn.execute("ALTER TABLE items ADD COLUMN vcenter INTEGER DEFAULT 0")
         if "item_gap" not in have:
@@ -1404,7 +1408,7 @@ def create_app(config=None):
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
         rows = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id,
             i.position, i.pages, i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.id item_id, i.body, i.image, i.alt, i.decorative, i.caption,
-            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.img_shadow, i.no_toc, i.vcenter FROM sections s JOIN items i ON i.section_id=s.id
+            i.source, i.img_align, i.bg_color, i.status, i.carried, i.crop_zoom, i.crop_x, i.crop_y, i.crop_h, i.crop_t, i.crop_b, i.crop_l, i.crop_r, i.min_h, i.title_gap, i.item_gap, i.img_pos, i.para_gap, i.hide_title, i.space_before, i.bullet_style, i.gallery, i.img_w, i.img_shadow, i.no_toc, i.vcenter, i.text_center, i.text_nudge FROM sections s JOIN items i ON i.section_id=s.id
             WHERE i.bulletin_id=? ORDER BY i.position, s.id""", (bulletin_id,)).fetchall()
         printed = [r for r in rows
                    if (bool((cover_data(r["body"])["extra"] if r["slug"] == "cover" else (r["body"] or "").strip()) or r["image"]))
@@ -1888,7 +1892,7 @@ def create_app(config=None):
         b = get_bulletin(bid)
         ensure_items(bid, b["sunday"])
         secs = db().execute("""SELECT s.id, s.slug, COALESCE(NULLIF(i.title, ''), s.title) AS title, s.weekly, s.hint, s.bulletin_id, i.position, i.pages,
-            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.no_toc, i.vcenter, i.status, i.carried, i.body, i.image, i.updated_by
+            i.cols, i.area, i.page_no, i.font_pt, i.font_style, i.title_gap, i.item_gap, i.space_before, i.hide_title, i.para_gap, i.no_toc, i.vcenter, i.text_center, i.text_nudge, i.status, i.carried, i.body, i.image, i.updated_by
             FROM sections s JOIN items i ON i.section_id=s.id WHERE i.bulletin_id=? ORDER BY i.position, s.id""",
                             (bid,)).fetchall()
         removed = db().execute("""SELECT s.id, s.title FROM hidden_sections h JOIN sections s ON s.id=h.section_id WHERE h.bulletin_id=? ORDER BY s.position""", (bid,)).fetchall()
@@ -2136,7 +2140,7 @@ def create_app(config=None):
                           *edge_values(request.form),
                           "" if new_title == s["title"] else new_title,
                           gap_value(request.form.get("title_gap")), gap_value(request.form.get("item_gap")),
-                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "cols-left", "cols-right", "only") else "",
+                          request.form.get("img_pos") if request.form.get("img_pos") in ("above", "inset-left", "inset-right", "cols-left", "cols-right", "beside-left", "beside-right", "only") else "",
                           gap_value(request.form.get("para_gap")),
                           1 if request.form.get("hide_title") else 0,
                           gap_value(request.form.get("space_before")),
@@ -2146,6 +2150,8 @@ def create_app(config=None):
                           (request.form.get("bg_color") or "").lower() if re.fullmatch(r"#[0-9a-fA-F]{6}", request.form.get("bg_color") or "") and request.form.get("use_bg") else "",
                           shadow_from_form("sh_"),
                           status, g.user["username"], item["id"]))
+            db().execute("UPDATE items SET text_center=?, text_nudge=? WHERE id=?",
+                         (1 if request.form.get("text_center") else 0, gap_value(request.form.get("text_nudge")) or 0, item["id"]))
             db().commit()
             if doc_added:
                 flash("The document's text is now in the box below. Please review it, then press Save section when it looks right.", "ok")
