@@ -3213,6 +3213,7 @@ def create_app(config=None):
 
     pdf_cache = {}
     page_cache = {}
+    fit_memory = {}
 
     def page_overflow(doc):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
@@ -3248,6 +3249,13 @@ def create_app(config=None):
         t_req = time.time()
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         t_layout = time.time() - t_req
+        # Start from the sizes the last build settled on, so the measuring loop usually needs one render instead of four or five.
+        for pg in pages:
+            mem = fit_memory.get((bid, pg["number"]))
+            if mem:
+                if pg.get("photo_h") and mem[0]:
+                    pg["photo_h"] = mem[0]
+                pg["fit"] = max(pg.get("fit", 0), mem[1])
         passes = []
         def build(pgs):
             h = render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
@@ -3365,6 +3373,8 @@ def create_app(config=None):
         else:
             pdf = doc.write_pdf(pdf_variant="pdf/ua-1", optimize_images=True, **opts)
         t_w = time.time() - t_w
+        for pg in pages:
+            fit_memory[(bid, pg["number"])] = (pg.get("photo_h"), pg.get("fit", 0))
         pdf_cache[ck] = pdf
         while len(pdf_cache) > 3:
             pdf_cache.pop(next(iter(pdf_cache)))
