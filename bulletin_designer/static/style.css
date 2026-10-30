@@ -504,3 +504,4 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .cs-wrap .cs-photo figcaption { margin: .03in 0 0; line-height: 1.2; }
 .cs-wrap .cs-photo .body-cols { margin-top: .05in; }
 .cs-wrap .body-cols p, .cs-wrap .body-cols ul { margin-top: 0; margin-bottom: 1em; }
+.sec.has-pg .cs-wrap .body-cols p.bp, .sec.has-pg .cs-wrap .body-cols ul { margin-bottom: var(--pg); }

@@ -756,7 +756,7 @@ def create_app(config=None):
         font = ImageFont.truetype(os.path.join(fdir, fam[0]), 100)
         fs = float(r["font_pt"] or 12.5)
         lh_in = fs * 1.4 / 72
-        gap_in = fs / 72
+        gap_in = float(r["para_gap"]) if r["para_gap"] else fs / 72
         plain = lambda t: re.sub(r"\*\*|~~|__|[{}]", "", t)
 
         def wrap(text, w_in, fsz=fs, f=font, k=fam[1]):
