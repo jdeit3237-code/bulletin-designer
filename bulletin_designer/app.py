@@ -848,7 +848,7 @@ def create_app(config=None):
             res = cs_plan_exact(r, width_in, text_w_in, no_str)
         except Exception:
             app.logger.exception("exact column-wrap layout failed; using estimate")
-            res = cs_plan_est(r, width_in, text_w_in)
+            res = tuple(cs_plan_est(r, width_in, text_w_in)) + (None,)
         if len(cs_cache) > 200:
             cs_cache.clear()
         cs_cache[key] = res
@@ -911,20 +911,21 @@ def create_app(config=None):
         cls = "sec sec-%s %s %s %s" % (r["slug"], "has-pg" if r["para_gap"] else "", "custom-size" if r["font_pt"] else "",
                                          "fs-" + r["font_style"] if r["font_style"] else "")
         aw = width_in + 0.35 + text_w_in
+        title_h = "" if r["hide_title"] else "<h2>%s</h2>" % escape(r["title"] or "")
         has_rest_area = r["slug"] not in ("staff", "giving")
 
-        def measure(c):
+        def measure(c, ph):
             head, tail = split(c)
             rest = ('<div class="body-cols" style="column-count:%d">%s</div>' % (n, block(tail))) if (tail and has_rest_area) else ""
             photo = ('<td class="cs-photo" style="width:%sin"><div data-m="c"><figure class="photo-%s"%s><div style="height:%sin"></div>%s</figure>%s</div></td>'
-                     % (width_in, r["img_pos"], fig_style, photo_h, cap, rest))
+                     % (width_in, r["img_pos"], fig_style, ph, cap, rest))
             text = ('<td class="cs-textcell" style="width:%sin"><div data-m="b" class="body-cols cs-text" style="column-count:1">%s</div></td>'
                     % (text_w_in, block(head)))
             cells = (photo + '<td class="cs-gap"></td>' + text) if r["img_pos"] == "cols-left" else (text + '<td class="cs-gap"></td>' + photo)
             html = ('<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%sstatic/style.css">'
                     '<style>@page{size:9in 80in;margin:0}.sheet{display:block;width:9in;height:auto;margin:0;padding:0;border:0;overflow:visible}.sheet .pg-body{position:static!important;display:block;width:8in;height:auto!important;overflow:visible;flex:none}</style></head>'
-                    '<body><div class="sheet"><div class="pg-body"><div class="%s" style="%s"><table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></body></html>'
-                    % (PDF_BASE, cls, sty, aw, cells))
+                    '<body><div class="sheet"><div class="pg-body"><div class="%s" style="%s"><div data-m="t">%s<table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></div></body></html>'
+                    % (PDF_BASE, cls, sty, title_h, aw, cells))
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
             hs = {}
             for page in doc.pages:
@@ -933,19 +934,35 @@ def create_app(config=None):
                     m = el.get("data-m") if el is not None else None
                     if m and m not in hs:
                         hs[m] = box.margin_height()
-            return hs.get("b", 0.0), hs.get("c", 0.0)
+            return hs.get("b", 0.0), hs.get("c", 0.0), hs.get("t", 0.0)
 
-        lo, hi = 0, len(cuts) - 1
-        while lo < hi:
-            mid = (lo + hi + 1) // 2
-            bh, ch = measure(cuts[mid])
-            if bh <= ch + 0.5:
-                lo = mid
-            else:
-                hi = mid - 1
+        def solve(ph):
+            lo, hi = 0, len(cuts) - 1
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                bh, ch, _ = measure(cuts[mid], ph)
+                if bh <= ch + 0.5:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            return lo, measure(cuts[lo], ph)[2]
+
+        # the page body is 9.58in tall; if the whole row is taller, shorten the photo (cropped, never squashed) until it fits
+        avail = (9.58 - 0.05) * 96
+        shrinkable = not any(float(r[k] or 0) for k in ("crop_t", "crop_b", "crop_l", "crop_r"))
+        lo, total = solve(photo_h)
+        used_h = None
+        floor = max(1.0, photo_h * 0.4)
+        ph = photo_h
+        for _ in range(3):
+            if not shrinkable or total <= avail or ph <= floor + 0.01:
+                break
+            ph = max(floor, ph - (total - avail) / 96 * (n + 1) / n - 0.02)
+            used_h = round(ph, 3)
+            lo, total = solve(ph)
         head, tail = split(cuts[lo])
         conv = lambda ps: [("ul", p[1]) if isinstance(p, tuple) else p for p in ps]
-        return conv(head), conv(tail)
+        return conv(head), conv(tail), used_h
     app.jinja_env.globals["cs_plan"] = cs_plan
 
     def tight(text, on=True):
