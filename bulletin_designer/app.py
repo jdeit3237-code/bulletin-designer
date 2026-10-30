@@ -2783,6 +2783,7 @@ def create_app(config=None):
     def preview(bid):
         b = get_bulletin(bid)
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
+        apply_fit_memory(bid, pages)
         return render_template("bulletin.html", b=b, pages=pages, toc=toc, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
 
     def save_ad_file(f):
@@ -3232,6 +3233,15 @@ def create_app(config=None):
         except OSError:
             pass
 
+    def apply_fit_memory(bid, pages):
+        """Start from the photo and text-fit sizes the last PDF build settled on, so the on-screen preview and later builds match it."""
+        for pg in pages:
+            mem = fit_memory.get((bid, pg["number"]))
+            if mem:
+                if pg.get("photo_h") and mem[0]:
+                    pg["photo_h"] = mem[0]
+                pg["fit"] = max(pg.get("fit", 0), mem[1])
+
     building = {}
     bg_timers = {}
 
@@ -3311,13 +3321,7 @@ def create_app(config=None):
         t_req = time.time()
         pages, toc = layout(bid, include_pending=g.user["role"] != "viewer" or b["status"] == "published")
         t_layout = time.time() - t_req
-        # Start from the sizes the last build settled on, so the measuring loop usually needs one render instead of four or five.
-        for pg in pages:
-            mem = fit_memory.get((bid, pg["number"]))
-            if mem:
-                if pg.get("photo_h") and mem[0]:
-                    pg["photo_h"] = mem[0]
-                pg["fit"] = max(pg.get("fit", 0), mem[1])
+        apply_fit_memory(bid, pages)
         passes = []
         def build(pgs):
             h = render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt)
