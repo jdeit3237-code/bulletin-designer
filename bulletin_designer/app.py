@@ -3166,6 +3166,21 @@ def create_app(config=None):
             return default_url_fetcher(url)
         raise ValueError("external resources are not allowed in PDFs")
 
+    def page_overflow(doc):
+        """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
+        out = {}
+        for i, page in enumerate(doc.pages):
+            for box in page._page_box.descendants():
+                el = getattr(box, "element", None)
+                if el is None or box.element_tag != "div" or "pg-body" not in (el.get("class") or "").split():
+                    continue
+                limit = box.content_box_y() + box.height - 0.05 * 96
+                low = max((d.position_y + d.margin_height() for d in box.descendants() if getattr(d, "height", None) is not None), default=0)
+                if low > limit + 1:
+                    out[i] = low - limit
+                break
+        return out
+
     @app.route("/bulletins/<int:bid>/download/<kind>")
     @need()
     def download(bid, kind):
@@ -3219,6 +3234,22 @@ def create_app(config=None):
           except Exception:
               doc = None
               break
+        # Measure real overflow on every page and step the page through tighter type tiers until nothing is hidden by the footer.
+        try:
+            for _ in range(3):
+                doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
+                over = page_overflow(doc)
+                bumped = False
+                for k, px in over.items():
+                    if k < len(pages) and pages[k].get("fit", 0) < 3:
+                        pages[k]["fit"] = pages[k].get("fit", 0) + 1
+                        bumped = True
+                if not bumped:
+                    break
+                html = build(pages)
+                doc = None
+        except Exception:
+            doc = None
         # Reuse the last measured render when photo sizes were already right, saving a full layout pass.
         if doc is None:
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
