@@ -3299,7 +3299,7 @@ def create_app(config=None):
     pdf_cache = {}
     page_cache = {}
     fit_memory = {}
-    fit_file = sized_dir + "_fit.json"
+    fit_file = sized_dir + "_fit2.json"  # new name: drops sizes saved by the briefly-buggy measuring code
     try:
         with open(fit_file) as fh:
             for k, v in json.load(fh).items():
