@@ -4142,6 +4142,16 @@ def create_app(config=None):
                     plan.append({"type": "blank"})
                 if ext in ("png", "jpg", "jpeg"):
                     plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
+                elif ext == "pptx" and kind == "standard":
+                    try:
+                        from pptx import Presentation as _P
+                        for sl in _P(path).slides:
+                            txt = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
+                            if txt:
+                                plan.append({"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
+                                             "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
+                    except Exception:
+                        continue
                 elif ext in ("txt", "docx"):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]

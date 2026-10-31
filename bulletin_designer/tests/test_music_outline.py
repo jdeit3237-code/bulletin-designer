@@ -193,3 +193,15 @@ def test_readings_file_in_preview_uses_section_titles(app):
     c.post("/slides", data={"csrf": t, "kind": "readings", "date": "2026-11-01", "files": (io.BytesIO(txt), "Readings.txt")}, content_type="multipart/form-data")
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert "First Reading" in page and "Second Reading" in page and "Responsorial Psalm" in page and "Reading 1" not in page
+
+
+def test_standard_pptx_slides_appear_in_preview(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    p = Presentation()
+    s = p.slides.add_slide(p.slide_layouts[5]); s.shapes.title.text = "Lamb of God"
+    buf = io.BytesIO(); p.save(buf); buf.seek(0)
+    t = tok(c, "/slides")
+    c.post("/slides", data={"csrf": t, "kind": "standard", "files": (buf, "Lamb_of_God.pptx")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "Lamb of" in page
