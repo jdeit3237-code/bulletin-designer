@@ -721,6 +721,8 @@ def test_no_underline_setting(app):
     c = setup_admin(app)
     create_bulletin(c)
     assert 'name="no_underline"' in c.get("/bulletins/1").text
+    assert "no-ul" in c.get("/bulletins/1/preview").text
+    c.post("/bulletins/1/underlines", data={"csrf": tok(c)})
     assert "no-ul" not in c.get("/bulletins/1/preview").text.replace(".sheet.no-ul", "")
     c.post("/bulletins/1/underlines", data={"csrf": tok(c), "no_underline": "1"})
     assert 'class="sheet' in c.get("/bulletins/1/preview").text and "no-ul" in c.get("/bulletins/1/preview").text
