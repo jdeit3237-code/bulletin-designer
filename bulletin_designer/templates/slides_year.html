@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Mass slides: church year{% endblock %}
+{% block content %}
+<h1>Mass slides: church year plan</h1>
+<p>Every Sunday's season, color and imagery are set ahead of time. For each week you only add the songs, announcements and notation, plus any optional special slides. The readings link goes to the USCCB readings for that Sunday. <a href="{{ url_for('slides') }}">Back to Mass slides</a></p>
+<p><a href="{{ url_for('slides_year', start=prev) }}">Previous year</a> | <a href="{{ url_for('slides_year', start=nxt) }}">Next year</a></p>
+<table><caption class="small">Sundays of the church year; numbers show files uploaded for each folder</caption>
+<thead><tr><th scope="col">Sunday</th><th scope="col">Celebration</th><th scope="col">Season and color</th><th scope="col">Imagery</th>{% for k, label in kinds %}<th scope="col">{{ k|capitalize }}</th>{% endfor %}<th scope="col">Open</th></tr></thead>
+<tbody>{% for r in rows %}<tr><td>{{ r.iso }}</td><td>{{ r.info.name or 'Sunday in ' ~ r.info.season }}</td><td>{{ r.info.season }}, {{ r.info.color }}</td><td>{{ r.info.ideas[:2]|join('; ') }}</td>
+{% for k, label in kinds %}<td>{{ r.have[k] or '-' }}</td>{% endfor %}<td><a href="{{ url_for('slides', date=r.iso) }}">Open week</a> | <a href="{{ r.info.readings_url }}" target="_blank" rel="noopener">Readings</a></td></tr>{% endfor %}</tbody></table>
+{% endblock %}

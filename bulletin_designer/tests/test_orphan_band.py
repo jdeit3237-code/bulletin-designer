@@ -1,5 +1,5 @@
 import re
-from tests.test_bulletin import setup_admin, create_bulletin, tok, app
+from tests.test_bulletin import setup_admin, create_bulletin, tok, app, register_user
 
 def test_bands_alone_keep_their_page(app):
     c = setup_admin(app); create_bulletin(c); t = tok(c, "/bulletins/1")
@@ -77,3 +77,13 @@ def test_mass_slides_package(app):
     z = zipfile.ZipFile(io.BytesIO(c.get("/slides/package?date=2026-11-01").data))
     assert {"00_Master_Prompt.txt", "standard/welcome.pptx", "songs/entrance.docx"} <= set(z.namelist())
     assert c.get("/slides/package?date=bad").status_code == 404
+
+
+def test_slides_area_for_av_ministry(app):
+    c = setup_admin(app); create_bulletin(c)
+    y = register_user(app, c, "av@x.org", "contributor")
+    assert y.get("/slides").status_code == 403 and y.get("/slides/package?date=2026-11-01").status_code == 403
+    assert "Mass slides" not in y.get("/").text
+    c.post("/admin/users", data={"action": "role", "uid": "2", "role": "contributor", "areas": ["slides"], "csrf": tok(c, "/admin/users")})
+    assert y.get("/slides").status_code == 200 and "Mass slides" in y.get("/").text
+    assert y.get("/library").status_code == 403 and y.get("/ads").status_code == 403

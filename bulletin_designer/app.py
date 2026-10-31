@@ -1241,7 +1241,7 @@ def create_app(config=None):
             return wrapper
         return deco
 
-    AREAS = (("ads", "Advertisements"), ("library", "Photo library"), ("browse", "Browse photos"))
+    AREAS = (("ads", "Advertisements"), ("library", "Photo library"), ("browse", "Browse photos"), ("slides", "Mass slides (AV Ministry)"))
 
     def has_area(name):
         if not g.user:
@@ -3751,12 +3751,14 @@ def create_app(config=None):
         return render_template("notes.html", rows=rows, page=request.args.get("page", ""))
 
     @app.route("/slides-guide")
+    @need()
     def slides_guide():
         return render_template("slides_guide.html")
 
     slides_root = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), "slides_files")
     SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("songs", "Songs"), ("readings", "Readings"),
-                   ("announcements", "Announcements"), ("notation", "Music notation"))
+                   ("announcements", "Announcements"), ("notation", "Music notation"),
+                   ("special", "Special slides (optional, this week only)"))
 
     def slides_dir(kind, mass_date=""):
         return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
@@ -3766,7 +3768,8 @@ def create_app(config=None):
         return sorted(os.listdir(d)) if os.path.isdir(d) else []
 
     @app.route("/slides", methods=["GET", "POST"])
-    @need("admin", "editor")
+    @need()
+    @need_area("slides")
     def slides():
         mass_date = request.values.get("date") or ""
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
@@ -3797,8 +3800,34 @@ def create_app(config=None):
         return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date})
 
+    @app.route("/slides/year")
+    @need()
+    @need_area("slides")
+    def slides_year():
+        """The whole church year at a glance: each Sunday's season, color and imagery, and whether its files are in."""
+        start = request.args.get("start", "")
+        try:
+            d = date.fromisoformat(start)
+        except ValueError:
+            t = date.today()
+            d = t
+            while d.weekday() != 6 or liturgy.info(d)["name"] != "First Sunday of Advent":
+                d -= timedelta(days=1)
+        d += timedelta(days=(6 - d.weekday()) % 7)
+        rows = []
+        for n in range(53):
+            sd = d + timedelta(days=7 * n)
+            li = liturgy.info(sd)
+            if n and li["name"] == "First Sunday of Advent":
+                break
+            iso = sd.isoformat()
+            rows.append({"iso": iso, "info": li, "have": {k: len(slides_list(k, iso)) for k, _ in SLIDE_KINDS if k != "standard"}})
+        return render_template("slides_year.html", rows=rows, kinds=[k for k in SLIDE_KINDS if k[0] != "standard"],
+                               prev=(d - timedelta(days=364)).isoformat(), nxt=(d + timedelta(days=364)).isoformat())
+
     @app.route("/slides/file/<kind>/<name>")
-    @need("admin", "editor")
+    @need()
+    @need_area("slides")
     def slides_file(kind, name):
         mass_date = request.args.get("date", "")
         if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date)):
@@ -3806,7 +3835,8 @@ def create_app(config=None):
         return send_from_directory(slides_dir(kind, mass_date), secure_filename(name), as_attachment=True)
 
     @app.route("/slides/package")
-    @need("admin", "editor")
+    @need()
+    @need_area("slides")
     def slides_package():
         """One ZIP with the master prompt, the standard slides and this week's uploads, ready to hand to the AI tool."""
         mass_date = request.args.get("date", "")
@@ -3817,6 +3847,10 @@ def create_app(config=None):
             z.write(os.path.join(app.root_path, "static", "slides_master_prompt.txt"), "00_Master_Prompt.txt")
             z.writestr("00_README.txt", f"Mass date: {mass_date}\nGive this whole folder to the AI tool and ask for Stages 1-3 only (inventory, theme, previews). "
                        "Folders: standard (slides used every week), songs, readings, announcements, notation.\n")
+            li = liturgy.info(date.fromisoformat(mass_date))
+            z.writestr("00_Week_Info.txt", f"Date: {mass_date}\nCelebration: {li['name'] or 'Sunday in ' + li['season']}\nSeason: {li['season']}\n"
+                       f"Color: {li['color']}\nImagery ideas: {'; '.join(li['ideas'])}\nReadings: {li['readings_url']}\n"
+                       "Special slides (if any) are in the 'special' folder: place them where the file names or notes say.\n")
             for kind, _ in SLIDE_KINDS:
                 for name in slides_list(kind, mass_date):
                     z.write(os.path.join(slides_dir(kind, mass_date), name), f"{kind}/{name}")

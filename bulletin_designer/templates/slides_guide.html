@@ -36,8 +36,34 @@
 <li><strong>Easter:</strong> ivory, white, luminous gold. <strong>Pentecost:</strong> red and gold.</li>
 <li><strong>All Saints / All Souls:</strong> autumn leaves, gold, burnt orange, burgundy, sunset.</li>
 <li>Marian feasts and other solemnities: colors suited to the celebration.</li></ul>
+<h2>Standard slides that change by season</h2>
+<table><thead><tr><th>Standard slide</th><th>Used</th><th>Left out</th></tr></thead><tbody>
+<tr><td>Alleluia (Gospel Acclamation)</td><td>All seasons except Lent</td><td>Lent: use the Lenten acclamation instead (e.g. "Praise to you, Lord Jesus Christ, King of endless glory")</td></tr>
+<tr><td>Gloria</td><td>Ordinary Time, Christmas, Easter, solemnities and feasts</td><td>Advent and Lent (Sundays)</td></tr>
+<tr><td>Creed</td><td>Sundays and solemnities</td><td>Weekdays</td></tr>
+<tr><td>Holy Thursday to Easter Vigil</td><td colspan="2">Special rules; AV Ministry will add these as special slides.</td></tr></tbody></table>
+<p>The weekly package should apply these automatically from the church calendar. Tell me about any other slides that change by season or parish custom.</p>
 <h2>Florida Keys imagery</h2>
 <p>Sunsets, turquoise water, palms, mangroves, boats and golden reflections, blended with the season's colors. Backgrounds must never compete with the text.</p>
+<h2>Style guide (CSS)</h2>
+<p>Reference styles for every slide, so previews and artwork match. Style samples only, not full sections or songs.</p>
+<pre style="background:#f4f1ea;padding:12px;overflow:auto;font-size:.85rem">.slide { aspect-ratio:16/9; width:1280px; padding:64px 96px; box-sizing:border-box;
+         display:flex; flex-direction:column; justify-content:center; align-items:center;
+         text-align:center; font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;
+         color:#fff; background-size:cover; background-position:center; }
+.slide .title  { background:#b3202a; color:#fff; padding:10px 48px; font-size:44px;
+                 border-radius:6px; margin-bottom:32px; }          /* red brush banner */
+.slide .lyrics { font-size:60px; line-height:1.25; font-weight:800;
+                 text-shadow:0 3px 8px rgba(0,0,0,.65); }          /* large, back-of-church readable */
+.slide .refrain{ font-style:italic; }
+.slide .credit { position:absolute; bottom:20px; font:14px Arial; opacity:.85; }  /* license line, song slides */
+.slide.notation{ background:#faf5e6; color:#111; }                 /* cream panel, notation kept large */
+.slide.creed.alt{ background:#16294d; }                            /* Profession of Faith: navy/cream alternate */
+.slide.creed.cream{ background:#faf5e6; color:#16294d; }
+/* Seasons: set the overlay tint */
+.advent{--tint:#4b2e83} .christmas{--tint:#c9a227} .ordinary{--tint:#1d6fa5}
+.lent{--tint:#6b4c8a} .easter{--tint:#f3e9c6} .pentecost{--tint:#b3202a}
+.slide::before{content:"";position:absolute;inset:0;background:var(--tint);opacity:.25}</pre>
 <h2>Rules that always apply</h2>
 <ul>
 <li>Readability from the back of the church comes first. Never shrink text to fit; add slides instead.</li>

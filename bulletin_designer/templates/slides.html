@@ -2,6 +2,7 @@
 {% block content %}
 <h1>Mass slides</h1>
 <p>Upload the week's songs, readings and announcements. The standard slides are kept here and are always included. Then download one package for the AI tool. See the <a href="{{ url_for('slides_guide') }}">Slides guide</a>.</p>
+<p><a class="btn" href="{{ url_for('slides_year') }}">See the whole church year</a></p>
 <h2>Standard slides (included every week)</h2>
 {% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>{% else %}<p class="small">Nothing uploaded yet.</p>{% endif %}{% endmacro %}
