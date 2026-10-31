@@ -44,6 +44,17 @@ def repeat_refrain(parts):
     return out
 
 
+ANNOUNCE_RE = re.compile(r"^[\s*_]*(lector\s*:?\s*)?(?=our parish announcements)", re.I)
+
+
+def announcements_from(parts):
+    """Keep a Word script from 'Our Parish Announcements this week' onward (dropping the lector cue)."""
+    for i, part in enumerate(parts):
+        if ANNOUNCE_RE.match(part):
+            return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
+    return parts
+
+
 def slug(title):
     return re.sub(r"[^a-z0-9]+", "-", (title or "").lower().replace("&", "and")).strip("-")[:80]
 
