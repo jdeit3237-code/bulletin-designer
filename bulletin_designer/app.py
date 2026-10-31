@@ -4123,6 +4123,7 @@ def create_app(config=None):
                 return True
             return "gloria" in n and season in ("Advent", "Lent") and not feast
 
+        BLACK_BETWEEN = ("prelude", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "going_forth")
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
         for kind in ("prelude", "standard", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
@@ -4130,12 +4131,15 @@ def create_app(config=None):
                     continue
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
+                if kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt") and len(plan) > 1 and plan[-1]["type"] != "blank":
+                    plan.append({"type": "blank"})
                 if ext in ("png", "jpg", "jpeg"):
                     plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
                 elif ext == "txt":
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
                     parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
+                    parts = music_outline.repeat_refrain(parts)
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for k, part in enumerate(parts):
@@ -4175,6 +4179,9 @@ def create_app(config=None):
         for item in plan:
             sl = prs.slides.add_slide(blank)
             sl.background.fill.solid()
+            if item["type"] == "blank":
+                sl.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                continue
             if item["type"] == "image":
                 sl.background.fill.fore_color.rgb = RGBColor(0xFA, 0xF5, 0xE6)
                 try:

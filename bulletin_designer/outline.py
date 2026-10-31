@@ -26,6 +26,24 @@ def extract_pdf_text(file_obj):
     return "\n".join((p.extract_text() or "") for p in PdfReader(file_obj).pages)
 
 
+REFRAIN_RE = re.compile(r"^\s*(refrain|chorus|response|antiphon|R\s*[./:])", re.I)
+
+
+def repeat_refrain(parts):
+    """Slide parts with the refrain/chorus repeated after every verse that follows it."""
+    refrain = next((p for p in parts if REFRAIN_RE.match(p)), None)
+    if not refrain:
+        return parts
+    out, seen = [], False
+    for i, part in enumerate(parts):
+        out.append(part)
+        if REFRAIN_RE.match(part):
+            seen = True
+        elif seen and not (i + 1 < len(parts) and REFRAIN_RE.match(parts[i + 1])):
+            out.append(refrain)
+    return out
+
+
 def slug(title):
     return re.sub(r"[^a-z0-9]+", "-", (title or "").lower().replace("&", "and")).strip("-")[:80]
 
