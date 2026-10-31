@@ -4089,6 +4089,9 @@ def create_app(config=None):
 
     SECTION_ACCENT = {"prelude": "8FB8C9", "entrance": "E0B040", "gifts": "E07A5F", "communion": "F4E9D0", "praise": "3FB8AF",
                       "going_forth": "F28C28", "songs": "E0B040"}
+    STANDARD_TITLES = {"prelude": "Prelude", "entrance": "Entrance Song", "gifts": "Presentation of the Gifts", "communion": "Communion",
+                       "praise": "Song of Praise", "going_forth": "Going Forth"}
+    ONELICENSE_LINE = os.environ.get("ONELICENSE_LINE") or "Reprinted with permission under ONE LICENSE # A-738536. All rights reserved."
     CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:)", re.I)
 
     def section_ref(kind, mass_date):
@@ -4150,7 +4153,7 @@ def create_app(config=None):
                         from pptx import Presentation as _P
                         for sl in _P(path).slides:
                             txt = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
-                            if txt:
+                            if txt and ("bilingual" in name.lower() or not music_outline.is_spanish(txt)):
                                 items.append({"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
                                               "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
                     except Exception:
@@ -4158,11 +4161,14 @@ def create_app(config=None):
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": False, "items": items})
                 elif ext in ("txt", "docx"):
                     label = os.path.splitext(name)[0].replace("_", " ")
-                    section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
+                    section = STANDARD_TITLES.get(kind)
                     try:
                         raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
                     except Exception:
                         continue
+                    keep_all = "bilingual" in name.lower()
+                    if not keep_all:
+                        raw = "\n\n".join(music_outline.english_only(re.split(r"\n\s*\n", raw)))
                     groups = music_outline.reading_sections(raw) if kind == "readings" else None
                     if not groups:
                         parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
@@ -4176,10 +4182,14 @@ def create_app(config=None):
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for g, (gtitle, parts) in enumerate(groups):
                         items = []
-                        for k, part in enumerate(parts):
-                            lines = part.splitlines()
-                            credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
-                            body = "\n".join(x for x in lines if not CREDIT_RE.match(x)).strip() or part
+                        file_credit = []
+                        if song:
+                            for part in parts:
+                                file_credit += [x.strip() for x in part.splitlines() if CREDIT_RE.match(x)]
+                            file_credit = list(dict.fromkeys(file_credit))
+                        parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
+                        for k, body in enumerate(parts):
+                            credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 48 if len(body) > 140 else 56,
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                             if k == 0 and song:
@@ -4195,6 +4205,14 @@ def create_app(config=None):
                 chunks.append({"kind": "announcements", "name": "graphic", "group": None, "blank": False,
                                "items": [{"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"}]})
         chunks = music_outline.order_chunks(chunks, outline_order)
+        for ch in chunks:
+            first = ch["items"][0] if ch["items"] else None
+            if first and first.get("style") == "song" and not first.get("title"):
+                lab = ch.get("label")
+                if ch["kind"] == "songs" and lab in music_outline.MASS_ORDER and lab not in ("Prelude", "Announcements", "Special"):
+                    first["title"] = lab
+                elif first["subtitle"]:
+                    first["title"], first["subtitle"] = first["subtitle"], None
         previous = None
         for ch in chunks:
             if not ch["items"]:
@@ -4302,7 +4320,7 @@ def create_app(config=None):
                 shape(1, 0, sh - Inches(0.95), sw, Inches(0.95), RGBColor(0x6B, 0x14, 0x14))
                 cb = sl.shapes.add_textbox(Inches(0.5), sh - Inches(0.9), sw - Inches(1.0), Inches(0.85))
                 cb.text_frame.word_wrap = True; cb.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-                put(cb.text_frame, item["credit"], 14, RGBColor(255, 255, 255), bold=False)
+                put(cb.text_frame, item["credit"], 12 if len(item["credit"]) > 160 else 14, RGBColor(255, 255, 255), bold=False)
                 bottom = 6.4
             if item["title"]:
                 bh = 1.4 if item.get("subtitle") else 0.95

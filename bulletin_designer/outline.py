@@ -359,3 +359,23 @@ def order_chunks(chunks, order=()):
         ch["rank"] = pos.get(lab, last)
         last = ch["rank"]
     return sorted(chunks, key=lambda c: c["rank"])
+
+
+SPANISH_WORDS = set("el la los las de del que y en un una por para con su sus al es lo como pero se te mi tu nos le les ya este esta son más muy sin sobre también todo todos hasta cuando donde porque quien señor dios santo santa cordero gloria aleluya amén cielo tierra pueblo vida cantad vengan ven yo eres soy está estás tiene tienen hay fe amor paz".split())
+ENGLISH_WORDS = set("the and of to in is a that for with you your his her our we us he she it they them are be was by on as at all this who whom lord god holy lamb heaven earth people life sing come my me i not but or from have has will shall let him their there one said".split())
+
+
+def is_spanish(text):
+    """True when a block of text is clearly Spanish rather than English (word-list vote; accents count as a hint)."""
+    words = re.findall(r"[a-záéíóúñüA-ZÁÉÍÓÚÑÜ']+", text.lower())
+    if not words:
+        return False
+    es = sum(1 for w in words if w in SPANISH_WORDS)
+    en = sum(1 for w in words if w in ENGLISH_WORDS)
+    es += sum(1 for w in words if re.search(r"[áéíóúñ¿¡]", w)) + text.count("¿") + text.count("¡")
+    return es >= 2 and es > en
+
+
+def english_only(parts, keep_all=False):
+    """Drop Spanish blocks from a list of text parts unless the file is flagged bilingual."""
+    return list(parts) if keep_all else [p for p in parts if not is_spanish(p)]
