@@ -93,3 +93,19 @@ def test_refrain_repeats_after_each_verse():
     already = ["Refrain: Amen", "Verse one", "Refrain: Amen", "Verse two"]
     assert repeat_refrain(already) == ["Refrain: Amen", "Verse one", "Refrain: Amen", "Verse two", "Refrain: Amen"]
     assert repeat_refrain(["One", "Two"]) == ["One", "Two"]
+
+
+def test_black_slide_between_songs_and_readings(app):
+    import io
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    d = "2026-11-08"
+    for kind, name in (("entrance", "a.txt"), ("readings", "b.txt"), ("communion", "c.txt")):
+        c.post("/slides", data={"csrf": t, "kind": kind, "date": d, "files": (io.BytesIO(b"hello"), name)},
+               content_type="multipart/form-data")
+    prs = Presentation(io.BytesIO(c.get(f"/slides/pptx?date={d}").data))
+    black = [i for i, s in enumerate(prs.slides) if s.background.fill.fore_color.rgb == RGBColor(0, 0, 0)]
+    assert len(black) == 2
+    assert all(0 < i < len(prs.slides) - 1 for i in black)
