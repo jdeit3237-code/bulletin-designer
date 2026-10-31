@@ -23,7 +23,7 @@
       <a href="{{ url_for('style_guide') }}">Style guide</a>
       <a href="{{ url_for('slides_guide') }}">Slides guide</a>
       {% if has_area('slides') %}<a href="{{ url_for('slides') }}">Mass slides</a>{% endif %}
-      {% if g.user.role in ('admin','editor') %}<a href="{{ url_for('choir_index') }}">Choir music</a>{% elif has_area('choir') %}<a href="{{ url_for('choir_find') }}">Choir music</a>{% endif %}
+      {% if config.get('CHOIR_ON') %}{% if g.user.role in ('admin','editor') %}<a href="{{ url_for('choir_index') }}">Choir music</a>{% elif has_area('choir') %}<a href="{{ url_for('choir_find') }}">Choir music</a>{% endif %}{% endif %}
       <a href="{{ url_for('help_page') }}">Help</a>
       {% endif %}
       {% if g.user and g.user.role == 'admin' %}<a href="{{ url_for('fonts') }}">Fonts</a>{% endif %}

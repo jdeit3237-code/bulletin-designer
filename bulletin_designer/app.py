@@ -33,12 +33,19 @@ def generate_password_hash(pw):
 from werkzeug.utils import secure_filename
 
 try:
-    from . import liturgy, help_content, outline as music_outline, routes_choir
+    from . import liturgy, help_content, outline as music_outline
 except ImportError:  # run as a script
     import liturgy
     import help_content
     import outline as music_outline
-    import routes_choir
+
+try:
+    from . import routes_choir
+except ImportError:
+    try:
+        import routes_choir
+    except ImportError:  # choir needs reportlab; keep the rest of the site working
+        routes_choir = None
 
 BULLETS = {"disc": "\u2022 Round dot", "circle": "\u25e6 Open circle", "square": "\u25aa Square", "dash": "\u2013 Dash", "check": "\u2713 Check mark", "arrow": "\u27a4 Arrow", "cross": "\u271d Cross", "star": "\u2605 Star"}
 
@@ -3770,7 +3777,9 @@ def create_app(config=None):
         d = slides_dir(kind, mass_date)
         return sorted(os.listdir(d)) if os.path.isdir(d) else []
 
-    routes_choir.register(app, need, need_area)
+    if routes_choir:
+        routes_choir.register(app, need, need_area)
+        app.config["CHOIR_ON"] = True
 
     SONG_EXTS = ("txt", "png", "jpg", "jpeg")
 
