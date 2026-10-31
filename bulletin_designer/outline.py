@@ -378,6 +378,10 @@ def order_chunks(chunks, order=()):
         pos = newpos
     last = -1.0
     for ch in chunks:
+        if ch.get("custom"):
+            ch["label"] = "Extra: " + ch["custom"]
+            ch["rank"] = pos.get(LABEL_ALIAS.get(ch["after"], ch["after"]), last) + 0.25
+            continue
         lab = chunk_label(ch["kind"], ch["name"], ch.get("group"), names)
         lab = LABEL_ALIAS.get(lab, lab)
         ch["label"] = lab

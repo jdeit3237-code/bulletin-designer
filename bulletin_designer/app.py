@@ -3765,17 +3765,24 @@ def create_app(config=None):
         return render_template("slides_guide.html")
 
     slides_root = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), "slides_files")
-    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("entrance", "Entrance song"), ("gifts", "Presentation of the Gifts song"), ("communion", "Communion song"), ("praise", "Song of Praise (optional, not every week)"), ("songs", "Other songs"), ("readings", "Readings"),
+    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("entrance", "Entrance song"), ("gifts", "Presentation of the Gifts song"), ("communion", "Communion song"), ("praise", "Song of Praise (optional, not every week)"), ("songs", "Songs filled from the outline"), ("extra", "Extra sections (you name each one and choose where it goes)"), ("readings", "Readings"),
                    ("announcements", "Announcements"), ("notation", "Music notation"), ("going_forth", "Going Forth (after Mass, may be secular)"),
                    ("special", "Special slides (optional, this week only)"),
-                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"), ("ref_songs", "Reference photos for Other songs"))
+                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"))
 
     def slides_dir(kind, mass_date=""):
         return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
 
+    def extra_meta(mass_date):
+        try:
+            with open(os.path.join(slides_dir("extra", mass_date), "extra.json")) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return {}
+
     def slides_list(kind, mass_date=""):
         d = slides_dir(kind, mass_date)
-        return sorted(os.listdir(d)) if os.path.isdir(d) else []
+        return sorted(n for n in os.listdir(d) if n != "extra.json") if os.path.isdir(d) else []
 
     if routes_choir:
         routes_choir.register(app, need, need_area)
@@ -3980,19 +3987,35 @@ def create_app(config=None):
                 name = secure_filename(request.form.get("name", ""))
                 if name and os.path.isfile(os.path.join(d, name)):
                     os.remove(os.path.join(d, name))
+                    if kind == "extra":
+                        meta = extra_meta(mass_date)
+                        if meta.pop(name, None) is not None:
+                            with open(os.path.join(d, "extra.json"), "w") as f:
+                                json.dump(meta, f)
                     flash(f"Removed {name}.")
             else:
+                section_name = request.form.get("section_name", "").strip()[:80]
+                after = request.form.get("after", "")
+                if kind == "extra" and (not section_name or after not in music_outline.MASS_ORDER):
+                    flash("Type the section name and choose where it goes.", "error")
+                    return redirect(url_for("slides", date=mass_date))
                 os.makedirs(d, exist_ok=True)
                 n = 0
+                meta = extra_meta(mass_date) if kind == "extra" else {}
                 for f in request.files.getlist("files"):
                     name = secure_filename(f.filename or "")
-                    if name:
+                    if name and name != "extra.json":
                         f.save(os.path.join(d, name))
                         n += 1
+                        if kind == "extra":
+                            meta[name] = {"name": section_name, "after": after}
+                if kind == "extra" and n:
+                    with open(os.path.join(d, "extra.json"), "w") as f:
+                        json.dump(meta, f)
                 flash(f"Uploaded {n} file(s)." if n else "Choose at least one file.", "" if n else "error")
             return redirect(url_for("slides", date=mass_date))
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
-        return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
+        return render_template("slides.html", kinds=SLIDE_KINDS, mass_order=music_outline.MASS_ORDER, extras=extra_meta(mass_date) if mass_date else {}, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
                                concept=week_concept(mass_date) if mass_date else None, layouts=CONCEPT_LAYOUTS, accents=CONCEPT_ACCENTS,
                                outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
@@ -4088,7 +4111,7 @@ def create_app(config=None):
         return redirect(url_for("slides", date=mass_date))
 
     SECTION_ACCENT = {"prelude": "8FB8C9", "entrance": "E0B040", "gifts": "E07A5F", "communion": "F4E9D0", "praise": "3FB8AF",
-                      "going_forth": "F28C28", "songs": "E0B040"}
+                      "going_forth": "F28C28", "songs": "E0B040", "extra": "E0B040"}
     STANDARD_TITLES = {"prelude": "Prelude", "entrance": "Entrance Song", "gifts": "Presentation of the Gifts", "communion": "Communion",
                        "praise": "Song of Praise", "going_forth": "Going Forth"}
     ONELICENSE_LINE = os.environ.get("ONELICENSE_LINE") or "Reprinted with permission under ONE LICENSE # A-738536. All rights reserved."
@@ -4101,7 +4124,7 @@ def create_app(config=None):
         return (os.path.join(slides_dir("ref_" + kind, mass_date), names[0]),
                 url_for("slides_file", kind="ref_" + kind, name=names[0], date=mass_date, inline=1))
 
-    SONG_KINDS = ("prelude", "entrance", "songs", "gifts", "communion", "praise", "going_forth")
+    SONG_KINDS = ("prelude", "entrance", "songs", "extra", "gifts", "communion", "praise", "going_forth")
     SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
 
     def saved_graphics(mass_date):
@@ -4126,12 +4149,13 @@ def create_app(config=None):
                 return True
             return "gloria" in n and season in ("Advent", "Lent") and not feast
 
-        BLACK_BETWEEN = ("prelude", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "going_forth")
+        BLACK_BETWEEN = ("prelude", "entrance", "songs", "extra", "readings", "notation", "gifts", "communion", "praise", "going_forth")
         seen_songs = set()
         outline_order = (load_outline(mass_date) or {}).get("order") or []
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
         chunks = []
-        for kind in ("prelude", "standard", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
+        extras = extra_meta(mass_date)
+        for kind in ("prelude", "standard", "entrance", "songs", "extra", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
                     continue
@@ -4163,7 +4187,7 @@ def create_app(config=None):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     if kind in SONG_KINDS:
                         label = music_outline.clean_song_title(label)
-                    section = STANDARD_TITLES.get(kind)
+                    section = extras.get(name, {}).get("name") if kind == "extra" else STANDARD_TITLES.get(kind)
                     try:
                         raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
                     except Exception:
@@ -4226,6 +4250,9 @@ def create_app(config=None):
                             break
                 else:
                     chunks.append({"kind": "announcements", "name": "graphic", "group": None, "blank": False, "items": [gitem]})
+        for ch in chunks:
+            if ch["kind"] == "extra" and ch["name"] in extras:
+                ch["custom"], ch["after"] = extras[ch["name"]]["name"], extras[ch["name"]]["after"]
         chunks = music_outline.order_chunks(chunks, outline_order)
         for ch in chunks:
             first = ch["items"][0] if ch["items"] else None

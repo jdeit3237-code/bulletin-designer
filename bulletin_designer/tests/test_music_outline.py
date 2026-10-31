@@ -328,3 +328,14 @@ def test_psalm_and_acclamation_citation_move_to_first_slide():
 def test_mac_roman_spanish_not_garbled():
     raw = "Yo los resucitar\u00e1".encode("mac_roman") + b"\n" + "el d\u00eda final y m\u00e1s".encode("mac_roman")
     assert "\u017d" not in outline.decode_text(raw)
+
+
+def test_extra_section_uses_given_name_and_place():
+    chunks = [
+        {"kind": "extra", "name": "x.txt", "group": None, "items": [], "custom": "Thanksgiving Hymn", "after": "Communion"},
+        {"kind": "communion", "name": "c.txt", "group": None, "items": []},
+        {"kind": "going_forth", "name": "g.txt", "group": None, "items": []},
+    ]
+    out = outline.order_chunks(chunks, [])
+    assert [c["kind"] for c in out] == ["communion", "extra", "going_forth"]
+    assert out[1]["label"] == "Extra: Thanksgiving Hymn"
