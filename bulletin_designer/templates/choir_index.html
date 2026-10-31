@@ -10,13 +10,13 @@
 <button class="btn">Read outline and match songs</button></form>
 <p class="small">If the outline changes, upload the new one for the same Sunday: the review screen shows which songs changed and the packet and its link are replaced.</p>
 <h2>Published packets</h2>
-{% if not packets %}<p>No packets yet.</p>{% endif %}
-{% for p in packets %}<div><strong>{{ p.title }}</strong> {{ p.sunday }}
+{% if not weeks %}<p>No packets yet.</p>{% endif %}
+{% for w in weeks %}<div><strong>{{ w.title }}</strong> {{ w.sunday }}
+{% if w.share %}<p><label for="sh-{{ loop.index }}">Message for the Liturgy.com email (one line per instrument)</label><textarea id="sh-{{ loop.index }}" readonly rows="{{ w.share.count('\n') + 1 }}" style="width:100%" onclick="this.select()">{{ w.share }}</textarea></p>{% endif %}
+{% for p in w.packets %}<div>{{ p.edition_name or "Packet" }}:
 {% if p.live %}<em>Live until {{ p.expires }}</em>
-<p><label for="sh-{{ loop.index }}">Message for the Liturgy.com email</label><input id="sh-{{ loop.index }}" readonly style="width:100%" value="{{ p.share }}"
-onclick="this.select()"></p>
 <a class="btn secondary" target="_blank" rel="noopener" href="{{ url_for('choir_download', token=p.token) }}">Open PDF</a>
 <form method="post" action="{{ url_for('choir_revoke', token=p.token) }}" style="display:inline" onsubmit="return confirm('Disable this link?');"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Revoke link</button></form>
-{% elif p.revoked %}<em>Revoked</em>{% else %}<em>Expired</em>{% endif %}</div><hr>{% endfor %}
+{% elif p.revoked %}<em>Revoked</em>{% else %}<em>Expired</em>{% endif %}</div>{% endfor %}</div><hr>{% endfor %}
 <p class="small">Anyone with a link can download that week's packet. Share it only with choir members.</p>
 {% endblock %}
