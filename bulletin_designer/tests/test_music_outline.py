@@ -253,3 +253,57 @@ def test_outline_order_puts_song_of_praise_after_communion_or_elsewhere():
         return [c["label"] for c in outline.order_chunks(chunks, order)]
     assert labels(["Communion", "Song of Praise", "Final Song"]) == ["Communion", "Song of Praise", "Final Song"]
     assert labels(["Song of Praise", "Communion", "Final Song"]) == ["Song of Praise", "Communion", "Final Song"]
+
+
+def test_song_credit_and_license_only_on_first_slide(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718",
+                                  "lyrics": "FIRSTVERSE words\n\nSECONDVERSE words\n\nText: HOWTEXT 1823\nMusic: VWMUSIC 1906"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert page.count("ONE LICENSE") == page.count("HOWTEXT") >= 1
+    assert page.index("FIRSTVERSE") < page.index("HOWTEXT") < page.index("SECONDVERSE") or page.count("HOWTEXT") == 1
+
+
+def test_other_songs_is_never_a_section_title(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides", data={"csrf": t, "kind": "songs", "date": "2026-11-01", "files": (io.BytesIO(b"Hello world\n"), "Mystery Song.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "Other songs" not in page and "Mystery Song" in page
+
+
+def test_english_only_drops_spanish_unless_bilingual():
+    assert outline.is_spanish("Santo, Santo, Santo es el Señor Dios del universo")
+    assert not outline.is_spanish("Holy, Holy, Holy Lord God of hosts")
+    parts = ["Holy, Holy, Holy Lord God of hosts", "Santo, Santo, Santo es el Señor Dios del universo"]
+    assert outline.english_only(parts) == parts[:1]
+    assert outline.english_only(parts, keep_all=True) == parts
+
+
+def test_reading_first_slide_has_title_and_citation():
+    assert outline.split_citation("Revelation 7:2-4, 9-14 I, John, saw another angel.") == ("Revelation 7:2-4, 9-14", "I, John, saw another angel.")
+    assert outline.split_citation("1 John 3:1-3 See what love.")[0] == "1 John 3:1-3"
+    assert outline.split_citation("Lord, this is the people that longs to see your face.")[0] == ""
+
+
+def test_announcements_drop_references_elsewhere():
+    parts = ["Pumpkin Patch Saturday at 10am. More details in the bulletin. Thank you for your generosity!", "See the bulletin for more information.", "Bring a friend."]
+    assert outline.drop_referrals(parts) == ["Pumpkin Patch Saturday at 10am.", "Bring a friend."]
+
+
+def test_graphic_follows_its_announcement():
+    texts = ["Pumpkin Patch opens Saturday for families.", "Pet Wellness Clinic for cats and dogs on Friday."]
+    assert outline.best_match("Pet wellness clinic flyer", texts) == 1
+    assert outline.best_match("Pumpkin patch", texts) == 0
+    assert outline.best_match("Bingo night", texts) is None
+
+
+def test_preview_warns_when_required_songs_missing(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "ENTRANCE WORDS"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "Missing songs" in page and "Going Forth" in page
