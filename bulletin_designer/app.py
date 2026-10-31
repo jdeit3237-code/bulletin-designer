@@ -1842,6 +1842,8 @@ def create_app(config=None):
             keep = [c for c in BULLETIN_CARRY if c in prev.keys()]
             conn.execute("UPDATE bulletins SET " + ", ".join(c + "=?" for c in keep) + " WHERE id=?",
                          [prev[c] for c in keep] + [b["id"]])
+        if created:
+            conn.execute("UPDATE bulletins SET no_underline=1 WHERE id=?", (b["id"],))
         conn.commit()
         ensure_items(b["id"], sunday)
         return redirect(url_for("edit", bid=b["id"]))
@@ -1863,6 +1865,7 @@ def create_app(config=None):
         conn.execute("INSERT INTO bulletins(sunday, status, " + ", ".join(cols) + ") VALUES(?, 'draft', " + ", ".join("?" * len(cols)) + ")",
                      [sunday] + [src[c] for c in cols])
         new = conn.execute("SELECT id FROM bulletins WHERE sunday=?", (sunday,)).fetchone()["id"]
+        conn.execute("UPDATE bulletins SET no_underline=1 WHERE id=?", (new,))
         smap = {}
         for sec in conn.execute("SELECT * FROM sections WHERE bulletin_id=?", (bid,)).fetchall():
             slug = "%s-copy%d" % (sec["slug"], new)

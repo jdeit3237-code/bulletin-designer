@@ -24,3 +24,10 @@ def test_exact_user_case(app):
     on = [re.findall(r'S\d+ text', x) for x in sheets]
     assert on[6] == ["S14 text", "S15 text"] and 'data-sid="16"' in sheets[7] and on[8] == ["S17 text"]
     assert "could not be used" not in c.get("/bulletins/1").text
+
+
+def test_new_bulletins_have_no_underlines(app):
+    c = setup_admin(app); create_bulletin(c)
+    c.post("/bulletins/1/underlines", data={"csrf": tok(c, "/bulletins/1")})
+    create_bulletin(c, "2026-11-01")
+    assert 'no-ul' in c.get("/bulletins/2/preview").text
