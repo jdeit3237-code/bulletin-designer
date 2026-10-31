@@ -37,8 +37,27 @@ def strip_verse_numbers(part):
     return VERSE_NUM_RE.sub("", part).strip()
 
 
+VERSE_START_RE = re.compile(r"^\s*(?:verse\s*\d{1,2}\b|\(?\d{1,2}\s*[.):\-]\s*(?=\S))", re.I)
+
+
+def split_verses(parts):
+    """Start a new part at every numbered verse or labelled refrain line, so verses never share a slide."""
+    out = []
+    for part in parts:
+        cur = []
+        for line in part.splitlines():
+            if cur and (VERSE_START_RE.match(line) or REFRAIN_RE.match(line)):
+                out.append("\n".join(cur).strip())
+                cur = []
+            cur.append(line)
+        if cur:
+            out.append("\n".join(cur).strip())
+    return [p for p in out if p]
+
+
 def repeat_refrain(parts):
     """Slide parts with verse numbers removed and the refrain placed between every verse."""
+    parts = split_verses(parts)
     numbered = [bool(VERSE_NUM_RE.match(p)) for p in parts]
     parts = [strip_verse_numbers(p) if n else p for p, n in zip(parts, numbered)]
     refrain = next((p for p in parts if REFRAIN_RE.match(p)), None)
@@ -150,14 +169,20 @@ def announcements_from(parts):
             return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
     return parts
 
-def read_text(path):
-    """Read a text file saved as UTF-8 (with or without BOM) or Windows-1252, without junk characters."""
-    with open(path, "rb") as f:
-        raw = f.read()
+def decode_text(raw):
+    """Decode UTF-8 (with or without BOM), else Mac Roman or Windows-1252 (whichever fits), and turn non-breaking spaces into spaces."""
     try:
-        return raw.decode("utf-8-sig")
+        text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
-        return raw.decode("cp1252", errors="replace")
+        mac = sum(raw.count(bytes([b])) for b in (0xCA, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5))
+        win = sum(raw.count(bytes([b])) for b in (0xA0, 0x91, 0x92, 0x93, 0x94, 0x96, 0x97))
+        text = raw.decode("mac_roman" if mac > win else "cp1252", errors="replace")
+    return text.replace("\u00a0", " ").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def read_text(path):
+    with open(path, "rb") as f:
+        return decode_text(f.read())
 
 
 SOFT_BREAK_RE = re.compile(r"[,;:\u2014\u2013]\s+|\s+(?=(?:and|but|or|who|whom|which|that|for|so|because|when|while|then)\s)", re.I)

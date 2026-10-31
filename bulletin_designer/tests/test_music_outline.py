@@ -232,3 +232,14 @@ def test_readings_split_into_one_or_two_sentence_slides():
     secs = dict(reading_sections("Reading 1\nRevelation 7:2-4\n" + body + "\n\nResponsorial Psalm\nR. (see 6) Lord, hear.\nVerse A.\n"))
     assert len(secs["First Reading"]) >= 3 and all(len(p) <= 220 for p in secs["First Reading"])
     assert secs["Responsorial Psalm"][0] == "Lord, hear."
+
+
+def test_mac_roman_file_and_single_block_song():
+    from bulletin_designer.outline import decode_text, reading_sections, repeat_refrain
+    raw = "Reading 1\u00a0\nRevelation 7:2\nI saw\u00a0an angel\n\nResponsorial Psalm\nR.\u00a0Lord, hear.\nVerse.\n".encode("mac_roman")
+    secs = dict(reading_sections(decode_text(raw)))
+    assert list(secs) == ["First Reading", "Responsorial Psalm"]
+    assert secs["Responsorial Psalm"][0] == "Lord, hear."
+    assert "\u00ca" not in decode_text(raw)
+    song = ["Refrain: Sing out\n1. Verse one line\nline two\n2. Verse two line"]
+    assert repeat_refrain(song) == ["Refrain: Sing out", "Verse one line\nline two", "Refrain: Sing out", "Verse two line", "Refrain: Sing out"]

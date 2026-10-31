@@ -4160,7 +4160,7 @@ def create_app(config=None):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
                     try:
-                        raw = docx_text(path) if ext == "docx" else music_outline.read_text(path)
+                        raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
                     except Exception:
                         continue
                     groups = music_outline.reading_sections(raw) if kind == "readings" else None
@@ -4188,6 +4188,12 @@ def create_app(config=None):
                                 item["title"] = gtitle
                             items.append(item)
                         chunks.append({"kind": kind, "name": name, "group": gtitle if kind == "readings" else None, "blank": blank_before or g > 0, "items": items})
+        for pid in photo_ids:
+            row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
+            path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
+            if path and os.path.isfile(path):
+                chunks.append({"kind": "announcements", "name": "graphic", "group": None, "blank": False,
+                               "items": [{"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"}]})
         chunks = music_outline.order_chunks(chunks, outline_order)
         previous = None
         for ch in chunks:
@@ -4198,11 +4204,6 @@ def create_app(config=None):
                 plan.append({"type": "blank"})
             plan.extend(ch["items"])
             previous = ch
-        for pid in photo_ids:
-            row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
-            path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
-            if path and os.path.isfile(path):
-                plan.append({"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"})
         return plan, SEASON_BG.get(season, "14527A")
 
     def build_pptx(plan, bg_hex, concept=None):
