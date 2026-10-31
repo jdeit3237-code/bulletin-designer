@@ -83,3 +83,13 @@ def test_starter_pptx_for_not_started_week(app):
     c = setup_admin(app)
     r = c.get("/slides/pptx?date=2026-12-06")
     assert r.status_code == 200 and r.data[:2] == b"PK"
+
+
+def test_refrain_repeats_after_each_verse():
+    from bulletin_designer.outline import repeat_refrain
+    parts = ["R. Lord, hear us", "Verse one", "Verse two", "Verse three"]
+    assert repeat_refrain(parts) == ["R. Lord, hear us", "Verse one", "R. Lord, hear us", "Verse two",
+                                     "R. Lord, hear us", "Verse three", "R. Lord, hear us"]
+    already = ["Refrain: Amen", "Verse one", "Refrain: Amen", "Verse two"]
+    assert repeat_refrain(already) == ["Refrain: Amen", "Verse one", "Refrain: Amen", "Verse two", "Refrain: Amen"]
+    assert repeat_refrain(["One", "Two"]) == ["One", "Two"]

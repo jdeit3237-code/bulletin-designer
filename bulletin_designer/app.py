@@ -4136,6 +4136,7 @@ def create_app(config=None):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
                     parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
+                    parts = music_outline.repeat_refrain(parts)
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for k, part in enumerate(parts):
