@@ -64,6 +64,7 @@ PART_ALIASES = {
 }
 LABEL_KIND = {"Responsorial Psalm": "psalm", "Gospel Acclamation": "acclamation"}
 
+MASS_PARTS = {"Penitential Act", "Glory to God", "Holy", "Mystery of Faith", "Amen", "Lamb of God", "Lord's Prayer"}
 CODE_RE = re.compile(r"\b([A-Z]{2,4}\d{2})\s*-\s*(\d+)\b")
 DATE_RE = re.compile(r"([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})")
 
@@ -169,9 +170,13 @@ def _parse_row(label, text):
     )
     if setting:
         setting = re.sub(r"(?i)^mass of\s+", "", setting).strip()
+    full = title
+    if label not in MASS_PARTS and "/" in title:
+        title = title.split("/")[0].strip()  # English title only; the full title is kept for the language option
     return {
         "label": label,
         "title": title,
+        "title_full": full,
         "setting": setting,
         "composer": composer,
         "book": code.group(1) if code else "",
@@ -269,19 +274,24 @@ def book_path(app, book):
 # Matching
 # ---------------------------------------------------------------------------
 
-def _entry_hits(lib, song, outline_date):
+def _entry_hits(lib, song, outline_date, part_idx=0):
     """Return [(book, entry)] across every edition that matches the song."""
     hits = []
     iso = outline_date.isoformat() if outline_date else None
     kind = LABEL_KIND.get(song["label"])
     part = LABEL_PART.get(song["label"])
-    want_title = _words(song["title"])
+    want_title = _plain(song["title"], part_idx)
     want_setting = _words(song["setting"])
     for book in lib.get("books", []):
         code = book.get("code", "")
         for e in book.get("entries", []):
             if song["book"] and song["number"]:
-                if _norm(code) == _norm(song["book"]) and e["number"] == song["number"]:
+                # The outline's hymn number does not always match the book's own numbering
+                # (BB26-718 is a psalm in the 2026 book), so a number match must agree on title.
+                if _norm(code) == _norm(song["book"]) and e["number"] == song["number"] \
+                        and _title_match(e["title"], want_title):
+                    hits.append((book, e))
+                elif not kind and not part and _title_match(e["title"], want_title) and e["number"]:
                     hits.append((book, e))
                 continue
             if iso and e.get("date") == iso and kind and e.get("kind") == kind:
@@ -294,12 +304,29 @@ def _entry_hits(lib, song, outline_date):
             if not want_setting and not kind and not e.get("date"):
                 if _title_match(e["title"], want_title):
                     hits.append((book, e))
-    return hits
+    # Prefer exact title matches ("I Am the Bread of Life" must not pick "Bread of Life").
+    exact = [h for h in hits if want_title in _halves(h[1]["title"])]
+    if part_idx:
+        return exact  # other languages: exact titles only, never a look-alike song
+    return exact or hits
+
+
+def _plain(text, part=0):
+    halves = (text or "").split("/")
+    half = halves[part] if part < len(halves) and halves[part].strip() else halves[0]
+    return _words(re.sub(r"\([^)]*\)", " ", half))
+
+
+def _halves(text):
+    return [h for h in (_plain(text, i) for i in range(len((text or "").split("/")))) if h]
 
 
 def _title_match(entry_title, want_title):
-    et = _words(entry_title)
-    return bool(et and want_title and (et == want_title or et in want_title or want_title in et))
+    """Match against any language half of a bilingual entry title."""
+    want_title = _plain(want_title)
+    return bool(want_title) and any(
+        et == want_title or et in want_title or want_title in et for et in _halves(entry_title)
+    )
 
 
 def _part_match(entry_title, want_title, part):
@@ -314,11 +341,23 @@ def _part_match(entry_title, want_title, part):
     return False
 
 
-def match_songs(lib, songs, outline_date):
-    """Attach primary (piano) and guitar page sources to each song."""
+def match_songs(lib, songs, outline_date, language="english"):
+    """Attach primary (piano) and guitar page sources to each song.
+
+    With language="other", a bilingual outline title ("English/Other") is matched on its
+    second half, so only versions already printed in the uploaded books are used; nothing
+    is translated. Songs without such a version fall back to English and are flagged.
+    """
     out = []
     for song in songs:
-        hits = _entry_hits(lib, song, outline_date)
+        has_other = "/" in (song.get("title") or "")
+        hits = []
+        used_other = False
+        if language != "english" and has_other:
+            hits = _entry_hits(lib, song, outline_date, 1)
+            used_other = bool(hits)
+        if not hits:
+            hits = _entry_hits(lib, song, outline_date)
         primary = next(
             (h for ed in PIANO_EDITIONS for h in hits if h[0].get("edition") == ed), None
         )
@@ -326,6 +365,8 @@ def match_songs(lib, songs, outline_date):
         if primary is None and guitar is not None:
             primary, guitar = guitar, None  # guitar-only book: still better than nothing
         item = dict(song)
+        item["language"] = "other" if used_other else "english"
+        item["english_only"] = bool(language != "english" and has_other and not used_other)
         item["primary"] = _source(primary)
         item["guitar"] = _source(guitar)
         item["include"] = bool(primary)
@@ -344,6 +385,7 @@ def _source(hit):
         "start": e["start"],
         "end": e["end"],
         "entry_title": e["title"],
+        "entry_number": e.get("number", ""),
     }
 
 

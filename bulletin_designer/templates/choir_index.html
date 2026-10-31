@@ -6,6 +6,7 @@
 <form method="post" action="{{ url_for('choir_outline') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <label for="o-pdf">Liturgy.com music outline (PDF)</label><input id="o-pdf" type="file" name="outline_pdf" accept="application/pdf"><br>
 <label for="o-txt">...or paste the outline text</label><textarea id="o-txt" name="outline_text" rows="5" style="width:100%"></textarea><br>
+<label for="o-lang">Language</label> <select id="o-lang" name="language"><option value="english">English</option><option value="other">Other language where the books include it (e.g. Spanish)</option></select><br>
 <button class="btn">Read outline and match songs</button></form>
 <p class="small">If the outline changes, upload the new one for the same Sunday: the review screen shows which songs changed and the packet and its link are replaced.</p>
 <h2>Published packets</h2>

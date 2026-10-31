@@ -16,6 +16,7 @@ LABEL_KIND = {
     "Final Song or Hymn": "going_forth", "Final Song": "going_forth", "Recessional": "going_forth",
     "Responsorial Psalm": "songs", "Gospel Acclamation": "songs",
 }
+MASS_PARTS = {"Penitential Act", "Glory to God", "Holy", "Mystery of Faith", "Amen", "Lamb of God", "Lord's Prayer"}
 CODE_RE = re.compile(r"\b([A-Z]{2,4}\d{2})\s*-\s*(\d+)\b")
 DATE_RE = re.compile(r"([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})")
 
@@ -45,7 +46,10 @@ def _parse_row(label, text):
     groups = re.findall(r"\(([^)]*)\)", body)
     setting = next((g for g in groups if re.search(r"\bmass of\b", g, re.I)), "")
     composer = next((g for g in reversed(groups) if g != setting and not g.isupper()), "")
-    return {"label": label, "title": title, "setting": re.sub(r"(?i)^mass of\s+", "", setting).strip(), "composer": composer,
+    full = title
+    if label not in MASS_PARTS and "/" in title:
+        title = title.split("/")[0].strip()  # English title only
+    return {"label": label, "title": title, "title_full": full, "setting": re.sub(r"(?i)^mass of\s+", "", setting).strip(), "composer": composer,
             "book": code.group(1) if code else "", "number": code.group(2) if code else "",
             "kind": LABEL_KIND.get(label, "")}
 

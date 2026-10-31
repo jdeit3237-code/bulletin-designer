@@ -8,9 +8,10 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from werkzeug.utils import secure_filename
 
 try:
-    from . import choir
+    from . import choir, lyric_check
 except ImportError:  # run as a script
     import choir
+    import lyric_check
 
 
 def register(app, need, need_area):
@@ -56,7 +57,8 @@ def register(app, need, need_area):
         if not parsed["songs"]:
             flash("No songs were found in that outline.", "error")
             return redirect(url_for("choir_index"))
-        songs = choir.match_songs(choir.load_library(current_app), parsed["songs"], parsed["header"]["date"])
+        songs = choir.match_songs(choir.load_library(current_app), parsed["songs"], parsed["header"]["date"],
+                                  "other" if request.form.get("language") == "other" else "english")
         prev = choir.previous_packet(current_app, parsed["header"]["date"])
         changes = None
         if prev:
@@ -73,7 +75,9 @@ def register(app, need, need_area):
         data = choir.load_draft(current_app, draft_id)
         if not data:
             abort(404)
-        return render_template("choir_draft.html", draft_id=draft_id, **data)
+        results = {i: lyric_check.check_song(current_app, s) for i, s in enumerate(data["songs"]) if s.get("primary")}
+        mismatches = sum(1 for r in results.values() if r["status"] == "review")
+        return render_template("choir_draft.html", draft_id=draft_id, checks=results, mismatches=mismatches, **data)
 
     @app.route("/choir/draft/<draft_id>/build", methods=["POST"])
     @manage
@@ -84,6 +88,11 @@ def register(app, need, need_area):
         for i, song in enumerate(data["songs"]):
             song["include"] = request.form.get(f"include_{i}") == "1" and bool(song["primary"])
             song["guitar_on"] = request.form.get(f"guitar_{i}", "1") == "1"
+        _, blocking = lyric_check.check_week(current_app, data["songs"])
+        if blocking and request.form.get("override") != "1":
+            flash("Not published: lyrics may not match the music for " + "; ".join(
+                f"{b['title']} ({b['detail']})" for b in blocking), "error")
+            return redirect(url_for("choir_draft", draft_id=draft_id))
         pdf, missing = choir.build_packet(current_app, data["header"], data["songs"], request.form.get("include_guitar") == "1")
         choir.publish_packet(current_app, data["header"], pdf, data["songs"])
         if missing:
