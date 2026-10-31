@@ -58,6 +58,73 @@ def repeat_refrain(parts):
     return out
 
 
+READING_HEAD_RE = re.compile(
+    r"^[\s*_#]*(?P<h>(?:first|second|third)\s+reading|reading\s*(?:1|2|3|i{1,3}|one|two|three)|responsorial\s+psalm|psalm|"
+    r"gospel\s+acclamation|alleluia|gospel)\s*[:.\-]?[\s*_]*$", re.I)
+R_LINE_RE = re.compile(r"^\s*(?:\u211f|R\s*[./:])\s*", re.I)
+_ORDINAL = {"1": "First", "i": "First", "one": "First", "2": "Second", "ii": "Second", "two": "Second", "3": "Third", "iii": "Third", "three": "Third"}
+
+
+def reading_title(head):
+    """Canonical slide title for a readings-file heading (Reading 1 -> First Reading)."""
+    h = re.sub(r"\s+", " ", head.strip()).lower()
+    m = re.match(r"reading (\w+)$", h)
+    if m:
+        return _ORDINAL.get(m.group(1), m.group(1).title()) + " Reading"
+    return {"psalm": "Responsorial Psalm", "alleluia": "Gospel Acclamation"}.get(h, h.title())
+
+
+def reading_sections(raw):
+    """Split a readings file on its heading lines into [(title, parts)]; None when no headings are found.
+
+    Responsorial Psalm and Gospel Acclamation: each 'R.' response is its own slide, with the verses between."""
+    sections, title, buf = [], None, []
+
+    def flush():
+        if title is None:
+            return
+        text = "\n".join(buf).strip()
+        if title == "Gospel Acclamation":
+            lines = [x for x in text.splitlines() if not re.match(r"^[\s*_]*(?:\u211f|R\s*[./:])?\s*(?:alleluia|praise to you)\b[\s.,!*_]*(?:alleluia[\s.,!*_]*)*$", x, re.I)]
+            parts = [x.strip() for x in re.split(r"\n\s*\n", "\n".join(lines)) if x.strip()]
+            sections.append((title, parts))
+            return
+        if title == "Responsorial Psalm":
+            text = re.sub(r"^[ \t]*((?:\u211f|R\s*[./:])[^\n]*)$", r"\n\1\n", text, flags=re.M | re.I)
+        parts = [x.strip() for x in re.split(r"\n\s*\n", text) if x.strip()]
+        if title == "Responsorial Psalm":
+            parts = [R_LINE_RE.sub("", p) if R_LINE_RE.match(p) else p for p in parts]
+            raw_resp = [p for p in re.findall(r"^[ \t]*(?:\u211f|R\s*[./:])\s*(.+)$", text, flags=re.M | re.I)]
+            if raw_resp:
+                resp = raw_resp[0].strip()
+                out = []
+                for p in parts:
+                    if p == resp:
+                        out.append(p)
+                    else:
+                        out.append(p)
+                        out.append(resp)
+                dedup = []
+                for p in out:
+                    if dedup and dedup[-1] == p == resp:
+                        continue
+                    dedup.append(p)
+                if dedup[0] != resp:
+                    dedup.insert(0, resp)
+                parts = dedup
+        sections.append((title, parts))
+
+    for line in raw.splitlines():
+        m = READING_HEAD_RE.match(line)
+        if m:
+            flush()
+            title, buf = reading_title(m.group("h")), []
+        elif title is not None:
+            buf.append(line)
+    flush()
+    return sections or None
+
+
 def no_orphans(text):
     """Join the last two words of every line with a non-breaking space so a wrapped line never ends on one lone word."""
     out = []

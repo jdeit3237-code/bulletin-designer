@@ -165,3 +165,43 @@ def test_refrain_between_verses_and_numbers_removed():
     assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"] or out.count("Refrain: Sing") >= 3
     out = repeat_refrain(["Refrain line", "1 First", "2 Second"])
     assert out == ["Refrain line", "First", "Refrain line", "Second", "Refrain line"]
+
+
+def test_reading_sections_titles_and_response_slides():
+    from bulletin_designer.outline import reading_sections
+    secs = dict(reading_sections("Reading 1\nText one.\n\nResponsorial Psalm\nR. Lord, hear.\nVerse A.\nR. Lord, hear.\nVerse B.\n\nReading 2\nText two.\n\nGospel Acclamation\nR. Alleluia.\nCome to me.\n"))
+    assert list(secs) == ["First Reading", "Responsorial Psalm", "Second Reading", "Gospel Acclamation"]
+    assert secs["Responsorial Psalm"] == ["Lord, hear.", "Verse A.", "Lord, hear.", "Verse B.", "Lord, hear."]
+    assert secs["Gospel Acclamation"] == ["Come to me."]
+    assert reading_sections("no headings here") is None
+
+
+def test_duplicate_songs_in_several_sections_appear_once(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    for kind in ("entrance", "songs", "going_forth"):
+        c.post("/slides", data={"csrf": t, "kind": kind, "date": "2026-11-01",
+                                "files": (io.BytesIO(b"Unique lyric line here"), "For_All_the_Saints.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert page.count("Unique lyric line") == 1
+
+
+def test_readings_file_in_preview_uses_section_titles(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    txt = b"Reading 1\nA reading.\n\nResponsorial Psalm\nR. Lord, hear.\nVerse A.\n\nReading 2\nAnother reading.\n"
+    c.post("/slides", data={"csrf": t, "kind": "readings", "date": "2026-11-01", "files": (io.BytesIO(txt), "Readings.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "First Reading" in page and "Second Reading" in page and "Responsorial Psalm" in page and "Reading 1" not in page
+
+
+def test_standard_pptx_slides_appear_in_preview(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    p = Presentation()
+    s = p.slides.add_slide(p.slide_layouts[5]); s.shapes.title.text = "Lamb of God"
+    buf = io.BytesIO(); p.save(buf); buf.seek(0)
+    t = tok(c, "/slides")
+    c.post("/slides", data={"csrf": t, "kind": "standard", "files": (buf, "Lamb_of_God.pptx")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "Lamb of" in page
