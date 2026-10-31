@@ -984,7 +984,7 @@ def create_app(config=None):
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
             hs = {}
             for page in doc.pages:
-                for box in page._page_box.descendants(True):
+                for box in page._page_box.descendants():
                     el = getattr(box, "element", None)
                     m = el.get("data-m") if el is not None else None
                     if m and m not in hs:
@@ -3380,12 +3380,12 @@ def create_app(config=None):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
         out = {}
         for i, page in enumerate(doc.pages):
-            for box in page._page_box.descendants(True):
+            for box in page._page_box.descendants():
                 el = getattr(box, "element", None)
                 if el is None or box.element_tag != "div" or "pg-body" not in (el.get("class") or "").split():
                     continue
                 limit = box.content_box_y() + box.height
-                low = max((d.position_y + d.margin_height() for d in box.descendants(True) if getattr(d, "height", None) is not None), default=0)
+                low = max((d.position_y + d.margin_height() for d in box.descendants() if getattr(d, "height", None) is not None), default=0)
                 if low > limit + 1:
                     out[i] = low - limit
                 break
