@@ -44,6 +44,16 @@ def repeat_refrain(parts):
     return out
 
 
+ANNOUNCE_RE = re.compile(r"^[\s*_]*(lector\s*:?\s*)?(?=our parish announcements)", re.I)
+
+
+def announcements_from(parts):
+    """Keep a Word script from 'Our Parish Announcements this week' onward (dropping the lector cue)."""
+    for i, part in enumerate(parts):
+        if ANNOUNCE_RE.match(part):
+            return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
+    return parts
+
 def read_text(path):
     """Read a text file saved as UTF-8 (with or without BOM) or Windows-1252, without junk characters."""
     with open(path, "rb") as f:
