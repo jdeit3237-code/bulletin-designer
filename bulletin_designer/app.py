@@ -3830,20 +3830,8 @@ def create_app(config=None):
                         continue
                     shutil.copyfile(os.path.join(slides_root, "songs", n), os.path.join(dest, out))
                     auto.append([kind, out])
-            if status == "missing" and song["kind"] in ("psalm", "acclamation") and routes_choir:
-                try:
-                    pages = routes_choir.choir.book_page_images(app, song, date.fromisoformat(mass_date))
-                except Exception:
-                    pages = []
-                dest = slides_dir("notation", mass_date)
-                for i, png in enumerate(pages, 1):
-                    os.makedirs(dest, exist_ok=True)
-                    out = secure_filename(f"{song['label']}-book-page-{i}.png")
-                    with open(os.path.join(dest, out), "wb") as f:
-                        f.write(png)
-                    auto.append(["notation", out])
-                if pages:
-                    status = "found"
+            if status == "missing" and song["kind"] in ("psalm", "acclamation"):
+                status = "in readings"  # refrain/acclamation text comes with the uploaded readings
             report.append(dict(song, status=status))
         os.makedirs(os.path.dirname(outline_path(mass_date)), exist_ok=True)
         with open(outline_path(mass_date), "w") as f:
