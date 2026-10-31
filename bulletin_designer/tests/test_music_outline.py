@@ -224,3 +224,11 @@ def test_slides_follow_outline_order_with_blanks(app):
     order = ["ENTRANCE WORDS", "FIRSTTEXT", "PSALMRESP", "SECONDTEXT", "GOSPELTEXT", "HOLY WORDS"]
     pos = [page.index(w) for w in order]
     assert pos == sorted(pos)
+
+
+def test_readings_split_into_one_or_two_sentence_slides():
+    from bulletin_designer.outline import reading_sections
+    body = " ".join(f"This is sentence number {i} of the reading." for i in range(12))
+    secs = dict(reading_sections("Reading 1\nRevelation 7:2-4\n" + body + "\n\nResponsorial Psalm\nR. (see 6) Lord, hear.\nVerse A.\n"))
+    assert len(secs["First Reading"]) >= 3 and all(len(p) <= 220 for p in secs["First Reading"])
+    assert secs["Responsorial Psalm"][0] == "Lord, hear."
