@@ -7,7 +7,7 @@
 <li>Pick the Mass date, then upload the week's songs, readings, announcements and any special slides.</li>
 <li>Tick bulletin graphics you want, press <strong>Save ticked graphics</strong>.</li>
 <li>Press <strong>Preview slides</strong> to check every slide, then <strong>Download PowerPoint</strong>.</li></ol>
-<p><a class="btn" href="{{ url_for('slides_year') }}">See the whole church year</a></p>
+<p><a class="btn" href="{{ url_for('slides_library') }}">Slide library</a> <a class="btn" href="{{ url_for('slides_year') }}">See the whole church year</a></p>
 <h2>Standard slides (included every week)</h2>
 {% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>{% else %}<p class="small">Nothing uploaded yet.</p>{% endif %}{% endmacro %}
@@ -17,6 +17,35 @@
 <h2>This week</h2>
 <form method="get"><label for="date">Mass date</label><input id="date" type="date" name="date" value="{{ mass_date }}" required> <button class="btn">Open week</button>
 {% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
+{% if mass_date %}
+<p><strong>Status of this week's slides: {{ status }}</strong>
+<form method="post" action="{{ url_for('slides_status') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="back" value="week">
+{% if status == 'Ready to use' %}<button class="btn secondary" name="ready" value="0">Back to in progress</button>{% else %}<button class="btn" name="ready" value="1">Mark ready to use</button>{% endif %}</form></p>
+<h3>Design for this week</h3>
+<p class="small">The look changes automatically every week. Not what you wanted? Change any choice below and save, then preview or download again.</p>
+<form method="post" action="{{ url_for('slides_design') }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<label for="d-lay">Layout</label><select id="d-lay" name="layout">{% for l in layouts %}<option{% if l == concept.layout %} selected{% endif %}>{{ l }}</option>{% endfor %}</select><br>
+<label for="d-acc">Accent</label><select id="d-acc" name="accent">{% for a in accents %}<option{% if a == concept.accent %} selected{% endif %}>{{ a }}</option>{% endfor %}</select><br>
+<label for="d-col">Background color</label><input id="d-col" type="color" name="color" value="#{{ concept.color or '14527A' }}"> <label for="d-sc">Text size %</label><input id="d-sc" type="number" name="scale" min="70" max="140" value="{{ concept.scale }}"><br>
+<p class="small">Scene idea for this week: {{ concept.scene }}. Add your own photo under "Reference photos" in a song section to use it as the background.</p>
+<button class="btn">Save design</button> <button class="btn secondary" name="reset" value="1">Back to automatic</button></form>
+<h3>Music outline (fills in the songs automatically)</h3>
+<p class="small">Upload the weekly Liturgy.com music outline (PDF) or paste its text. Songs found in the song library below are added to the Entrance, Gifts, Communion, Going Forth and other sections. Upload a changed outline any time: only the song sections it filled are replaced; files you added yourself are left alone.</p>
+<form method="post" action="{{ url_for('slides_outline') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<label for="ol-pdf">Outline PDF</label><input id="ol-pdf" type="file" name="outline_pdf" accept="application/pdf"><br>
+<label for="ol-txt">...or paste the outline text</label><textarea id="ol-txt" name="outline_text" rows="4" style="width:100%"></textarea><br>
+<button class="btn">Read outline and fill slides</button></form>
+{% if outline %}<table><tr><th>Part</th><th>Song</th><th>Slides</th></tr>
+{% for s in outline.songs %}<tr><td>{{ s.label }}</td><td>{{ s.title }}{% if s.number %} ({{ s.book }}-{{ s.number }}){% endif %}</td><td>{% if s.status == 'found' %}Added{% elif s.status == 'mass part' %}Mass part (standard slides){% else %}<strong>Not in song library</strong>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+{% endif %}
+<h2>Song library (lyrics and music, kept for every week)</h2>
+<p class="small">Add a song once: type its title (and its hymnal number, such as BB26-718, if it has one), then paste the lyrics (blank line between slides) and/or choose a notation image. After that the outline finds it automatically.</p>
+<form method="post" action="{{ url_for('slides_songs') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<label for="sl-title">Song title</label><input id="sl-title" name="title" required> <label for="sl-code">Hymnal number (optional)</label><input id="sl-code" name="code" placeholder="BB26-718"><br>
+<label for="sl-lyrics">Lyrics</label><textarea id="sl-lyrics" name="lyrics" rows="5" style="width:100%"></textarea><br>
+<label for="sl-files">...or files (.txt lyrics, .png/.jpg notation)</label><input id="sl-files" type="file" name="files" multiple> <button class="btn">Save song</button></form>
+{% if library %}<details><summary>{{ library|length }} songs in the library</summary><ul>{% for k, names in library.items() %}<li>{{ k }}: {% for n in names %}{{ n }}
+<form method="post" action="{{ url_for('slides_songs') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form> {% endfor %}</li>{% endfor %}</ul></details>{% endif %}
 {% if mass_date %}
 {% for k, label in kinds if k != 'standard' and not k.startswith('ref_') %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}
 {% if k in ['entrance','gifts','communion','praise','songs','prelude','going_forth'] %}<details><summary>Reference photos for this section (optional, used as background)</summary>{{ filelist('ref_'+k) }}{{ uploader('ref_'+k, 'Reference photo') }}</details>{% endif %}{% endfor %}

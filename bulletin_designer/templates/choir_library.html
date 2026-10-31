@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Choir song library{% endblock %}
+{% block content %}
+<h1>Choir song library (songbooks)</h1>
+<p><a class="btn secondary" href="{{ url_for('choir_index') }}">Back</a></p>
+<p class="small">Books are stored privately on the server and are never public or committed to the repository. List one song per line as <code>number | title | pages</code> (printed page numbers), for example <code>628 | This Day God Gives Me | 412-413</code>. For Respond &amp; Acclaim add <code>| psalm | 2026-11-08</code> or <code>| acclamation | 2026-11-08</code>. Page offset = PDF page number minus printed page number (0 if they match). Name Mass settings like the outline, e.g. "Mass of Saint Ann".</p>
+{% for b in books %}<h2>{{ b.name }} ({{ b.edition }}){% if b.code %} {{ b.code }}{% endif %}{% if not b.file_ok %} - PDF file missing{% endif %}</h2>
+<form method="post" action="{{ url_for('choir_library_entries', book_id=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+<label for="off-{{ b.id }}">Page offset</label><input id="off-{{ b.id }}" type="number" name="page_offset" value="{{ b.page_offset }}"><br>
+<label for="en-{{ b.id }}">Entries</label><textarea id="en-{{ b.id }}" name="entries" rows="6" style="width:100%;font-family:monospace">{{ b.entries_text }}</textarea><br><button class="btn">Save entries</button></form>
+<form method="post" action="{{ url_for('choir_library_delete', book_id=b.id) }}" onsubmit="return confirm('Remove this book and its PDF?');"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Remove book</button></form><hr>{% endfor %}
+<h2>Add a book</h2>
+<form method="post" action="{{ url_for('choir_library_add') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}">
+<label for="n">Name</label><input id="n" name="name" required placeholder="Breaking Bread 2026"> <label for="c">Code</label><input id="c" name="code" placeholder="BB26">
+<label for="e">Edition</label><select id="e" name="edition">{% for e in editions %}<option value="{{ e }}">{{ e|title }}</option>{% endfor %}</select>
+<label for="po">Page offset</label><input id="po" type="number" name="page_offset" value="0"><br>
+<label for="pf">PDF upload</label><input id="pf" type="file" name="pdf" accept="application/pdf"><br>
+<label for="ex">Or a file already in the server's private books folder</label><input id="ex" name="existing_file"><br>
+<label for="en">Entries</label><textarea id="en" name="entries" rows="6" style="width:100%;font-family:monospace" placeholder="628 | This Day God Gives Me | 412-413"></textarea><br>
+<button class="btn">Add book</button></form>
+{% endblock %}

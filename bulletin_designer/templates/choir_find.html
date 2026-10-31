@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Find music{% endblock %}
+{% block content %}
+<h1>Find music</h1>
+<form method="get" action="{{ url_for('choir_find') }}">
+<p><label for="q">1. Type a song name or number</label><br><input id="q" name="q" value="{{ q }}" placeholder="Example: Look Beyond or 330" style="font-size:1.2rem;width:100%"></p>
+<p><label for="book">2. Pick a book (or leave on All books)</label><br><select id="book" name="book" style="font-size:1.2rem"><option value="">All books</option>
+{% for b in books %}<option value="{{ b.id }}"{% if b.id == book_id %} selected{% endif %}>{{ b.name }} ({{ b.edition|title }})</option>{% endfor %}</select></p>
+<button class="btn">Search</button></form>
+{% if searched %}{% if not results %}<p>No songs found. Try fewer letters, such as just one word of the title.</p>{% endif %}
+{% for r in results %}<p style="font-size:1.15rem"><strong>{{ r.title }}</strong><br><span class="small">{{ r.book_name }} - {{ r.edition|title }}{% if r.number %} - #{{ r.number }}{% endif %} - pages {{ r.start }}{% if r.end != r.start %}-{{ r.end }}{% endif %}</span><br>
+<a class="btn" href="{{ url_for('choir_find_download', book_id=r.book_id, idx=r.idx) }}">Download</a></p><hr>{% endfor %}{% endif %}
+{% endblock %}

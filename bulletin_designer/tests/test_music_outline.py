@@ -1,0 +1,85 @@
+import io
+import os
+
+from bulletin_designer import outline
+from tests.test_bulletin import setup_admin, tok, app  # noqa: F401
+
+OUTLINE = """ALL SAINTS
+November 01, 2026
+Mass of St. Ann
+INTRODUCTORY RITES
+Entrance For All the Saints (SINE NOMINE) BB26-718
+Penitential Act Kyrie (Mass of Saint Ann, Ed Bolduc)
+LITURGY OF THE EUCHARIST
+Presentation of the Gifts Come to Me (Gregory Norbet) BB26-538
+COMMUNION RITE
+Communion I Am the Bread of Life (Suzanne Toolan) BB26-355
+CONCLUDING RITES
+Final Song Companions on the Journey (Carey Landry) BB26-459
+"""
+
+
+def test_parse():
+    p = outline.parse_outline(OUTLINE)
+    assert p["date"] == "2026-11-01"
+    assert [s["kind"] for s in p["songs"]] == ["entrance", "", "gifts", "communion", "going_forth"]
+    assert p["songs"][0]["number"] == "718"
+
+
+def test_outline_fills_slides_and_replaces_on_change(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "For all the saints\n\nwho from their labors rest"})
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me"})
+    r = c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    assert b"Not in song library" in r.data
+    plan = c.get("/slides/preview?date=2026-11-01")
+    assert b"For all the saints" in plan.data and b"Come to me" in plan.data
+    changed = OUTLINE.replace("Come to Me (Gregory Norbet) BB26-538", "Another Hymn (X) BB26-1")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": changed})
+    plan = c.get("/slides/preview?date=2026-11-01")
+    assert b"For all the saints" in plan.data and b"Come to me" not in plan.data
+
+
+def test_pptx_applies_weekly_concept_for_every_week(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "lyrics": "For all the saints\n\nwho rest"})
+    for day in range(1, 43, 7):
+        d = f"2026-{11 + (day - 1) // 31:02d}-{(day - 1) % 31 + 1:02d}" if day < 32 else "2026-12-%02d" % (day - 31)
+        c.post("/slides/outline", data={"csrf": t, "date": d, "outline_text": OUTLINE})
+        r = c.get(f"/slides/pptx?date={d}")
+        assert r.status_code == 200 and r.data[:2] == b"PK", d
+
+
+def test_design_overrides_saved(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "A Song", "lyrics": "la la"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-08", "outline_text": OUTLINE})
+    c.post("/slides/design", data={"csrf": t, "date": "2026-11-08", "layout": "centered text with a thin gold border",
+                                   "accent": "rope border", "color": "#336699", "scale": "120"})
+    page = c.get("/slides?date=2026-11-08").data
+    assert b'value="#336699"' in page and b'value="120"' in page
+    assert c.get("/slides/pptx?date=2026-11-08").data[:2] == b"PK"
+    c.post("/slides/design", data={"csrf": t, "date": "2026-11-08", "reset": "1"})
+    assert b'value="120"' not in c.get("/slides?date=2026-11-08").data
+
+
+def test_slide_library_status(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    assert b"Not started" in c.get("/slides/library").data
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "lyrics": "For all the saints"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE})
+    page = c.get("/slides/library").data
+    assert b"2026-11-01" in page and b"In progress" in page
+    c.post("/slides/status", data={"csrf": t, "date": "2026-11-01", "ready": "1"})
+    assert b"Ready to use" in c.get("/slides/library").data
+    assert b"Ready to use" in c.get("/slides?date=2026-11-01").data
+
+
+def test_starter_pptx_for_not_started_week(app):
+    c = setup_admin(app)
+    r = c.get("/slides/pptx?date=2026-12-06")
+    assert r.status_code == 200 and r.data[:2] == b"PK"
