@@ -165,3 +165,12 @@ def test_refrain_between_verses_and_numbers_removed():
     assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"] or out.count("Refrain: Sing") >= 3
     out = repeat_refrain(["Refrain line", "1 First", "2 Second"])
     assert out == ["Refrain line", "First", "Refrain line", "Second", "Refrain line"]
+
+
+def test_reading_sections_titles_and_response_slides():
+    from bulletin_designer.outline import reading_sections
+    secs = dict(reading_sections("Reading 1\nText one.\n\nResponsorial Psalm\nR. Lord, hear.\nVerse A.\nR. Lord, hear.\nVerse B.\n\nReading 2\nText two.\n\nGospel Acclamation\nR. Alleluia.\nCome to me.\n"))
+    assert list(secs) == ["First Reading", "Responsorial Psalm", "Second Reading", "Gospel Acclamation"]
+    assert secs["Responsorial Psalm"] == ["Lord, hear.", "Verse A.", "Lord, hear.", "Verse B.", "Lord, hear."]
+    assert secs["Gospel Acclamation"] == ["Come to me."]
+    assert reading_sections("no headings here") is None
