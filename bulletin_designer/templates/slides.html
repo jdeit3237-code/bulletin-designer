@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block title %}Mass slides{% endblock %}
+{% block content %}
+<h1>Mass slides</h1>
+<p>Upload the week's songs, readings and announcements. The standard slides are kept here and are always included. Then download one package for the AI tool. See the <a href="{{ url_for('slides_guide') }}">Slides guide</a>.</p>
+<h2>Standard slides (included every week)</h2>
+{% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>
+<form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>{% else %}<p class="small">Nothing uploaded yet.</p>{% endif %}{% endmacro %}
+{% macro uploader(kind, label) %}<form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<label for="up-{{ kind }}">Add files: {{ label }}</label><input id="up-{{ kind }}" type="file" name="files" multiple> <button class="btn">Upload</button></form>{% endmacro %}
+{{ filelist('standard') }}{{ uploader('standard', 'standard slides') }}
+<h2>This week</h2>
+<form method="get"><label for="date">Mass date</label><input id="date" type="date" name="date" value="{{ mass_date }}" required> <button class="btn">Open week</button>
+{% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
+{% if mass_date %}
+{% for k, label in kinds if k != 'standard' %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}{% endfor %}
+<p><a class="btn" href="{{ url_for('slides_package', date=mass_date) }}">Download package for {{ mass_date }}</a></p>
+{% endif %}
+{% endblock %}

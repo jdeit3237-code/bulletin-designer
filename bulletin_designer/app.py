@@ -23,7 +23,7 @@ from email.message import EmailMessage
 from functools import wraps
 
 from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
-                   send_from_directory, session, url_for)
+                   send_file, send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash as _gen
 
@@ -3753,6 +3753,75 @@ def create_app(config=None):
     @app.route("/slides-guide")
     def slides_guide():
         return render_template("slides_guide.html")
+
+    slides_root = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), "slides_files")
+    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("songs", "Songs"), ("readings", "Readings"),
+                   ("announcements", "Announcements"), ("notation", "Music notation"))
+
+    def slides_dir(kind, mass_date=""):
+        return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
+
+    def slides_list(kind, mass_date=""):
+        d = slides_dir(kind, mass_date)
+        return sorted(os.listdir(d)) if os.path.isdir(d) else []
+
+    @app.route("/slides", methods=["GET", "POST"])
+    @need("admin", "editor")
+    def slides():
+        mass_date = request.values.get("date") or ""
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            mass_date = ""
+        if request.method == "POST":
+            kind = request.form.get("kind")
+            action = request.form.get("action")
+            if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not mass_date):
+                flash("Choose the Mass date first.", "error")
+                return redirect(url_for("slides", date=mass_date))
+            d = slides_dir(kind, mass_date)
+            if action == "delete":
+                name = secure_filename(request.form.get("name", ""))
+                if name and os.path.isfile(os.path.join(d, name)):
+                    os.remove(os.path.join(d, name))
+                    flash(f"Removed {name}.")
+            else:
+                os.makedirs(d, exist_ok=True)
+                n = 0
+                for f in request.files.getlist("files"):
+                    name = secure_filename(f.filename or "")
+                    if name:
+                        f.save(os.path.join(d, name))
+                        n += 1
+                flash(f"Uploaded {n} file(s)." if n else "Choose at least one file.", "" if n else "error")
+            return redirect(url_for("slides", date=mass_date))
+        dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
+        return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
+                               files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date})
+
+    @app.route("/slides/file/<kind>/<name>")
+    @need("admin", "editor")
+    def slides_file(kind, name):
+        mass_date = request.args.get("date", "")
+        if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date)):
+            abort(404)
+        return send_from_directory(slides_dir(kind, mass_date), secure_filename(name), as_attachment=True)
+
+    @app.route("/slides/package")
+    @need("admin", "editor")
+    def slides_package():
+        """One ZIP with the master prompt, the standard slides and this week's uploads, ready to hand to the AI tool."""
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.write(os.path.join(app.root_path, "static", "slides_master_prompt.txt"), "00_Master_Prompt.txt")
+            z.writestr("00_README.txt", f"Mass date: {mass_date}\nGive this whole folder to the AI tool and ask for Stages 1-3 only (inventory, theme, previews). "
+                       "Folders: standard (slides used every week), songs, readings, announcements, notation.\n")
+            for kind, _ in SLIDE_KINDS:
+                for name in slides_list(kind, mass_date):
+                    z.write(os.path.join(slides_dir(kind, mass_date), name), f"{kind}/{name}")
+        buf.seek(0)
+        return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=f"Mass-slides-package-{mass_date}.zip")
 
     @app.route("/style-guide")
     def style_guide():

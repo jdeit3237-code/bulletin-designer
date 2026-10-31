@@ -67,3 +67,13 @@ def test_slides_guide_page(app):
     r = c.get("/slides-guide")
     assert r.status_code == 200 and "bible.usccb.org/readings/calendar" in r.text
     assert "Slides guide" in c.get("/style-guide").text
+
+
+def test_mass_slides_package(app):
+    import io, zipfile
+    c = setup_admin(app); t = tok(c, "/slides")
+    c.post("/slides", data={"csrf": t, "kind": "standard", "files": (io.BytesIO(b"x"), "welcome.pptx")}, content_type="multipart/form-data")
+    c.post("/slides", data={"csrf": t, "kind": "songs", "date": "2026-11-01", "files": (io.BytesIO(b"y"), "entrance.docx")}, content_type="multipart/form-data")
+    z = zipfile.ZipFile(io.BytesIO(c.get("/slides/package?date=2026-11-01").data))
+    assert {"00_Master_Prompt.txt", "standard/welcome.pptx", "songs/entrance.docx"} <= set(z.namelist())
+    assert c.get("/slides/package?date=bad").status_code == 404
