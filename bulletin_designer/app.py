@@ -3756,8 +3756,8 @@ def create_app(config=None):
         return render_template("slides_guide.html")
 
     slides_root = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), "slides_files")
-    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("songs", "Songs"), ("readings", "Readings"),
-                   ("announcements", "Announcements"), ("notation", "Music notation"),
+    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("songs", "Songs"), ("readings", "Readings"),
+                   ("announcements", "Announcements"), ("notation", "Music notation"), ("going_forth", "Going Forth (after Mass, may be secular)"),
                    ("special", "Special slides (optional, this week only)"))
 
     def slides_dir(kind, mass_date=""):
