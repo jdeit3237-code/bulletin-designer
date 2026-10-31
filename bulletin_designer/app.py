@@ -4124,11 +4124,18 @@ def create_app(config=None):
             return "gloria" in n and season in ("Advent", "Lent") and not feast
 
         BLACK_BETWEEN = ("prelude", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "going_forth")
+        seen_songs = set()
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
         for kind in ("prelude", "standard", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
                     continue
+                if kind in SONG_KINDS or kind == "special":
+                    stem, _, ext0 = name.lower().rpartition(".")
+                    key = (re.sub(r"[^a-z0-9]+", "", stem), "img" if ext0 in ("png", "jpg", "jpeg") else ext0)
+                    if key in seen_songs:
+                        continue
+                    seen_songs.add(key)
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
                 if kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx") and len(plan) > 1 and plan[-1]["type"] != "blank":
@@ -4142,25 +4149,31 @@ def create_app(config=None):
                         raw = docx_text(path) if ext == "docx" else music_outline.read_text(path)
                     except Exception:
                         continue
-                    parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
-                    if ext == "docx" and kind == "announcements":
-                        parts = music_outline.announcements_from(parts)
-                    parts = music_outline.repeat_refrain(parts)
-                    if kind in ("readings", "announcements"):
-                        parts = [piece for part in parts for piece in music_outline.split_long(part)]
+                    groups = music_outline.reading_sections(raw) if kind == "readings" else None
+                    if not groups:
+                        parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
+                        if ext == "docx" and kind == "announcements":
+                            parts = music_outline.announcements_from(parts)
+                        parts = music_outline.repeat_refrain(parts)
+                        if kind in ("readings", "announcements"):
+                            parts = [piece for part in parts for piece in music_outline.split_long(part)]
+                        groups = [(label, parts)]
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
-                    for k, part in enumerate(parts):
-                        lines = part.splitlines()
-                        credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
-                        body = "\n".join(x for x in lines if not CREDIT_RE.match(x)).strip() or part
-                        item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 48 if len(body) > 140 else 56,
-                                "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
-                        if k == 0 and song:
-                            item["title"], item["subtitle"] = section, label
-                        elif k == 0 and kind in ("readings", "standard"):
-                            item["title"] = label
-                        plan.append(item)
+                    for g, (gtitle, parts) in enumerate(groups):
+                        if g and plan[-1]["type"] != "blank":
+                            plan.append({"type": "blank"})
+                        for k, part in enumerate(parts):
+                            lines = part.splitlines()
+                            credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
+                            body = "\n".join(x for x in lines if not CREDIT_RE.match(x)).strip() or part
+                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 48 if len(body) > 140 else 56,
+                                    "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
+                            if k == 0 and song:
+                                item["title"], item["subtitle"] = section, gtitle
+                            elif k == 0 and kind in ("readings", "standard"):
+                                item["title"] = gtitle
+                            plan.append(item)
         for pid in photo_ids:
             row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
             path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))

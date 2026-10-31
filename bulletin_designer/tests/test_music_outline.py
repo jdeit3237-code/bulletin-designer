@@ -174,3 +174,22 @@ def test_reading_sections_titles_and_response_slides():
     assert secs["Responsorial Psalm"] == ["Lord, hear.", "Verse A.", "Lord, hear.", "Verse B.", "Lord, hear."]
     assert secs["Gospel Acclamation"] == ["Come to me."]
     assert reading_sections("no headings here") is None
+
+
+def test_duplicate_songs_in_several_sections_appear_once(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    for kind in ("entrance", "songs", "going_forth"):
+        c.post("/slides", data={"csrf": t, "kind": kind, "date": "2026-11-01",
+                                "files": (io.BytesIO(b"Unique lyric line here"), "For_All_the_Saints.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert page.count("Unique lyric line") == 1
+
+
+def test_readings_file_in_preview_uses_section_titles(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    txt = b"Reading 1\nA reading.\n\nResponsorial Psalm\nR. Lord, hear.\nVerse A.\n\nReading 2\nAnother reading.\n"
+    c.post("/slides", data={"csrf": t, "kind": "readings", "date": "2026-11-01", "files": (io.BytesIO(txt), "Readings.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "First Reading" in page and "Second Reading" in page and "Responsorial Psalm" in page and "Reading 1" not in page
