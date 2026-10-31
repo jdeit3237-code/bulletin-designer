@@ -61,7 +61,7 @@ def repeat_refrain(parts):
 READING_HEAD_RE = re.compile(
     r"^[\s*_#]*(?P<h>(?:first|second|third)\s+reading|reading\s*(?:1|2|3|i{1,3}|one|two|three)|responsorial\s+psalm|psalm|"
     r"gospel\s+acclamation|alleluia|gospel)\s*[:.\-]?[\s*_]*$", re.I)
-R_LINE_RE = re.compile(r"^\s*(?:\u211f|R\s*[./:])\s*", re.I)
+R_LINE_RE = re.compile(r"^\s*(?:\u211f|R\s*[./:])\s*(?:\(see [^)]*\)\s*)?", re.I)
 _ORDINAL = {"1": "First", "i": "First", "one": "First", "2": "Second", "ii": "Second", "two": "Second", "3": "Third", "iii": "Third", "three": "Third"}
 
 
@@ -87,9 +87,10 @@ def reading_sections(raw):
         if title == "Gospel Acclamation":
             lines = [x for x in text.splitlines() if not re.match(r"^[\s*_]*(?:\u211f|R\s*[./:])?\s*(?:alleluia|praise to you)\b[\s.,!*_]*(?:alleluia[\s.,!*_]*)*$", x, re.I)]
             parts = [x.strip() for x in re.split(r"\n\s*\n", "\n".join(lines)) if x.strip()]
-            sections.append((title, parts))
+            sections.append((title, [piece for p in parts for piece in split_long(p)]))
             return
         if title == "Responsorial Psalm":
+            text = re.sub(r"\(see [^)]*\)\s*", "", text)
             text = re.sub(r"^[ \t]*((?:\u211f|R\s*[./:])[^\n]*)$", r"\n\1\n", text, flags=re.M | re.I)
         parts = [x.strip() for x in re.split(r"\n\s*\n", text) if x.strip()]
         if title == "Responsorial Psalm":
@@ -112,6 +113,7 @@ def reading_sections(raw):
                 if dedup[0] != resp:
                     dedup.insert(0, resp)
                 parts = dedup
+        parts = [piece for p in parts for piece in split_long(p)]
         sections.append((title, parts))
 
     for line in raw.splitlines():
@@ -158,30 +160,44 @@ def read_text(path):
         return raw.decode("cp1252", errors="replace")
 
 
-def split_long(part, limit=240):
-    """Break a long block of text into slide-sized pieces at line, then sentence, then word boundaries."""
-    if len(part) <= limit:
-        return [part]
-    pieces = []
-    for line in part.splitlines():
-        line = line.strip()
-        if len(line) <= limit:
-            pieces.append(line)
-        else:
-            pieces.extend(x for x in re.split(r"(?<=[.!?;:])\s+", line) if x)
+SOFT_BREAK_RE = re.compile(r"[,;:\u2014\u2013]\s+|\s+(?=(?:and|but|or|who|whom|which|that|for|so|because|when|while|then)\s)", re.I)
+
+
+def _soft_cut(sent, limit):
+    """Index to cut an over-long sentence: after the last comma/semicolon (or before a conjunction) that fits."""
+    best = 0
+    for m in SOFT_BREAK_RE.finditer(sent):
+        end = m.end() if m.group(0).strip() else m.start()
+        if end > limit:
+            break
+        if end >= limit * 0.35:
+            best = end
+    if best:
+        return best
+    cut = sent.rfind(" ", 0, limit)
+    return cut if cut > 0 else limit
+
+
+def split_long(part, limit=220):
+    """Break prose into slide-sized pieces: between sentences, or at a comma/semicolon/conjunction inside a long sentence."""
+    text = " ".join(x.strip() for x in part.splitlines() if x.strip())
+    if len(text) <= limit:
+        return [text] if text else []
+    sentences = [x for x in re.split(r"(?:(?<=[.!?])|(?<=[.!?][\"\u201d\u2019']))\s+", text) if x]
     out, cur = [], ""
-    for piece in pieces:
-        while len(piece) > limit:
-            cut = piece.rfind(" ", 0, limit) or limit
-            out.append((cur + "\n" + piece[:cut]).strip() if cur and len(cur) + cut < limit else piece[:cut])
-            if cur and len(cur) + cut < limit:
+    for sent in sentences:
+        while len(sent) > limit:
+            cut = _soft_cut(sent, limit)
+            if cur:
+                out.append(cur)
                 cur = ""
-            piece = piece[cut:].strip()
-        if cur and len(cur) + len(piece) + 1 > limit:
+            out.append(sent[:cut].strip())
+            sent = sent[cut:].strip()
+        if cur and len(cur) + len(sent) + 1 > limit:
             out.append(cur)
-            cur = piece
+            cur = sent
         else:
-            cur = (cur + "\n" + piece).strip() if cur else piece
+            cur = (cur + " " + sent) if cur else sent
     if cur:
         out.append(cur)
     return out

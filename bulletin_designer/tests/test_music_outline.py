@@ -205,3 +205,11 @@ def test_standard_pptx_slides_appear_in_preview(app):
     c.post("/slides", data={"csrf": t, "kind": "standard", "files": (buf, "Lamb_of_God.pptx")}, content_type="multipart/form-data")
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert "Lamb of" in page
+
+
+def test_readings_split_into_one_or_two_sentence_slides():
+    from bulletin_designer.outline import reading_sections
+    body = " ".join(f"This is sentence number {i} of the reading." for i in range(12))
+    secs = dict(reading_sections("Reading 1\nRevelation 7:2-4\n" + body + "\n\nResponsorial Psalm\nR. (see 6) Lord, hear.\nVerse A.\n"))
+    assert len(secs["First Reading"]) >= 3 and all(len(p) <= 220 for p in secs["First Reading"])
+    assert secs["Responsorial Psalm"][0] == "Lord, hear."
