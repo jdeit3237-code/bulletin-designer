@@ -101,3 +101,33 @@ def test_slides_package_includes_bulletin_graphics(app):
     assert page.status_code == 200 and 'name="photo" value="901"' in page.text
     z = zipfile.ZipFile(io.BytesIO(c.get("/slides/package?date=2026-11-01&photo=901").data))
     assert any(n.startswith("graphics/Food_Drive_901") for n in z.namelist())
+
+
+def test_week_concept_changes_weekly(app):
+    import io, zipfile
+    c = setup_admin(app); create_bulletin(c)
+    def info(d):
+        return zipfile.ZipFile(io.BytesIO(c.get(f"/slides/package?date={d}").data)).read("00_Week_Info.txt").decode()
+    a, b = info("2026-11-01"), info("2026-11-08")
+    assert "NEW CONCEPT" in a and a.split("NEW CONCEPT")[1] != b.split("NEW CONCEPT")[1]
+    assert a == info("2026-11-01")
+
+
+def test_slides_pptx_builds_from_text_and_png(app):
+    import io
+    from pptx import Presentation
+    from PIL import Image
+    c = setup_admin(app); create_bulletin(c)
+    t = tok(c, "/slides?date=2026-03-01")
+    buf = io.BytesIO(); Image.new("RGB", (400, 200), "white").save(buf, "PNG")
+    def up(kind, name, data):
+        c.post("/slides", data={"csrf": t, "kind": kind, "date": "2026-03-01", "files": (io.BytesIO(data), name)}, content_type="multipart/form-data")
+    up("standard", "Alleluia.txt", b"Alleluia, alleluia")
+    up("standard", "Kyrie.png", buf.getvalue())
+    up("songs", "Hymn.txt", b"Verse one\nline two\n\nVerse two")
+    r = c.get("/slides/pptx?date=2026-03-01")
+    assert r.status_code == 200
+    prs = Presentation(io.BytesIO(r.data))
+    text = " ".join(sh.text_frame.text for sl in prs.slides for sh in sl.shapes if sh.has_text_frame)
+    assert "Alleluia" not in text and "Verse two" in text
+    assert any(sh.shape_type == 13 for sl in prs.slides for sh in sl.shapes)

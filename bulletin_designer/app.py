@@ -3835,6 +3835,111 @@ def create_app(config=None):
             abort(404)
         return send_from_directory(slides_dir(kind, mass_date), secure_filename(name), as_attachment=True)
 
+    CONCEPT_SCENES = ("sunrise over a calm turquoise bay", "a fishing boat returning at golden hour", "mangrove roots reflecting evening light",
+                      "palm silhouettes against a glowing sunset", "a lighthouse above gentle waves", "clouds opening over the Keys horizon",
+                      "a quiet pier at first light", "shallow clear water with sunlit ripples", "a sailboat crossing a rose-gold sky",
+                      "seabirds gliding over the seven-mile bridge", "moonlight on still water", "a coral-pink dusk over the flats")
+    CONCEPT_LAYOUTS = ("full-bleed photo with a soft dark overlay and centered text", "left text panel over a blurred scene on the right",
+                       "framed cream panel over the scene", "gradient band across the lower third with the text above the horizon",
+                       "centered text with a thin gold border", "two-tone split: scene above, text panel below")
+    CONCEPT_ACCENTS = ("gold leaf edge", "wave line along the bottom", "small cross motif in a corner", "brush-stroke title banner",
+                       "soft light rays", "rope border")
+
+    def week_concept(mass_date):
+        """A different but repeatable design concept for each week, tied to the season's colors."""
+        d = date.fromisoformat(mass_date)
+        n = d.toordinal() // 7
+        return {"scene": CONCEPT_SCENES[n % len(CONCEPT_SCENES)], "layout": CONCEPT_LAYOUTS[(n * 5 + 1) % len(CONCEPT_LAYOUTS)],
+                "accent": CONCEPT_ACCENTS[(n * 7 + 2) % len(CONCEPT_ACCENTS)]}
+
+    SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
+
+    def build_pptx(mass_date, photo_ids=()):
+        """Editable 16:9 deck: title slide, then each uploaded file in Mass order. Images become full-slide pictures, text files one slide per paragraph."""
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+        from pptx.dml.color import RGBColor
+        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        li = liturgy.info(date.fromisoformat(mass_date))
+        season = li["season"]
+        bg = RGBColor.from_string(SEASON_BG.get(season, "14527A"))
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+        blank = prs.slide_layouts[6]
+
+        def text_slide(text, title=None, size=54):
+            sl = prs.slides.add_slide(blank)
+            sl.background.fill.solid(); sl.background.fill.fore_color.rgb = bg
+            top = 0.5
+            if title:
+                box = sl.shapes.add_shape(1, Inches(2.2), Inches(0.4), Inches(8.9), Inches(0.9))
+                box.fill.solid(); box.fill.fore_color.rgb = RGBColor(0xB3, 0x20, 0x2A); box.line.fill.background()
+                tf = box.text_frame; tf.text = title
+                tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+                tf.paragraphs[0].runs[0].font.size = Pt(34); tf.paragraphs[0].runs[0].font.bold = True
+                tf.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
+                top = 1.5
+            tb = sl.shapes.add_textbox(Inches(0.9), Inches(top), Inches(11.5), Inches(7.0 - top))
+            tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            for i, line in enumerate(text.splitlines() or [""]):
+                para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+                para.alignment = PP_ALIGN.CENTER
+                r = para.add_run(); r.text = line
+                r.font.size = Pt(size); r.font.bold = True; r.font.color.rgb = RGBColor(255, 255, 255)
+
+        def image_slide(path):
+            sl = prs.slides.add_slide(blank)
+            sl.background.fill.solid(); sl.background.fill.fore_color.rgb = RGBColor(0xFA, 0xF5, 0xE6)
+            from PIL import Image
+            with Image.open(path) as im:
+                w, h = im.size
+            sw, sh = prs.slide_width, prs.slide_height
+            scale = min(sw / w, sh / h)
+            pw, ph = int(w * scale), int(h * scale)
+            sl.shapes.add_picture(path, int((sw - pw) / 2), int((sh - ph) / 2), pw, ph)
+
+        def skip(name):
+            n = name.lower()
+            if "alleluia" in n and season == "Lent":
+                return True
+            return "gloria" in n and season in ("Advent", "Lent") and not (li["name"] and li["name"] not in SEASON_BG)
+
+        text_slide(li["name"] or f"Sunday in {season}", title=mass_date, size=60)
+        order = ("standard", "prelude", "songs", "readings", "notation", "announcements", "special", "going_forth")
+        for kind in order:
+            for name in slides_list(kind, mass_date):
+                if kind == "standard" and skip(name):
+                    continue
+                path = os.path.join(slides_dir(kind, mass_date), name)
+                ext = name.rsplit(".", 1)[-1].lower()
+                if ext in ("png", "jpg", "jpeg"):
+                    image_slide(path)
+                elif ext == "txt":
+                    label = os.path.splitext(name)[0].replace("_", " ")
+                    parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
+                    for i, part in enumerate(parts):
+                        text_slide(part, title=label if i == 0 and kind in ("songs", "readings", "standard") else None, size=48 if len(part) > 140 else 56)
+        for pid in photo_ids:
+            row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
+            path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
+            if path and os.path.isfile(path):
+                try:
+                    image_slide(path)
+                except Exception:
+                    pass
+        buf = io.BytesIO(); prs.save(buf); buf.seek(0)
+        return buf
+
+    @app.route("/slides/pptx")
+    @need()
+    @need_area("slides")
+    def slides_pptx():
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        return send_file(build_pptx(mass_date, request.args.getlist("photo")[:40]), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
+                         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
+
     @app.route("/slides/package")
     @need()
     @need_area("slides")
@@ -3851,6 +3956,9 @@ def create_app(config=None):
             li = liturgy.info(date.fromisoformat(mass_date))
             z.writestr("00_Week_Info.txt", f"Date: {mass_date}\nCelebration: {li['name'] or 'Sunday in ' + li['season']}\nSeason: {li['season']}\n"
                        f"Color: {li['color']}\nImagery ideas: {'; '.join(li['ideas'])}\nReadings: {li['readings_url']}\n"
+                       f"NEW CONCEPT FOR THIS WEEK (do not reuse last week's look)\nScene: {week_concept(mass_date)['scene']}\n"
+                       f"Layout: {week_concept(mass_date)['layout']}\nAccent: {week_concept(mass_date)['accent']}\n"
+                       "Blend with the season colors above. Keep the standard slides' structure, the red title banner and readability.\n"
                        "Special slides (if any) are in the 'special' folder: place them where the file names or notes say.\n")
             for kind, _ in SLIDE_KINDS:
                 for name in slides_list(kind, mass_date):

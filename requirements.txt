@@ -4,3 +4,4 @@ weasyprint==66.0
 pytest
 pymupdf
 pypdf
+python-pptx
