@@ -4152,7 +4152,7 @@ def create_app(config=None):
                         lines = part.splitlines()
                         credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
                         body = "\n".join(x for x in lines if not CREDIT_RE.match(x)).strip() or part
-                        item = {"type": "text", "title": None, "subtitle": None, "text": body, "size": 48 if len(body) > 140 else 56,
+                        item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 48 if len(body) > 140 else 56,
                                 "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                         if k == 0 and song:
                             item["title"], item["subtitle"] = section, label
