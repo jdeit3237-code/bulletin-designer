@@ -125,11 +125,14 @@ def test_slides_pptx_builds_from_text_and_png(app):
     up("standard", "Alleluia.txt", b"Alleluia, alleluia")
     up("standard", "Kyrie.png", buf.getvalue())
     up("songs", "Hymn.txt", b"Verse one\nline two\n\nVerse two")
+    up("entrance", "Gather_Us.txt", b"Gather us in")
+    up("praise", "Glory_Be.txt", b"Praise now")
     r = c.get("/slides/pptx?date=2026-03-01")
     assert r.status_code == 200
     prs = Presentation(io.BytesIO(r.data))
     text = " ".join(sh.text_frame.text for sl in prs.slides for sh in sl.shapes if sh.has_text_frame)
     assert "Alleluia" not in text and "Verse two" in text
+    assert "Entrance song" in text and "Gather Us" in text and "Song of Praise" in text and "Glory Be" in text
     assert any(sh.shape_type == 13 for sl in prs.slides for sh in sl.shapes)
     pv = c.get("/slides/preview?date=2026-03-01")
     assert pv.status_code == 200 and "Verse two" in pv.text and "Alleluia" not in pv.text

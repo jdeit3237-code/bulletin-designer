@@ -18,7 +18,8 @@
 <form method="get"><label for="date">Mass date</label><input id="date" type="date" name="date" value="{{ mass_date }}" required> <button class="btn">Open week</button>
 {% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
 {% if mass_date %}
-{% for k, label in kinds if k != 'standard' %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}{% endfor %}
+{% for k, label in kinds if k != 'standard' and not k.startswith('ref_') %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}
+{% if k in ['entrance','gifts','communion','praise','songs','prelude','going_forth'] %}<details><summary>Reference photos for this section (optional, used as background)</summary>{{ filelist('ref_'+k) }}{{ uploader('ref_'+k, 'Reference photo') }}</details>{% endif %}{% endfor %}
 <form method="get" action="{{ url_for('slides_package') }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <h3>Bulletin graphics to match announcements (optional)</h3>
 <p class="small">Tick the bulletin photos or graphics to use, then press Save. Your ticks are remembered for this week.</p>

@@ -3756,9 +3756,10 @@ def create_app(config=None):
         return render_template("slides_guide.html")
 
     slides_root = os.path.join(os.path.dirname(os.path.realpath(app.config["UPLOAD_DIR"])), "slides_files")
-    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("songs", "Songs"), ("readings", "Readings"),
+    SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("entrance", "Entrance song"), ("gifts", "Presentation of the Gifts song"), ("communion", "Communion song"), ("praise", "Song of Praise (optional, not every week)"), ("songs", "Other songs"), ("readings", "Readings"),
                    ("announcements", "Announcements"), ("notation", "Music notation"), ("going_forth", "Going Forth (after Mass, may be secular)"),
-                   ("special", "Special slides (optional, this week only)"))
+                   ("special", "Special slides (optional, this week only)"),
+                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"), ("ref_songs", "Reference photos for Other songs"))
 
     def slides_dir(kind, mass_date=""):
         return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
@@ -3858,6 +3859,18 @@ def create_app(config=None):
         return {"scene": CONCEPT_SCENES[n % len(CONCEPT_SCENES)], "layout": CONCEPT_LAYOUTS[(n * 5 + 1) % len(CONCEPT_LAYOUTS)],
                 "accent": CONCEPT_ACCENTS[(n * 7 + 2) % len(CONCEPT_ACCENTS)]}
 
+    SECTION_ACCENT = {"prelude": "8FB8C9", "entrance": "E0B040", "gifts": "E07A5F", "communion": "F4E9D0", "praise": "3FB8AF",
+                      "going_forth": "F28C28", "songs": "E0B040"}
+    CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:)", re.I)
+
+    def section_ref(kind, mass_date):
+        names = [n for n in slides_list("ref_" + kind, mass_date) if n.rsplit(".", 1)[-1].lower() in ("png", "jpg", "jpeg")]
+        if not names:
+            return None, None
+        return (os.path.join(slides_dir("ref_" + kind, mass_date), names[0]),
+                url_for("slides_file", kind="ref_" + kind, name=names[0], date=mass_date, inline=1))
+
+    SONG_KINDS = ("prelude", "entrance", "songs", "gifts", "communion", "praise", "going_forth")
     SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
 
     def saved_graphics(mass_date):
@@ -3883,7 +3896,7 @@ def create_app(config=None):
             return "gloria" in n and season in ("Advent", "Lent") and not feast
 
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
-        for kind in ("standard", "prelude", "songs", "readings", "notation", "announcements", "special", "going_forth"):
+        for kind in ("prelude", "standard", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
                     continue
@@ -3893,10 +3906,21 @@ def create_app(config=None):
                     plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
                 elif ext == "txt":
                     label = os.path.splitext(name)[0].replace("_", " ")
+                    section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
                     parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
+                    song = kind in SONG_KINDS
+                    bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for k, part in enumerate(parts):
-                        plan.append({"type": "text", "title": label if k == 0 and kind in ("songs", "readings", "standard") else None,
-                                     "text": part, "size": 48 if len(part) > 140 else 56})
+                        lines = part.splitlines()
+                        credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
+                        body = "\n".join(x for x in lines if not CREDIT_RE.match(x)).strip() or part
+                        item = {"type": "text", "title": None, "subtitle": None, "text": body, "size": 48 if len(body) > 140 else 56,
+                                "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
+                        if k == 0 and song:
+                            item["title"], item["subtitle"] = section, label
+                        elif k == 0 and kind in ("readings", "standard"):
+                            item["title"] = label
+                        plan.append(item)
         for pid in photo_ids:
             row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
             path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
@@ -3931,22 +3955,51 @@ def create_app(config=None):
                     pass
                 continue
             sl.background.fill.fore_color.rgb = bg
-            top = 0.5
+            sw, sh = prs.slide_width, prs.slide_height
+            song = item.get("style") == "song"
+            ink = RGBColor(0x3B, 0x0F, 0x0F) if song else RGBColor(255, 255, 255)
+            if item.get("bg_path"):
+                try:
+                    sl.shapes.add_picture(item["bg_path"], 0, 0, sw, sh)
+                except Exception:
+                    pass
+
+            def shape(kind, x, y, w, h, rgb, alpha=None):
+                sp = sl.shapes.add_shape(kind, x, y, w, h)
+                sp.fill.solid(); sp.fill.fore_color.rgb = rgb; sp.line.fill.background()
+                if alpha:
+                    from pptx.oxml.ns import qn
+                    from lxml import etree
+                    etree.SubElement(sp.fill._xPr.find(qn("a:solidFill")).find(qn("a:srgbClr")), qn("a:alpha")).set("val", str(alpha))
+                return sp
+
+            def put(tf, text, size, rgb, bold=True, italic=False):
+                for k, line in enumerate(text.splitlines() or [""]):
+                    para = tf.paragraphs[0] if k == 0 and not tf.paragraphs[0].runs else tf.add_paragraph()
+                    para.alignment = PP_ALIGN.CENTER
+                    r = para.add_run(); r.text = line
+                    r.font.size = Pt(size); r.font.bold = bold; r.font.italic = italic; r.font.color.rgb = rgb
+
+            top, bottom = 0.5, 7.0
+            if item.get("credit"):
+                shape(1, 0, sh - Inches(0.95), sw, Inches(0.95), RGBColor(0x6B, 0x14, 0x14))
+                cb = sl.shapes.add_textbox(Inches(0.5), sh - Inches(0.9), sw - Inches(1.0), Inches(0.85))
+                cb.text_frame.word_wrap = True; cb.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                put(cb.text_frame, item["credit"], 14, RGBColor(255, 255, 255), bold=False)
+                bottom = 6.4
             if item["title"]:
-                box = sl.shapes.add_shape(1, Inches(2.2), Inches(0.4), Inches(8.9), Inches(0.9))
-                box.fill.solid(); box.fill.fore_color.rgb = RGBColor(0xB3, 0x20, 0x2A); box.line.fill.background()
-                tf = box.text_frame; tf.text = item["title"]
-                tf.paragraphs[0].alignment = PP_ALIGN.CENTER
-                run = tf.paragraphs[0].runs[0]
-                run.font.size = Pt(34); run.font.bold = True; run.font.color.rgb = RGBColor(255, 255, 255)
-                top = 1.5
-            tb = sl.shapes.add_textbox(Inches(0.9), Inches(top), Inches(11.5), Inches(7.0 - top))
+                bh = 1.4 if item.get("subtitle") else 0.95
+                box = shape(1, Inches(2.2), Inches(0.3), Inches(8.9), Inches(bh), RGBColor(0x8A, 0x16, 0x1E))
+                box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                put(box.text_frame, item["title"], 38, RGBColor(0xFF, 0xE9, 0xA8), italic=bool(song))
+                if item.get("subtitle"):
+                    put(box.text_frame, item["subtitle"], 24, RGBColor(0xFF, 0xE9, 0xA8), italic=True)
+                top = 0.3 + bh + 0.2
+            if song:
+                shape(5, Inches(0.9), Inches(top), Inches(11.5), Inches(bottom - top), RGBColor(0xFA, 0xF1, 0xDC), alpha=88000)
+            tb = sl.shapes.add_textbox(Inches(1.1), Inches(top), Inches(11.1), Inches(bottom - top))
             tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-            for k, line in enumerate(item["text"].splitlines() or [""]):
-                para = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
-                para.alignment = PP_ALIGN.CENTER
-                r = para.add_run(); r.text = line
-                r.font.size = Pt(item["size"]); r.font.bold = True; r.font.color.rgb = RGBColor(255, 255, 255)
+            put(tf, item["text"], item["size"], ink)
         buf = io.BytesIO(); prs.save(buf); buf.seek(0)
         return buf
 
@@ -3988,7 +4041,7 @@ def create_app(config=None):
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(os.path.join(app.root_path, "static", "slides_master_prompt.txt"), "00_Master_Prompt.txt")
             z.writestr("00_README.txt", f"Mass date: {mass_date}\nGive this whole folder to the AI tool and ask for Stages 1-3 only (inventory, theme, previews). "
-                       "Folders: standard (slides used every week), songs, readings, announcements, notation.\n")
+                       "Folders: standard (slides used every week), prelude, entrance, gifts, communion, praise, going_forth, songs, readings, announcements, notation.\n")
             li = liturgy.info(date.fromisoformat(mass_date))
             z.writestr("00_Week_Info.txt", f"Date: {mass_date}\nCelebration: {li['name'] or 'Sunday in ' + li['season']}\nSeason: {li['season']}\n"
                        f"Color: {li['color']}\nImagery ideas: {'; '.join(li['ideas'])}\nReadings: {li['readings_url']}\n"
