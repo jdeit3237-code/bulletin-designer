@@ -58,6 +58,19 @@ def repeat_refrain(parts):
     return out
 
 
+def no_orphans(text):
+    """Join the last two words of every line with a non-breaking space so a wrapped line never ends on one lone word."""
+    out = []
+    for line in text.split("\n"):
+        words = line.rstrip().split(" ")
+        if len(words) > 2:
+            line = " ".join(words[:-2] + [words[-2] + "\u00a0" + words[-1]])
+        out.append(line)
+    return "\n".join(out)
+
+
+
+
 ANNOUNCE_RE = re.compile(r"^[\s*_]*(lector\s*:?\s*)?(?=our parish announcements)", re.I)
 
 

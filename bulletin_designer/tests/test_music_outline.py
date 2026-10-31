@@ -33,11 +33,11 @@ def test_outline_fills_slides_and_replaces_on_change(app):
     c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me"})
     r = c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
     assert b"Not in song library" in r.data
-    plan = c.get("/slides/preview?date=2026-11-01")
+    plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")
     assert b"For all the saints" in plan.data and b"Come to me" in plan.data
     changed = OUTLINE.replace("Come to Me (Gregory Norbet) BB26-538", "Another Hymn (X) BB26-1")
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": changed})
-    plan = c.get("/slides/preview?date=2026-11-01")
+    plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")
     assert b"For all the saints" in plan.data and b"Come to me" not in plan.data
 
 
@@ -128,7 +128,7 @@ def test_word_announcements_become_slides(app):
     c.post("/slides", data={"csrf": t, "kind": "announcements", "date": d, "files": (buf, "Announcements.docx")},
            content_type="multipart/form-data")
     prs = Presentation(io.BytesIO(c.get(f"/slides/pptx?date={d}").data))
-    text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
+    text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame).replace("\u00a0", " ")
     assert "Food drive Sunday" in text and "Choir practice Thursday" in text
 
 
@@ -150,6 +150,11 @@ def test_long_reading_split_and_cp1252_decoded(tmp_path):
     assert read_text(str(f)) == "saw \u201crising\u201d \u2014 east"
     f.write_bytes(b"\xef\xbb\xbfhello")
     assert read_text(str(f)) == "hello"
+
+
+def test_no_orphans_joins_last_two_words():
+    from bulletin_designer.outline import no_orphans
+    assert no_orphans("one two three four\nHi there") == "one two three\u00a0four\nHi there"
 
 
 def test_refrain_between_verses_and_numbers_removed():
