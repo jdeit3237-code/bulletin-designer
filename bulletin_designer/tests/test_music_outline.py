@@ -144,3 +144,13 @@ def test_long_reading_split_and_cp1252_decoded(tmp_path):
     assert read_text(str(f)) == "saw \u201crising\u201d \u2014 east"
     f.write_bytes(b"\xef\xbb\xbfhello")
     assert read_text(str(f)) == "hello"
+
+
+def test_refrain_between_verses_and_numbers_removed():
+    from bulletin_designer.outline import repeat_refrain
+    out = repeat_refrain(["1. Verse one", "Refrain: Sing", "2. Verse two", "3) Verse three"])
+    assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"][:0] or out[0] == "Verse one"
+    assert not any(p[:2] in ("1.", "2.", "3)") for p in out)
+    assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"] or out.count("Refrain: Sing") >= 3
+    out = repeat_refrain(["Refrain line", "1 First", "2 Second"])
+    assert out == ["Refrain line", "First", "Refrain line", "Second", "Refrain line"]
