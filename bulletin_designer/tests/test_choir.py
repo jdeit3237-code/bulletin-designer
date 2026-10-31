@@ -79,3 +79,28 @@ def test_separate_packets_per_instrument_and_share_message(app):
     assert page.count("sheet music for November 8:") == 3
     for m in metas:
         assert c.get("/choir/get/" + m["token"]).status_code == 200
+
+
+def test_book_page_images_for_psalm_by_date(app):
+    import io
+    import os
+    from datetime import date
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    cv.drawString(72, 720, "psalm page")
+    cv.showPage()
+    cv.drawString(72, 720, "acclamation page")
+    cv.save()
+    with open(os.path.join(choir.library_dir(app), "books", "ra.pdf"), "wb") as f:
+        f.write(buf.getvalue())
+    entries = [{"number": "", "title": "X – Responsorial Psalm", "start": 1, "end": 1, "kind": "psalm", "date": "2026-11-08"},
+               {"number": "", "title": "X – Gospel Acclamation", "start": 2, "end": 2, "kind": "acclamation", "date": "2026-11-08"}]
+    choir.save_library(app, {"books": [{"id": "ra", "name": "RA", "code": "RA26", "edition": "keyboard", "file": "ra.pdf",
+                                        "page_offset": 0, "entries": entries}]})
+    song = {"label": "Responsorial Psalm", "title": "Lord, This Is the People", "setting": "", "composer": "", "book": "", "number": "", "kind": "psalm"}
+    imgs = choir.book_page_images(app, song, date(2026, 11, 8))
+    assert len(imgs) == 1 and imgs[0][:4] == b"\x89PNG"
+    assert choir.book_page_images(app, song, date(2026, 11, 15)) == []
