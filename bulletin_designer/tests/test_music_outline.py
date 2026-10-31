@@ -280,3 +280,21 @@ def test_english_only_drops_spanish_unless_bilingual():
     parts = ["Holy, Holy, Holy Lord God of hosts", "Santo, Santo, Santo es el Señor Dios del universo"]
     assert outline.english_only(parts) == parts[:1]
     assert outline.english_only(parts, keep_all=True) == parts
+
+
+def test_reading_first_slide_has_title_and_citation():
+    assert outline.split_citation("Revelation 7:2-4, 9-14 I, John, saw another angel.") == ("Revelation 7:2-4, 9-14", "I, John, saw another angel.")
+    assert outline.split_citation("1 John 3:1-3 See what love.")[0] == "1 John 3:1-3"
+    assert outline.split_citation("Lord, this is the people that longs to see your face.")[0] == ""
+
+
+def test_announcements_drop_references_elsewhere():
+    parts = ["Pumpkin Patch Saturday at 10am. More details in the bulletin. Thank you for your generosity!", "See the bulletin for more information.", "Bring a friend."]
+    assert outline.drop_referrals(parts) == ["Pumpkin Patch Saturday at 10am.", "Bring a friend."]
+
+
+def test_graphic_follows_its_announcement():
+    texts = ["Pumpkin Patch opens Saturday for families.", "Pet Wellness Clinic for cats and dogs on Friday."]
+    assert outline.best_match("Pet wellness clinic flyer", texts) == 1
+    assert outline.best_match("Pumpkin patch", texts) == 0
+    assert outline.best_match("Bingo night", texts) is None

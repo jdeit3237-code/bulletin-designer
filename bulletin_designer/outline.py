@@ -169,6 +169,20 @@ def announcements_from(parts):
             return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
     return parts
 
+REFERRAL_RE = re.compile(r"(more (?:details?|information|info)|(?:see|check|read|find|in|visit|ask|contact|call)\b[^.!?]*\b(?:bulletin|website|web site|parish office|sign-?up|flyer|table|back of)|(?:details?|information|info) (?:is|are|can be)? ?(?:available|found|in|on)\b|thank you for your generosity)", re.I)
+
+
+def drop_referrals(parts):
+    """Remove sentences that point elsewhere ('More details in the bulletin.', 'Thank you for your generosity!'); the announcer says those."""
+    out = []
+    for part in parts:
+        sentences = re.findall(r"[^.!?\n]+[.!?]*[ \t]*|\n+", part)
+        kept = "".join(x for x in sentences if not REFERRAL_RE.search(x)).strip()
+        if kept:
+            out.append(kept)
+    return out
+
+
 def decode_text(raw):
     """Decode UTF-8 (with or without BOM), else Mac Roman or Windows-1252 (whichever fits), and turn non-breaking spaces into spaces."""
     try:
@@ -379,3 +393,32 @@ def is_spanish(text):
 def english_only(parts, keep_all=False):
     """Drop Spanish blocks from a list of text parts unless the file is flagged bilingual."""
     return list(parts) if keep_all else [p for p in parts if not is_spanish(p)]
+
+
+CITATION_RE = re.compile(r"^\s*((?:[1-3]\s)?[A-Z][A-Za-z]+(?:\s(?:of\s)?[A-Z][A-Za-z]+)?\s\d+(?::|,)\s?\d+[\d\u2013\-,.: a-c]*?)(?=\s+[A-Z\"\u201c(]|\s*$)")
+
+
+def split_citation(text):
+    """Pull a leading scripture citation (e.g. 'Revelation 7:2-4, 9-14') off a reading's first slide: (citation, rest)."""
+    m = CITATION_RE.match(text.replace("\u00a0", " "))
+    if not m:
+        return "", text
+    return m.group(1).strip(" ,"), text[m.end():].strip()
+
+
+_GENERIC = set("the and for with that this from your you our are will have church parish saint peter st mass sunday next week weekly all join come more event flyer graphic image photo jpg png jpeg".split())
+
+
+def _words(text):
+    return {w for w in re.findall(r"[a-z0-9]{4,}", text.lower()) if w not in _GENERIC}
+
+
+def best_match(graphic_text, texts, minimum=1):
+    """Index of the announcement text sharing the most distinctive words with a graphic's title/alt/tags, else None."""
+    gw = _words(graphic_text)
+    best, best_score = None, 0
+    for i, t in enumerate(texts):
+        score = len(gw & _words(t))
+        if score > best_score:
+            best, best_score = i, score
+    return best if best_score >= minimum else None

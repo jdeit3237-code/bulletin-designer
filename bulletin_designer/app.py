@@ -4174,6 +4174,8 @@ def create_app(config=None):
                         parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
                         if ext == "docx" and kind == "announcements":
                             parts = music_outline.announcements_from(parts)
+                        if kind == "announcements":
+                            parts = music_outline.drop_referrals(parts)
                         parts = music_outline.repeat_refrain(parts)
                         if kind in ("readings", "announcements"):
                             parts = [piece for part in parts for piece in music_outline.split_long(part)]
@@ -4196,14 +4198,26 @@ def create_app(config=None):
                                 item["title"], item["subtitle"] = section, gtitle
                             elif k == 0 and kind in ("readings", "standard"):
                                 item["title"] = gtitle
+                                if kind == "readings":
+                                    cite, rest = music_outline.split_citation(body)
+                                    if cite:
+                                        item["subtitle"], item["text"] = cite, music_outline.no_orphans(rest or " ")
                             items.append(item)
                         chunks.append({"kind": kind, "name": name, "group": gtitle if kind == "readings" else None, "blank": blank_before or g > 0, "items": items})
+        ann_items = [it for ch in chunks if ch["kind"] == "announcements" for it in ch["items"] if it["type"] == "text"]
         for pid in photo_ids:
-            row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
+            row = db().execute("SELECT filename, title, alt, tags FROM photos WHERE id=?", (pid,)).fetchone()
             path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
             if path and os.path.isfile(path):
-                chunks.append({"kind": "announcements", "name": "graphic", "group": None, "blank": False,
-                               "items": [{"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"}]})
+                gitem = {"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": row["title"] or "bulletin graphic"}
+                hit = music_outline.best_match(" ".join(str(row[k] or "") for k in ("title", "alt", "tags")), [it["text"] for it in ann_items])
+                if hit is not None:
+                    for ch in chunks:
+                        if ann_items[hit] in ch["items"]:
+                            ch["items"].insert(ch["items"].index(ann_items[hit]) + 1, gitem)
+                            break
+                else:
+                    chunks.append({"kind": "announcements", "name": "graphic", "group": None, "blank": False, "items": [gitem]})
         chunks = music_outline.order_chunks(chunks, outline_order)
         for ch in chunks:
             first = ch["items"][0] if ch["items"] else None
