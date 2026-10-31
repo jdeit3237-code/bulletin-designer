@@ -243,3 +243,13 @@ def test_mac_roman_file_and_single_block_song():
     assert "\u00ca" not in decode_text(raw)
     song = ["Refrain: Sing out\n1. Verse one line\nline two\n2. Verse two line"]
     assert repeat_refrain(song) == ["Refrain: Sing out", "Verse one line\nline two", "Refrain: Sing out", "Verse two line", "Refrain: Sing out"]
+
+
+def test_outline_order_puts_song_of_praise_after_communion_or_elsewhere():
+    def labels(order):
+        chunks = [{"kind": "praise", "name": "Song of Praise-x.txt", "group": None},
+                  {"kind": "communion", "name": "Communion-y.txt", "group": None},
+                  {"kind": "going_forth", "name": "Final Song-z.txt", "group": None}]
+        return [c["label"] for c in outline.order_chunks(chunks, order)]
+    assert labels(["Communion", "Song of Praise", "Final Song"]) == ["Communion", "Song of Praise", "Final Song"]
+    assert labels(["Song of Praise", "Communion", "Final Song"]) == ["Song of Praise", "Communion", "Final Song"]

@@ -336,6 +336,21 @@ def order_chunks(chunks, order=()):
     """Sort slide chunks into the order of the Mass (the liturgy outline); each chunk gets its "label". Stable for ties."""
     names = list(dict.fromkeys(list(order) + MASS_ORDER + list(LABEL_ALIAS)))
     pos = {lab: float(i) for i, lab in enumerate(MASS_ORDER)}
+    given = [LABEL_ALIAS.get(x, x) for x in order]
+    given = [x for x in dict.fromkeys(given) if x in pos]
+    if len(given) > 1:
+        # The week's outline wins (Song of Praise may follow Communion or come elsewhere);
+        # labels it omits keep their usual place after the nearest earlier labelled item.
+        gp = {lab: float(i) for i, lab in enumerate(given)}
+        anchor = -1.0
+        newpos = {}
+        for lab in MASS_ORDER:
+            if lab in gp:
+                anchor = gp[lab]
+                newpos[lab] = anchor
+            else:
+                newpos[lab] = anchor + 0.5
+        pos = newpos
     last = -1.0
     for ch in chunks:
         lab = chunk_label(ch["kind"], ch["name"], ch.get("group"), names)
