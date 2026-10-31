@@ -21,6 +21,7 @@
       {% if g.user.role != 'webmaster' %}
       <a href="{{ url_for('design_studio') }}">Design studio</a>
       <a href="{{ url_for('style_guide') }}">Style guide</a>
+      <a href="{{ url_for('slides_guide') }}">Slides guide</a>
       <a href="{{ url_for('help_page') }}">Help</a>
       {% endif %}
       {% if g.user and g.user.role == 'admin' %}<a href="{{ url_for('fonts') }}">Fonts</a>{% endif %}

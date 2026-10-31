@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% block title %}Slides guide{% endblock %}
+{% block content %}
+<h1>Weekly Mass slides guide</h1>
+<p>Reference for building each week's Mass PowerPoint, like the <a href="{{ url_for('style_guide') }}">bulletin style guide</a>. The complete reusable prompt is here:
+<a class="btn" href="{{ url_for('static', filename='slides_master_prompt.txt') }}" download="St-Peter-Weekly-Mass-PowerPoint-Master-Prompt.txt">Download the full master prompt (.txt)</a></p>
+<h2>Weekly steps</h2>
+<ol>
+<li>Download the week's readings from the <a href="https://bible.usccb.org/readings/calendar" target="_blank" rel="noopener">USCCB readings calendar</a> (use the Sunday entry) and the weekly music (the choir's musing).</li>
+<li>Start from the weekly PowerPoint, with the standard slides included in every week's set.</li>
+<li>Give the PowerPoint, the master prompt and the approved design examples (Entrance Song, reading, musical notation, Profession of Faith, announcements) to the AI tool.</li>
+<li>Ask for Stages 1&ndash;3 only (inventory, seasonal theme, previews). Review and approve the previews.</li>
+<li>Authorize the full build (Stage 5), then check it (Stage 6).</li>
+</ol>
+<h2>The six stages</h2>
+<table><caption class="small">Approval process</caption><thead><tr><th scope="col">Stage</th><th scope="col">What happens</th></tr></thead><tbody>
+<tr><td>1. Inventory</td><td>List every section with start and end slide (blank black slides mark boundaries), content type, design approach, and whether extra slides are needed.</td></tr>
+<tr><td>2. Seasonal theme</td><td>Confirm Mass date, liturgical season and celebration; propose colors and imagery. Ask if unsure.</td></tr>
+<tr><td>3. Previews</td><td>Actual images of the first slide of every major section (opening, songs, readings, notation, prayers, announcements).</td></tr>
+<tr><td>4. Approval</td><td>Stop and wait. Nothing is built until the designs are approved.</td></tr>
+<tr><td>5. Build</td><td>Apply approved designs in original Mass order, adding slides as needed.</td></tr>
+<tr><td>6. Quality control</td><td>Check completeness, order, clipping, contrast, alignment, and that the file opens in PowerPoint.</td></tr></tbody></table>
+<h2>Design by section</h2>
+<table><caption class="small">Each section has its own look within one design system</caption><thead><tr><th scope="col">Section</th><th scope="col">Design</th></tr></thead><tbody>
+<tr><td>Songs (Entrance, Psalm, Gospel Acclamation, Gifts, Communion, Going Forth)</td><td>Entrance Song is the master: decorative title banner, large bold centered lyrics, photo background, copyright line. Each song gets its own background.</td></tr>
+<tr><td>Readings (First, Second, Gospel)</td><td>Clear title area, scripture reference, uncluttered text panel, aligned header and body. Title only on the first slide; split at natural breaks.</td></tr>
+<tr><td>Musical notation</td><td>Notation as large as practical, never altered or redrawn, subtle background, lyrics kept with notes, split at musical breaks.</td></tr>
+<tr><td>Profession of Faith and prayers</td><td>Text-focused with strong contrast. PROFESSION OF FAITH heading on the first slide only.</td></tr>
+<tr><td>Announcements</td><td>Warm background, large bold white centered text, no song banners. Content comes only from the current week.</td></tr>
+<tr><td>Opening slide</td><td>Seasonal imagery and the celebration name.</td></tr></tbody></table>
+<h2>Seasonal colors</h2>
+<ul>
+<li><strong>Advent:</strong> violet, deep blue, candlelight, subtle gold.</li>
+<li><strong>Christmas:</strong> gold, ivory, white, rich red.</li>
+<li><strong>Ordinary Time:</strong> ocean blues, greens, golden sunlight.</li>
+<li><strong>Lent:</strong> violet and muted earth tones. <strong>Holy Week:</strong> restrained and reverent.</li>
+<li><strong>Easter:</strong> ivory, white, luminous gold. <strong>Pentecost:</strong> red and gold.</li>
+<li><strong>All Saints / All Souls:</strong> autumn leaves, gold, burnt orange, burgundy, sunset.</li>
+<li>Marian feasts and other solemnities: colors suited to the celebration.</li></ul>
+<h2>Florida Keys imagery</h2>
+<p>Sunsets, turquoise water, palms, mangroves, boats and golden reflections, blended with the season's colors. Backgrounds must never compete with the text.</p>
+<h2>Rules that always apply</h2>
+<ul>
+<li>Readability from the back of the church comes first. Never shrink text to fit; add slides instead.</li>
+<li>The uploaded PowerPoint is the source of truth: keep all lyrics, readings, prayers, notation, announcements, dates and times. Do not invent, summarize or silently omit; flag unclear text.</li>
+<li>Keep every copyright and music-licensing notice exactly as supplied.</li>
+<li>16:9, editable in PowerPoint, consistent margins and fonts, no needless animation.</li>
+<li>Check every slide for clipped words, misalignment, poor contrast and wrong order.</li></ul>
+{% endblock %}

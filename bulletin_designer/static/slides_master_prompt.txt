@@ -1,0 +1,678 @@
+Redesign this PowerPoint Presentation for St. Peter the Fisherman Catholic Church. Include beautiful imagery, rich seasonal colors, consistent typography, and lyrics or readings that remain easy to read from the back of the church. Each song can have its own distinctive imagery while still feeling like part of one coordinated presentation. The season is Fall and the Roman Catholic Church is celebrating "All Saints Day" The date for the slides is November 1, 2026.
+
+At the beginning of each new weekly project, ChatGPT should first identify the Mass date, liturgical season, and specific celebration before creating previews.
+
+And importantly, the announcement design stays familiar, but its content and seasonal appearance can change every week.
+
+# ST. PETER PARISH
+## WEEKLY MASS POWERPOINT DESIGN MASTER PROMPT
+
+
+How to use this each week
+1. Save the prompt on your Mac.
+2. Upload the new week's PowerPoint to ChatGPT.
+3. Upload the prompt and the approved design examples.
+4. Ask ChatGPT to complete Stages 1–3 only.
+5. Review and approve the previews.
+6. Once you are satisfied, authorize the complete PowerPoint build.
+My recommendation: Keep the approved Entrance Song, reading, musical notation, Profession of Faith, and announcement examples together in one reference folder. Those examples will help maintain your preferred look and feel even as the backgrounds change throughout the liturgical year.
+
+This is your complete reusable design specification. The next step is to apply it to the actual weekly Mass PowerPoint, review the previews, and then produce the finished presentation.
+
+
+
+### PROJECT OBJECTIVE
+
+Redesign my uploaded weekly Mass PowerPoint for St. Peter the Fisherman Catholic Parish in the Florida Keys.
+
+Create a beautiful, professional, cohesive presentation suitable for projection in a Catholic church.
+
+The presentation must combine:
+- The approved Entrance Song design as the reference for all songs.
+- An attractive, easy-to-read design for Scripture readings.
+- Large, clear musical notation for sung Mass parts.
+- Dedicated designs for prayers and the Profession of Faith.
+- The established announcement design for weekly parish announcements.
+- Florida Keys scenery and imagery appropriate to the liturgical season.
+
+**Do not apply one generic design to the entire presentation. Each section must have its own visual identity while belonging to the same overall design system.**
+
+Readability from the back of the church is the highest priority.
+
+---
+
+# PART 1 — REVIEW THE SOURCE POWERPOINT
+
+Before designing anything, examine the entire uploaded PowerPoint.
+
+Identify every section, including:
+- Opening slide.
+- Entrance Song.
+- First Reading.
+- Responsorial Psalm.
+- Second Reading.
+- Gospel Acclamation.
+- Gospel.
+- Presentation of Gifts.
+- Communion Song.
+- Going Forth.
+- Musical notation sections.
+- Profession of Faith.
+- Other prayers and congregational responses.
+- Parish announcements.
+- Any additional sections present in the source presentation.
+
+Use the blank black slides in the original PowerPoint to identify section boundaries.
+
+Preserve the original order of the Mass and all sections.
+
+### Preserve the original content
+
+The uploaded PowerPoint is the source of truth for its content.
+
+- Preserve all lyrics and verses.
+- Preserve all Scripture readings.
+- Preserve all prayers and congregational responses.
+- Preserve the complete musical notation and its associated lyrics.
+- Preserve every announcement in the current week's presentation.
+- Preserve dates, times, locations, and other important details.
+- Preserve existing copyright notices and music licensing information.
+- Preserve other essential credits and references.
+- Do not invent missing text or information.
+- Do not silently rewrite, summarize, or omit content.
+
+If the source contains an unclear or incomplete passage, flag it for review rather than guessing.
+
+### Add slides when necessary
+
+The redesigned presentation may contain more slides than the original.
+
+Do not make text or musical notation smaller simply to reduce the number of slides.
+
+Divide long passages at natural sentence, paragraph, lyrical, or musical breaks.
+
+---
+
+# PART 2 — IDENTIFY THE LITURGICAL SEASON
+
+Before designing the slides, establish the Mass date and liturgical celebration from the supplied materials.
+
+Determine the appropriate liturgical season and select a visual theme accordingly.
+
+Do not assume that every week's presentation uses an All Saints Day or autumn theme.
+
+### Seasonal design guidelines
+
+**Advent**
+- Violet, deep blue, candlelight, and subtle gold.
+- Imagery suggesting hope, preparation, and anticipation.
+
+**Christmas**
+- Warm gold, ivory, white, and rich red.
+- Nativity imagery and the joy of Christ's birth.
+
+**Ordinary Time**
+- Ocean blues, natural greens, golden sunlight, and peaceful coastal landscapes.
+- A fresh, welcoming, and reverent atmosphere.
+
+**Lent**
+- Violet, muted earth tones, and restrained imagery.
+- A contemplative, prayerful appearance.
+
+**Holy Week**
+- Reverent, dramatic imagery appropriate to the Passion of Christ.
+- A restrained design that supports reflection.
+
+**Easter**
+- Bright ivory, white, and luminous gold.
+- Imagery suggesting resurrection, hope, and new life.
+
+**Pentecost**
+- Rich red, gold, and imagery representing the Holy Spirit.
+
+**All Saints Day and All Souls Day**
+- Autumn leaves, warm gold, burnt orange, burgundy, and sunset colors.
+- Imagery reflecting the communion of saints, remembrance, and eternal life.
+
+**Marian celebrations**
+- Appropriate Marian colors and imagery that complement the parish's established visual style.
+
+**Other feast days and solemnities**
+- Select colors, imagery, and backgrounds that reflect the particular celebration.
+
+These are creative guidelines rather than rigid templates.
+
+If the date or liturgical celebration cannot be established confidently, ask me before selecting the final seasonal theme.
+
+---
+
+# PART 3 — THE FLORIDA KEYS VISUAL IDENTITY
+
+The parish is located in the Florida Keys. Incorporate that setting naturally throughout the presentation.
+
+Use imagery such as:
+- Ocean sunsets.
+- Turquoise water.
+- Tropical coastlines.
+- Palm trees.
+- Mangroves.
+- Coastal skies.
+- Boats and peaceful waterfront scenery.
+- Warm golden reflections on the water.
+
+Combine the scenery with the appropriate liturgical colors.
+
+For autumn celebrations, for example, blend warm autumn foliage with ocean sunsets and tropical landscapes.
+
+For Easter, use luminous coastal skies and golden light.
+
+For Ordinary Time, use peaceful ocean blues, palms, and natural greens.
+
+Not every slide needs a photograph of the ocean. Religious imagery, subtle textures, and simple backgrounds are also appropriate.
+
+**The objective is a distinctive St. Peter Parish visual identity that reflects both the Catholic liturgy and our Florida Keys community.**
+
+Avoid backgrounds that compete with the text.
+
+---
+
+# PART 4 — SONG DESIGN
+
+## The Entrance Song is the master design reference
+
+Use the approved Entrance Song design as the visual foundation for all song sections.
+
+The approved style features:
+- A decorative title banner.
+- Elegant lettering for the song title.
+- A subtitle where appropriate.
+- Large, bold, centered lyrics.
+- Warm, rich colors.
+- Beautiful photographic backgrounds.
+- Autumn foliage when appropriate to the season.
+- Florida Keys sunsets and coastal scenery.
+- Appropriate religious imagery.
+- Copyright and licensing information.
+
+The design should be attractive, polished, and visually engaging.
+
+### Create a separate design for each song
+
+The following sections should share the same general design language while receiving their own backgrounds and visual treatments:
+
+1. Entrance Song.
+2. Responsorial Psalm.
+3. Gospel Acclamation.
+4. Presentation of Gifts.
+5. Communion Song.
+6. Going Forth.
+
+Include other songs found in the source presentation.
+
+Do not simply duplicate the Entrance Song slide and change the title.
+
+Instead, create a distinct background and visual concept for each song while retaining consistent typography, title treatments, and lyric presentation.
+
+### Song-specific background ideas
+
+**Entrance Song:** A cross, golden light, autumn foliage, and a beautiful sunset.
+
+**Responsorial Psalm:** A peaceful Florida Keys ocean sunset with rich colors reflecting the liturgical season.
+
+**Gospel Acclamation:** A radiant sky, tropical palms, and warm light suggesting praise and celebration.
+
+**Presentation of Gifts:** A peaceful waterfront scene with warm lighting and appropriate Eucharistic symbolism where suitable.
+
+**Communion Song:** A reverent composition featuring Eucharistic imagery, bread and wine, or other appropriate sacred imagery.
+
+**Going Forth:** A beautiful coastal sunset suggesting hope, mission, and the journey ahead.
+
+These are starting points. Adapt each design to the song's actual message and the season.
+
+### Lyrics and readability
+
+Lyrics must be large enough to read comfortably from the back of the church.
+
+- Use bold, clear typography.
+- Center the lyrics when appropriate.
+- Maintain generous spacing between lines.
+- Avoid excessive shadows or outlines.
+- Keep text away from busy portions of the background.
+- Use dark text on a sufficiently light area or white text against a sufficiently dark area.
+
+Do not squeeze an entire song verse onto one slide if that makes the text too small.
+
+Create additional slides as necessary.
+
+Break lyrics at natural musical or lyrical boundaries.
+
+Preserve the complete lyrics and the original sequence, including repeated refrains.
+
+Retain appropriate copyright and licensing notices.
+
+---
+
+# PART 5 — SCRIPTURE READINGS
+
+Readings must have their own visual identity rather than simply copying the song design.
+
+Use the approved reading concept featuring attractive scenery, seasonal colors, a distinctive title area, and a clear body-text area.
+
+### Reading slide design
+
+Each reading should have:
+- A clearly defined title area.
+- The reading title and Scripture reference, when supplied.
+- A beautiful background appropriate to the season.
+- Florida Keys scenery where suitable.
+- A clear, uncluttered text area.
+- Properly aligned title and body text.
+- Consistent margins and spacing.
+- Strong contrast between text and background.
+
+### Text presentation
+
+The text must be easy to read from the back of the church.
+
+Use either:
+- Dark lettering on a light text panel.
+- White lettering on a sufficiently dark text panel.
+
+Avoid placing important text directly over busy scenery.
+
+Do not use thin lettering, excessive shadows, or decorative effects that make the words harder to read.
+
+Use a consistent alignment system throughout all readings.
+
+**The reading header and body-text area must be properly aligned.** This was an issue with an earlier design and must be checked carefully.
+
+### Divide long readings into multiple slides
+
+Do not shrink the font to fit a long reading onto one slide.
+
+Instead:
+- Divide the text at natural sentence or paragraph boundaries.
+- Use a comfortable number of lines per slide.
+- Keep the text large and well spaced.
+- Preserve the complete reading.
+- Avoid awkward breaks that interrupt the meaning.
+
+Display the reading title on the first slide of the section. Do not unnecessarily repeat the title on subsequent slides.
+
+Apply these principles to the First Reading, Second Reading, and Gospel.
+
+The Responsorial Psalm should use the approved song design when presented as a congregational song.
+
+---
+
+# PART 6 — MUSICAL NOTATION
+
+Some Mass sections contain musical notation rather than ordinary lyrics.
+
+Examples may include:
+- Gloria.
+- Holy, Holy, Holy.
+- Other sung Mass settings.
+- Additional musical sections supplied in the PowerPoint.
+
+Use the previously approved musical-notation concept.
+
+### Musical notation requirements
+
+- Preserve the original notes and staff lines.
+- Preserve the associated lyrics.
+- Make the notation substantially larger than in the original presentation.
+- Ensure the notes are sharp and legible when projected.
+- Keep the notation in the correct musical sequence.
+- Divide long musical passages across multiple slides.
+- Use logical musical breaks.
+- Retain all musical phrases.
+- Avoid squeezing several systems onto one slide.
+- Maintain sufficient contrast.
+
+**The notes should be as large as practical without cropping or distorting the music.**
+
+If the notation is supplied as an image, use the highest-quality available source.
+
+Do not invent, redraw, rearrange, or alter musical notes.
+
+Musical accuracy is more important than decorative design.
+
+The background should be subtle and must not interfere with the notation.
+
+Create as many slides as necessary to provide comfortable readability.
+
+---
+
+# PART 7 — PROFESSION OF FAITH AND PRAYERS
+
+Prayers and congregational responses need a text-focused design that prioritizes readability.
+
+The approved concept uses an attractive background with a clearly defined text area and strong contrast.
+
+Use either:
+- Large dark lettering against a light background.
+- Large white lettering against a sufficiently dark background.
+
+Avoid busy backgrounds, thin fonts, and distracting text effects.
+
+### Profession of Faith
+
+The heading **PROFESSION OF FAITH** must appear only on the first slide.
+
+The first slide should contain:
+- The heading.
+- The opening portion of the prayer.
+
+Subsequent slides should continue the prayer without repeating the heading.
+
+Divide the prayer into logical, readable portions.
+
+Preserve the entire original text and its sequence.
+
+Do not remove phrases simply to reduce the number of slides.
+
+### Other prayers and congregational responses
+
+Apply the same design principles to:
+- The Confiteor.
+- Other prayers.
+- Congregational responses.
+- Additional spoken sections included in the source presentation.
+
+Use additional slides whenever necessary.
+
+Ensure that the text is balanced, properly aligned, and large enough to read from the back of the church.
+
+---
+
+# PART 8 — WEEKLY PARISH ANNOUNCEMENTS
+
+Announcements change every week.
+
+Use the announcement text in the current week's PowerPoint as the sole source of truth for the content.
+
+Use the uploaded St. Peter Parish announcement presentation as the visual reference for the established announcement style.
+
+**Reuse the design approach, not the previous week's announcement content.**
+
+### Announcement design
+
+The approved style features:
+- Warm, rich backgrounds.
+- Burgundy, orange, gold, and amber tones when appropriate.
+- Large, bold white lettering.
+- A readable shadow or outline when necessary.
+- Centered text.
+- Balanced line spacing.
+- Consistent margins.
+- A professional, uncluttered appearance.
+
+Florida Keys sunsets and coastal scenery may be incorporated when appropriate.
+
+Adapt the background to the liturgical season and the subject of the announcement.
+
+Announcements should remain visually consistent with one another without looking identical.
+
+Do not force the decorative song title banners onto announcement slides.
+
+The announcement design must remain distinct from the song and reading designs.
+
+### Announcement content
+
+Preserve every announcement in the current week's presentation, including any notices about:
+- Parish events.
+- Food pantry activities.
+- Fundraising.
+- Youth ministry.
+- Community services.
+- Financial reports.
+- Volunteer opportunities.
+- Special collections.
+- Upcoming celebrations.
+- Other parish activities.
+
+These are examples, not a fixed list.
+
+Include only the announcements actually supplied for that week.
+
+Preserve dates, times, locations, and other important details exactly as provided.
+
+Do not:
+- Carry over outdated announcements from an earlier presentation.
+- Invent event details.
+- Change dates or times.
+- Omit an announcement.
+- Summarize the text without permission.
+
+### Announcement readability
+
+Use large text with comfortable spacing.
+
+If an announcement contains too much text for one slide, divide it into multiple slides or adjust the layout.
+
+Do not make the text excessively small to fit everything on one slide.
+
+Check that no text is clipped or too close to the slide edges.
+
+---
+
+# PART 9 — OPENING SLIDE
+
+Create an opening slide appropriate to the current Mass and liturgical season.
+
+The opening slide should be visually striking and establish the presentation's theme.
+
+Include the celebration or occasion when that information is available.
+
+Use:
+- Beautiful seasonal imagery.
+- Appropriate Catholic symbolism.
+- Florida Keys scenery where suitable.
+- A coordinated color palette.
+- Elegant, readable typography.
+
+For All Saints Day, for example, use autumn foliage, warm golden sunlight, a cross, and imagery reflecting the communion of saints.
+
+For other celebrations, create a new concept appropriate to that occasion.
+
+Do not reuse the All Saints Day theme throughout the year.
+
+---
+
+# PART 10 — COPYRIGHT AND LICENSING
+
+Preserve all copyright and licensing notices supplied in the source presentation.
+
+Do not remove, rewrite, or invent copyright information.
+
+Keep the notices legible where practical.
+
+Do not omit music credits or other required acknowledgments.
+
+Retain the original wording of licensing statements.
+
+---
+
+# PART 11 — POWERPOINT FORMATTING
+
+Use a consistent widescreen 16:9 format unless the supplied presentation or projection requirements indicate otherwise.
+
+Maintain consistent:
+- Slide dimensions.
+- Text margins.
+- Alignment.
+- Typography.
+- Visual quality.
+- Image resolution.
+- Text contrast.
+
+Use large, bold fonts suitable for church projection.
+
+Avoid unnecessary animations and transitions unless specifically requested.
+
+Do not allow decorative elements to obscure the text.
+
+Check every slide for:
+- Cropped words.
+- Text outside the slide boundaries.
+- Misaligned text boxes.
+- Inconsistent spacing.
+- Poor contrast.
+- Incorrect slide order.
+- Missing content.
+
+The presentation must be editable in Microsoft PowerPoint.
+
+---
+
+# PART 12 — REQUIRED APPROVAL PROCESS
+
+**Do not build the entire PowerPoint before I approve the design concepts.**
+
+Work in stages.
+
+## Stage 1 — Inventory
+
+Review the complete source presentation.
+
+Identify all sections and use the blank black slides to determine where each section begins and ends.
+
+Provide a concise inventory showing:
+- Section name.
+- Starting slide.
+- Ending slide.
+- Type of content.
+- Proposed design approach.
+- Whether additional slides are needed.
+
+Do not start the full redesign yet.
+
+## Stage 2 — Identify the seasonal theme
+
+Establish the Mass date, liturgical season, and celebration.
+
+Propose:
+- A coordinated color palette.
+- Appropriate background imagery.
+- The overall visual direction.
+
+Show how the seasonal theme will work with the different section designs.
+
+## Stage 3 — Create previews
+
+Create actual visual previews of the first slide of every major section.
+
+At a minimum, show:
+
+1. Opening slide.
+2. Entrance Song.
+3. First Reading.
+4. Responsorial Psalm.
+5. Second Reading.
+6. Gospel Acclamation.
+7. Gospel.
+8. Presentation of Gifts.
+9. Communion Song.
+10. Going Forth.
+11. Musical notation.
+12. Profession of Faith.
+13. Other prayers.
+14. Announcements.
+
+Include additional sections found in the source PowerPoint.
+
+Use actual content from the uploaded presentation whenever possible.
+
+For longer sections, show an additional slide when necessary to demonstrate how the design will continue.
+
+Provide previews that I can actually view.
+
+Do not provide only written descriptions of the designs.
+
+## Stage 4 — Obtain approval
+
+Stop and wait for my approval.
+
+I may request changes to:
+- Backgrounds.
+- Colors.
+- Font sizes.
+- Text alignment.
+- Layout.
+- Imagery.
+- Seasonal theme.
+
+Revise the previews as necessary.
+
+Do not assemble the entire presentation until I approve the designs.
+
+## Stage 5 — Build the complete presentation
+
+Once the designs are approved:
+- Apply the approved designs to their corresponding sections.
+- Preserve the original Mass sequence.
+- Include every required section.
+- Add slides when necessary.
+- Preserve the complete text and musical notation.
+- Use the current week's announcements.
+- Apply the appropriate seasonal theme.
+- Retain copyright and licensing information.
+
+## Stage 6 — Quality control
+
+Review the complete presentation from beginning to end.
+
+Verify that:
+- Every section is included.
+- All lyrics are complete and in the correct order.
+- All readings are complete.
+- All prayers are complete.
+- Musical notation has not been altered.
+- Announcements are current and complete.
+- The Profession of Faith heading appears only on its first slide.
+- Reading titles and body text are aligned.
+- Text is readable from a distance.
+- No words are clipped.
+- Backgrounds are appropriate to the season.
+- The visual quality is consistent.
+- The slide sequence is correct.
+- The file opens correctly in PowerPoint.
+
+---
+
+# PART 13 — FINAL FILE DELIVERY
+
+Deliver the completed presentation as an editable PowerPoint (.pptx).
+
+Before providing the download link:
+- Confirm that the file has been created.
+- Confirm that it opens correctly.
+- Check that the presentation contains the expected slides.
+- Optimize oversized images where appropriate without compromising projection quality.
+
+If the file is too large to download reliably, provide a ZIP archive or divide the presentation into smaller, logically organized PowerPoint files.
+
+Provide clear download links to the actual files.
+
+Do not claim that a presentation is complete until it has been generated and checked.
+
+---
+
+# FINAL DESIGN PRINCIPLE
+
+Create a beautiful, reverent, Florida Keys-inspired presentation that reflects the current liturgical season and the identity of St. Peter Parish.
+
+Every song should follow the approved Entrance Song design language while receiving its own background.
+
+Every reading should use the approved reading layout with large, aligned, readable text.
+
+Every musical section should use enlarged, accurate notation.
+
+The Profession of Faith and prayers should use the approved text-focused design.
+
+Every announcement should use the established announcement style, with current content and an appropriate background for that week.
+
+**The designs should evolve with the Church year, but the quality, readability, and overall visual identity should remain consistent.**
+
+Always show me the section previews and obtain approval before building the entire PowerPoint.

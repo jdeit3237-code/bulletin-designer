@@ -60,3 +60,10 @@ def test_full_image_plus_band_image_both_in_pdf(app):
     px = list(img.getdata())
     assert sum(1 for p in px if p[0] > 200 and p[1] < 60 and p[2] < 60) > 2000
     assert sum(1 for p in px if p[2] > 200 and p[0] < 60 and p[1] < 60) > 2000
+
+
+def test_slides_guide_page(app):
+    c = setup_admin(app)
+    r = c.get("/slides-guide")
+    assert r.status_code == 200 and "bible.usccb.org/readings/calendar" in r.text
+    assert "Slides guide" in c.get("/style-guide").text

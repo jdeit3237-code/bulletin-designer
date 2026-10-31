@@ -3750,6 +3750,10 @@ def create_app(config=None):
             rows = [r for r in rows if r["from_user"] == me]
         return render_template("notes.html", rows=rows, page=request.args.get("page", ""))
 
+    @app.route("/slides-guide")
+    def slides_guide():
+        return render_template("slides_guide.html")
+
     @app.route("/style-guide")
     def style_guide():
         return render_template("style_guide.html", font_styles=all_fonts())
