@@ -42,3 +42,21 @@ def test_copy_next_custom_section(app):
     c.post(f"/bulletins/1/section/{sid}/copy-next", data={"csrf": t})
     h = c.get("/bulletins/2/preview").text
     assert h.count("UNIQ") == 1 and "Most needed items" in c.get("/bulletins/2").text
+
+
+def test_full_image_plus_band_image_both_in_pdf(app):
+    """A full-page photo with a photo 'under' it must show both in the server PDF (it used to drop the second one)."""
+    import io
+    import pypdfium2
+    from tests.test_bulletin import _card
+    c = setup_admin(app); create_bulletin(c); t = tok(c, "/bulletins/1")
+    for sid, col, w, h in ((9, (255, 0, 0), 1400, 900), (10, (0, 0, 255), 1000, 1000)):
+        c.post(f"/bulletins/1/section/{sid}", data={"csrf": t, "body": "", "alt": "pic", "img_pos": "only", "hide_title": "1",
+               "image": (_card(w, h, col), "a.png")}, content_type="multipart/form-data")
+    for sid, area in ((9, "full"), (10, "below")):
+        c.post(f"/bulletins/1/layout/{sid}", data={"area": area, "page_no": "2", "pages": "1", "cols": "1", "csrf": t, "hide_title": "1"})
+    pdf = pypdfium2.PdfDocument(c.get("/bulletins/1/download/web").data)
+    img = pdf[1].render(scale=0.5).to_pil().convert("RGB")
+    px = list(img.getdata())
+    assert sum(1 for p in px if p[0] > 200 and p[1] < 60 and p[2] < 60) > 2000
+    assert sum(1 for p in px if p[2] > 200 and p[0] < 60 and p[1] < 60) > 2000

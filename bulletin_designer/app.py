@@ -984,7 +984,7 @@ def create_app(config=None):
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
             hs = {}
             for page in doc.pages:
-                for box in page._page_box.descendants():
+                for box in page._page_box.descendants(True):
                     el = getattr(box, "element", None)
                     m = el.get("data-m") if el is not None else None
                     if m and m not in hs:
@@ -3367,16 +3367,25 @@ def create_app(config=None):
             pass
         return resp
 
+    def boxes_with_parent(page_box):
+        """Yield (box, parent) for every box on a page, including those inside absolutely positioned boxes (WeasyPrint hides them from descendants() and has no .parent)."""
+        stack = [(page_box, None)]
+        while stack:
+            box, par = stack.pop()
+            yield box, par
+            for ch in reversed(list(getattr(box, "children", None) or [])):
+                stack.append((ch, box))
+
     def page_overflow(doc):
         """Return {page index: px of content below the usable page body} for pages whose content is cut off."""
         out = {}
         for i, page in enumerate(doc.pages):
-            for box in page._page_box.descendants():
+            for box in page._page_box.descendants(True):
                 el = getattr(box, "element", None)
                 if el is None or box.element_tag != "div" or "pg-body" not in (el.get("class") or "").split():
                     continue
                 limit = box.content_box_y() + box.height
-                low = max((d.position_y + d.margin_height() for d in box.descendants() if getattr(d, "height", None) is not None), default=0)
+                low = max((d.position_y + d.margin_height() for d in box.descendants(True) if getattr(d, "height", None) is not None), default=0)
                 if low > limit + 1:
                     out[i] = low - limit
                 break
@@ -3409,6 +3418,8 @@ def create_app(config=None):
         passes = []
         def build(pgs):
             h = sup_ordinals(render_template("bulletin.html", b=b, pages=pgs, n_pages=len(pages), toc=toc, pdf=True, foot_addr=footer_address(bid)[0], foot_phone=footer_address(bid)[1], foot_hours=footer_address(bid)[2], cover_dt=g.cover_dt))
+            # WeasyPrint cannot resolve calc(var(...)): without this the photo-size limit is dropped and shared-page photos overflow and vanish.
+            h = h.replace("</head>", "<style>.sheet .shared figure img, .sheet .shared .sec.img-only figure img { max-height: var(--ph) !important; }</style></head>", 1)
             return h.replace('url(/uploads/', f'url({PDF_BASE}uploads/').replace('src="/uploads/', f'src="{PDF_BASE}uploads/').replace(
                 'href="/static/', f'href="{PDF_BASE}static/').replace('src="/static/', f'src="{PDF_BASE}static/')
         opts = ({"dpi": 96, "jpeg_quality": 70} if kind == "web" else {"dpi": 300, "jpeg_quality": 95})
@@ -3440,10 +3451,9 @@ def create_app(config=None):
                             pdoc = HTML(string=one, base_url=PDF_BASE, url_fetcher=fetch).render()
                             changed = False
                             if pg.get("photo_h"):
-                                for box in pdoc.pages[0]._page_box.descendants():
+                                for box, par in boxes_with_parent(pdoc.pages[0]._page_box):
                                     el = getattr(box, "element", None)
-                                    if el is not None and box.element_tag == "div" and el.get("id") == f"pg{pg['number']}" and box.parent is not None:
-                                        par = box.parent
+                                    if el is not None and getattr(box, "element_tag", None) == "div" and el.get("id") == f"pg{pg['number']}" and par is not None:
                                         slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
                                         n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
                                         if slack > 0.12 or slack < 0:
@@ -3485,12 +3495,11 @@ def create_app(config=None):
                     passes.append(time.time() - t_p)
                 changed = False
                 for page in doc.pages:
-                    for box in page._page_box.descendants():
+                    for box, par in boxes_with_parent(page._page_box):
                         el = getattr(box, "element", None)
-                        m = re.fullmatch(r"pg(\d+)", el.get("id") or "") if el is not None and box.element_tag == "div" else None
-                        if not m or int(m.group(1)) not in shared or box.parent is None:
+                        m = re.fullmatch(r"pg(\d+)", el.get("id") or "") if el is not None and getattr(box, "element_tag", None) == "div" else None
+                        if not m or int(m.group(1)) not in shared or par is None:
                             continue
-                        par = box.parent
                         slack = (par.content_box_y() + par.height - (box.position_y + box.margin_height())) / 96.0
                         pg = shared[int(m.group(1))]
                         n_ph = sum(1 for r in [pg["row"]] + list(pg.get("more") or []) if r["image"]) or 1
