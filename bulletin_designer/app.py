@@ -2197,6 +2197,23 @@ def create_app(config=None):
             return redirect(url_for("section", bid=bid, sid=sid))
         ensure_items(nb["id"], nxt)
         src = conn.execute("SELECT * FROM items WHERE bulletin_id=? AND section_id=?", (bid, sid)).fetchone()
+        sec = conn.execute("SELECT * FROM sections WHERE id=?", (sid,)).fetchone()
+        if sec["bulletin_id"] == bid:
+            slug = "%s-to%d" % (sec["slug"], nb["id"])
+            dest = conn.execute("SELECT id FROM sections WHERE slug=?", (slug,)).fetchone()
+            if dest:
+                dest_id = dest["id"]
+            else:
+                dest_id = conn.execute("INSERT INTO sections(slug,title,weekly,pages,position,hint,bulletin_id) VALUES(?,?,?,?,?,?,?)",
+                                       (slug, sec["title"], sec["weekly"], sec["pages"], sec["position"], sec["hint"], nb["id"])).lastrowid
+                conn.execute("INSERT INTO items(bulletin_id,section_id,position,pages,cols) VALUES(?,?,?,1,1)",
+                             (nb["id"], dest_id, src["position"]))
+            conn.execute("UPDATE items SET position=?, pages=?, cols=?, " + ",".join(f"{c}=?" for c in COPY_COLS) +
+                         ", status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",
+                         [src["position"], src["pages"], src["cols"]] + [src[c] for c in COPY_COLS] + [g.user["username"], nb["id"], dest_id])
+            conn.commit()
+            flash(f"Copied to the {nxt} bulletin.", "ok")
+            return redirect(url_for("section", bid=bid, sid=sid))
         is_cover = conn.execute("SELECT slug FROM sections WHERE id=?", (sid,)).fetchone()["slug"] == "cover"
         conn.execute("UPDATE items SET " + ",".join(f"{c}=?" for c in COPY_COLS) +
                      ", status='approved', carried=0, updated_by=? WHERE bulletin_id=? AND section_id=?",

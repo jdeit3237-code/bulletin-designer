@@ -31,3 +31,14 @@ def test_new_bulletins_have_no_underlines(app):
     c.post("/bulletins/1/underlines", data={"csrf": tok(c, "/bulletins/1")})
     create_bulletin(c, "2026-11-01")
     assert 'no-ul' in c.get("/bulletins/2/preview").text
+
+
+def test_copy_next_custom_section(app):
+    c = setup_admin(app); create_bulletin(c); t = tok(c, "/bulletins/1")
+    r = c.post("/bulletins/1/add-section", data={"title": "Most needed items", "csrf": t})
+    sid = int(r.headers["Location"].rsplit("/", 1)[1])
+    c.post(f"/bulletins/1/section/{sid}", data={"csrf": t, "body": "Rice and beans UNIQ", "alt": "x"})
+    c.post(f"/bulletins/1/section/{sid}/copy-next", data={"csrf": t})
+    c.post(f"/bulletins/1/section/{sid}/copy-next", data={"csrf": t})
+    h = c.get("/bulletins/2/preview").text
+    assert h.count("UNIQ") == 1 and "Most needed items" in c.get("/bulletins/2").text
