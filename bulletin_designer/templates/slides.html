@@ -36,7 +36,7 @@
 <label for="ol-txt">...or paste the outline text</label><textarea id="ol-txt" name="outline_text" rows="4" style="width:100%"></textarea><br>
 <button class="btn">Read outline and fill slides</button></form>
 {% if outline %}<table><tr><th>Part</th><th>Song</th><th>Slides</th></tr>
-{% for s in outline.songs %}<tr><td>{{ s.label }}</td><td>{{ s.title }}{% if s.number %} ({{ s.book }}-{{ s.number }}){% endif %}</td><td>{% if s.status == 'found' %}Added{% elif s.status == 'mass part' %}Mass part (standard slides){% elif s.status == 'in readings' %}In the readings text{% else %}<strong>Not in song library</strong>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+{% for s in outline.songs %}<tr><td>{{ s.label }}</td><td>{{ s.title }}{% if s.number %} ({{ s.book }}-{{ s.number }}){% endif %}</td><td>{% if s.status == 'found' %}Added{% elif s.status == 'mass part' %}Mass part (standard slides){% else %}<strong>Not in song library</strong>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
 {% endif %}
 <h2>Song library (lyrics and music, kept for every week)</h2>
 <p class="small">Add a song once: type its title (and its hymnal number, such as BB26-718, if it has one), then paste the lyrics (blank line between slides) and/or choose a notation image. After that the outline finds it automatically.</p>
