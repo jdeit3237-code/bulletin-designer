@@ -377,6 +377,26 @@ def match_songs(lib, songs, outline_date, language="english"):
     return out
 
 
+def book_page_images(app, song, outline_date):
+    """PNG bytes of a song's pages in its primary book (used for psalm/acclamation slides)."""
+    import fitz
+
+    lib = load_library(app)
+    src = match_songs(lib, [song], outline_date)[0].get("primary")
+    book = _book_by_id(lib, src["book_id"]) if src else None
+    path = book_path(app, book) if book else ""
+    if not path or not os.path.exists(path):
+        return []
+    offset = int(book.get("page_offset", 0))
+    out = []
+    with fitz.open(path) as doc:
+        for p in range(src["start"], src["end"] + 1):
+            idx = p + offset - 1
+            if 0 <= idx < len(doc):
+                out.append(doc[idx].get_pixmap(dpi=150).tobytes("png"))
+    return out
+
+
 def _source(hit):
     if not hit:
         return None
