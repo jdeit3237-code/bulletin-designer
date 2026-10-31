@@ -130,3 +130,17 @@ def test_word_announcements_become_slides(app):
     prs = Presentation(io.BytesIO(c.get(f"/slides/pptx?date={d}").data))
     text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
     assert "Food drive Sunday" in text and "Choir practice Thursday" in text
+
+
+def test_long_reading_split_and_cp1252_decoded(tmp_path):
+    from bulletin_designer.outline import read_text, split_long
+    long = " ".join(f"Sentence number {i} is here." for i in range(30))
+    pieces = split_long(long)
+    assert len(pieces) > 1 and all(len(p) <= 240 for p in pieces)
+    assert " ".join(p.replace("\n", " ") for p in pieces) == long
+    assert split_long("Short") == ["Short"]
+    f = tmp_path / "r.txt"
+    f.write_bytes("saw \u201crising\u201d \u2014 east".encode("cp1252"))
+    assert read_text(str(f)) == "saw \u201crising\u201d \u2014 east"
+    f.write_bytes(b"\xef\xbb\xbfhello")
+    assert read_text(str(f)) == "hello"
