@@ -2,6 +2,11 @@
 {% block content %}
 <h1>Mass slides</h1>
 <p>Upload the week's songs, readings and announcements. The standard slides are kept here and are always included. Then download one package for the AI tool. See the <a href="{{ url_for('slides_guide') }}">Slides guide</a>.</p>
+<ol>
+<li>Upload the standard slides once (they stay).</li>
+<li>Pick the Mass date, then upload the week's songs, readings, announcements and any special slides.</li>
+<li>Tick bulletin graphics you want, press <strong>Save ticked graphics</strong>.</li>
+<li>Press <strong>Preview slides</strong> to check every slide, then <strong>Download PowerPoint</strong>.</li></ol>
 <p><a class="btn" href="{{ url_for('slides_year') }}">See the whole church year</a></p>
 <h2>Standard slides (included every week)</h2>
 {% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>
@@ -14,10 +19,13 @@
 {% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
 {% if mass_date %}
 {% for k, label in kinds if k != 'standard' %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}{% endfor %}
-<form method="get" action="{{ url_for('slides_package') }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<form method="get" action="{{ url_for('slides_package') }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <h3>Bulletin graphics to match announcements (optional)</h3>
-<p class="small">Tick any bulletin photo or graphic to include it in the package, in a "graphics" folder.</p>
-<div style="display:flex;flex-wrap:wrap;gap:8px">{% for ph in photos %}<label style="width:110px;font-size:.75rem"><input type="checkbox" name="photo" value="{{ ph.id }}"><br><img src="{{ url_for('uploads', name=ph.filename) }}" alt="{{ ph.title or 'photo' }}" style="max-width:100px;max-height:70px" loading="lazy"><br>{{ ph.title }}</label>{% endfor %}</div>
-<p><button class="btn">Download package for {{ mass_date }}</button> <button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button></p></form>
+<p class="small">Tick the bulletin photos or graphics to use, then press Save. Your ticks are remembered for this week.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">{% for ph in photos %}<label style="width:110px;font-size:.75rem"><input type="checkbox" name="photo" value="{{ ph.id }}"{% if ph.id|string in selected %} checked{% endif %}><br><img src="{{ url_for('uploads', name=ph.filename) }}" alt="{{ ph.title or 'photo' }}" style="max-width:100px;max-height:70px" loading="lazy"><br>{{ ph.title }}</label>{% endfor %}</div>
+<p><button class="btn" formmethod="post" formaction="{{ url_for('slides') }}" name="action" value="save_graphics">Save ticked graphics</button>
+<button class="btn" formaction="{{ url_for('slides_preview') }}">Preview slides</button>
+<button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button>
+<button class="btn secondary">Download package for the AI tool</button></p></form>
 {% endif %}
 {% endblock %}

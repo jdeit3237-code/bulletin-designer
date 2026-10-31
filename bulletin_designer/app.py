@@ -3777,6 +3777,12 @@ def create_app(config=None):
         if request.method == "POST":
             kind = request.form.get("kind")
             action = request.form.get("action")
+            if action == "save_graphics" and mass_date:
+                os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
+                with open(os.path.join(slides_root, "weeks", mass_date, "graphics.json"), "w") as f:
+                    json.dump([x for x in request.form.getlist("photo") if x.isdigit()][:40], f)
+                flash("Saved your ticked graphics for this week.")
+                return redirect(url_for("slides", date=mass_date))
             if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not mass_date):
                 flash("Choose the Mass date first.", "error")
                 return redirect(url_for("slides", date=mass_date))
@@ -3799,7 +3805,7 @@ def create_app(config=None):
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
         return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
-                               photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [])
+                               photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [], selected=saved_graphics(mass_date) if mass_date else [])
 
     @app.route("/slides/year")
     @need()
@@ -3833,7 +3839,7 @@ def create_app(config=None):
         mass_date = request.args.get("date", "")
         if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date)):
             abort(404)
-        return send_from_directory(slides_dir(kind, mass_date), secure_filename(name), as_attachment=True)
+        return send_from_directory(slides_dir(kind, mass_date), secure_filename(name), as_attachment=not request.args.get("inline"))
 
     CONCEPT_SCENES = ("sunrise over a calm turquoise bay", "a fishing boat returning at golden hour", "mangrove roots reflecting evening light",
                       "palm silhouettes against a glowing sunset", "a lighthouse above gentle waves", "clouds opening over the Keys horizon",
@@ -3854,81 +3860,105 @@ def create_app(config=None):
 
     SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
 
-    def build_pptx(mass_date, photo_ids=()):
-        """Editable 16:9 deck: title slide, then each uploaded file in Mass order. Images become full-slide pictures, text files one slide per paragraph."""
-        from pptx import Presentation
-        from pptx.util import Inches, Pt
-        from pptx.dml.color import RGBColor
-        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    def saved_graphics(mass_date):
+        try:
+            with open(os.path.join(slides_root, "weeks", mass_date, "graphics.json")) as f:
+                return [str(x) for x in json.load(f)]
+        except (OSError, ValueError):
+            return []
+
+    def chosen_graphics():
+        return (request.args.getlist("photo") or saved_graphics(request.args.get("date", "")))[:40]
+
+    def plan_slides(mass_date, photo_ids=()):
+        """The ordered list of slides, shared by the preview and the PowerPoint so they always match."""
         li = liturgy.info(date.fromisoformat(mass_date))
         season = li["season"]
-        bg = RGBColor.from_string(SEASON_BG.get(season, "14527A"))
-        prs = Presentation()
-        prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
-        blank = prs.slide_layouts[6]
-
-        def text_slide(text, title=None, size=54):
-            sl = prs.slides.add_slide(blank)
-            sl.background.fill.solid(); sl.background.fill.fore_color.rgb = bg
-            top = 0.5
-            if title:
-                box = sl.shapes.add_shape(1, Inches(2.2), Inches(0.4), Inches(8.9), Inches(0.9))
-                box.fill.solid(); box.fill.fore_color.rgb = RGBColor(0xB3, 0x20, 0x2A); box.line.fill.background()
-                tf = box.text_frame; tf.text = title
-                tf.paragraphs[0].alignment = PP_ALIGN.CENTER
-                tf.paragraphs[0].runs[0].font.size = Pt(34); tf.paragraphs[0].runs[0].font.bold = True
-                tf.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 255, 255)
-                top = 1.5
-            tb = sl.shapes.add_textbox(Inches(0.9), Inches(top), Inches(11.5), Inches(7.0 - top))
-            tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-            for i, line in enumerate(text.splitlines() or [""]):
-                para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-                para.alignment = PP_ALIGN.CENTER
-                r = para.add_run(); r.text = line
-                r.font.size = Pt(size); r.font.bold = True; r.font.color.rgb = RGBColor(255, 255, 255)
-
-        def image_slide(path):
-            sl = prs.slides.add_slide(blank)
-            sl.background.fill.solid(); sl.background.fill.fore_color.rgb = RGBColor(0xFA, 0xF5, 0xE6)
-            from PIL import Image
-            with Image.open(path) as im:
-                w, h = im.size
-            sw, sh = prs.slide_width, prs.slide_height
-            scale = min(sw / w, sh / h)
-            pw, ph = int(w * scale), int(h * scale)
-            sl.shapes.add_picture(path, int((sw - pw) / 2), int((sh - ph) / 2), pw, ph)
+        feast = bool(li["name"]) and li["name"] not in SEASON_BG
 
         def skip(name):
             n = name.lower()
             if "alleluia" in n and season == "Lent":
                 return True
-            return "gloria" in n and season in ("Advent", "Lent") and not (li["name"] and li["name"] not in SEASON_BG)
+            return "gloria" in n and season in ("Advent", "Lent") and not feast
 
-        text_slide(li["name"] or f"Sunday in {season}", title=mass_date, size=60)
-        order = ("standard", "prelude", "songs", "readings", "notation", "announcements", "special", "going_forth")
-        for kind in order:
+        plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
+        for kind in ("standard", "prelude", "songs", "readings", "notation", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
                     continue
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
                 if ext in ("png", "jpg", "jpeg"):
-                    image_slide(path)
+                    plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
                 elif ext == "txt":
                     label = os.path.splitext(name)[0].replace("_", " ")
                     parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
-                    for i, part in enumerate(parts):
-                        text_slide(part, title=label if i == 0 and kind in ("songs", "readings", "standard") else None, size=48 if len(part) > 140 else 56)
+                    for k, part in enumerate(parts):
+                        plan.append({"type": "text", "title": label if k == 0 and kind in ("songs", "readings", "standard") else None,
+                                     "text": part, "size": 48 if len(part) > 140 else 56})
         for pid in photo_ids:
             row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
             path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
             if path and os.path.isfile(path):
+                plan.append({"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"})
+        return plan, SEASON_BG.get(season, "14527A")
+
+    def build_pptx(plan, bg_hex):
+        """Editable 16:9 deck: images become full-slide pictures, text one slide per paragraph."""
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+        from pptx.dml.color import RGBColor
+        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        from PIL import Image
+        bg = RGBColor.from_string(bg_hex)
+        prs = Presentation()
+        prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+        blank = prs.slide_layouts[6]
+        for item in plan:
+            sl = prs.slides.add_slide(blank)
+            sl.background.fill.solid()
+            if item["type"] == "image":
+                sl.background.fill.fore_color.rgb = RGBColor(0xFA, 0xF5, 0xE6)
                 try:
-                    image_slide(path)
+                    with Image.open(item["path"]) as im:
+                        w, h = im.size
+                    sw, sh = prs.slide_width, prs.slide_height
+                    scale = min(sw / w, sh / h)
+                    pw, ph = int(w * scale), int(h * scale)
+                    sl.shapes.add_picture(item["path"], int((sw - pw) / 2), int((sh - ph) / 2), pw, ph)
                 except Exception:
                     pass
+                continue
+            sl.background.fill.fore_color.rgb = bg
+            top = 0.5
+            if item["title"]:
+                box = sl.shapes.add_shape(1, Inches(2.2), Inches(0.4), Inches(8.9), Inches(0.9))
+                box.fill.solid(); box.fill.fore_color.rgb = RGBColor(0xB3, 0x20, 0x2A); box.line.fill.background()
+                tf = box.text_frame; tf.text = item["title"]
+                tf.paragraphs[0].alignment = PP_ALIGN.CENTER
+                run = tf.paragraphs[0].runs[0]
+                run.font.size = Pt(34); run.font.bold = True; run.font.color.rgb = RGBColor(255, 255, 255)
+                top = 1.5
+            tb = sl.shapes.add_textbox(Inches(0.9), Inches(top), Inches(11.5), Inches(7.0 - top))
+            tf = tb.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            for k, line in enumerate(item["text"].splitlines() or [""]):
+                para = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
+                para.alignment = PP_ALIGN.CENTER
+                r = para.add_run(); r.text = line
+                r.font.size = Pt(item["size"]); r.font.bold = True; r.font.color.rgb = RGBColor(255, 255, 255)
         buf = io.BytesIO(); prs.save(buf); buf.seek(0)
         return buf
+
+    @app.route("/slides/preview")
+    @need()
+    @need_area("slides")
+    def slides_preview():
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        plan, bg = plan_slides(mass_date, chosen_graphics())
+        return render_template("slides_preview.html", plan=plan, bg=bg, mass_date=mass_date)
 
     @app.route("/slides/pptx")
     @need()
@@ -3937,7 +3967,13 @@ def create_app(config=None):
         mass_date = request.args.get("date", "")
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
             abort(404)
-        return send_file(build_pptx(mass_date, request.args.getlist("photo")[:40]), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
+        try:
+            import pptx  # noqa: F401
+        except ImportError:
+            flash("The PowerPoint tool is not installed on the server yet. Ask the administrator to run: pip install -r requirements.txt", "error")
+            return redirect(url_for("slides", date=mass_date))
+        plan, bg = plan_slides(mass_date, chosen_graphics())
+        return send_file(build_pptx(plan, bg), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
                          mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
     @app.route("/slides/package")
@@ -3963,7 +3999,7 @@ def create_app(config=None):
             for kind, _ in SLIDE_KINDS:
                 for name in slides_list(kind, mass_date):
                     z.write(os.path.join(slides_dir(kind, mass_date), name), f"{kind}/{name}")
-            for pid in request.args.getlist("photo")[:40]:
+            for pid in chosen_graphics():
                 row = db().execute("SELECT filename, title FROM photos WHERE id=?", (pid,)).fetchone()
                 path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
                 if path and os.path.isfile(path):
