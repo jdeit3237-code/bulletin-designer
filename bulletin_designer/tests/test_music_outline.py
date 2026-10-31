@@ -109,3 +109,24 @@ def test_black_slide_between_songs_and_readings(app):
     black = [i for i, s in enumerate(prs.slides) if s.background.fill.fore_color.rgb == RGBColor(0, 0, 0)]
     assert len(black) == 2
     assert all(0 < i < len(prs.slides) - 1 for i in black)
+
+
+def test_word_announcements_become_slides(app):
+    import io
+    import zipfile
+    from pptx import Presentation
+    xml = ('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
+           '<w:p><w:r><w:t>Food drive Sunday</w:t></w:r></w:p><w:p><w:r><w:t>Choir practice Thursday</w:t></w:r></w:p>'
+           '</w:body></w:document>')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml", xml)
+    buf.seek(0)
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    d = "2026-11-01"
+    c.post("/slides", data={"csrf": t, "kind": "announcements", "date": d, "files": (buf, "Announcements.docx")},
+           content_type="multipart/form-data")
+    prs = Presentation(io.BytesIO(c.get(f"/slides/pptx?date={d}").data))
+    text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
+    assert "Food drive Sunday" in text and "Choir practice Thursday" in text
