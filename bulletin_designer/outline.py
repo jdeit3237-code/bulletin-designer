@@ -54,6 +54,44 @@ def announcements_from(parts):
             return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
     return parts
 
+def read_text(path):
+    """Read a text file saved as UTF-8 (with or without BOM) or Windows-1252, without junk characters."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("cp1252", errors="replace")
+
+
+def split_long(part, limit=240):
+    """Break a long block of text into slide-sized pieces at line, then sentence, then word boundaries."""
+    if len(part) <= limit:
+        return [part]
+    pieces = []
+    for line in part.splitlines():
+        line = line.strip()
+        if len(line) <= limit:
+            pieces.append(line)
+        else:
+            pieces.extend(x for x in re.split(r"(?<=[.!?;:])\s+", line) if x)
+    out, cur = [], ""
+    for piece in pieces:
+        while len(piece) > limit:
+            cut = piece.rfind(" ", 0, limit) or limit
+            out.append((cur + "\n" + piece[:cut]).strip() if cur and len(cur) + cut < limit else piece[:cut])
+            if cur and len(cur) + cut < limit:
+                cur = ""
+            piece = piece[cut:].strip()
+        if cur and len(cur) + len(piece) + 1 > limit:
+            out.append(cur)
+            cur = piece
+        else:
+            cur = (cur + "\n" + piece).strip() if cur else piece
+    if cur:
+        out.append(cur)
+    return out
+
 
 def slug(title):
     return re.sub(r"[^a-z0-9]+", "-", (title or "").lower().replace("&", "and")).strip("-")[:80]

@@ -4139,13 +4139,15 @@ def create_app(config=None):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
                     try:
-                        raw = docx_text(path) if ext == "docx" else open(path, encoding="utf-8", errors="replace").read()
+                        raw = docx_text(path) if ext == "docx" else music_outline.read_text(path)
                     except Exception:
                         continue
                     parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
                     if ext == "docx" and kind == "announcements":
                         parts = music_outline.announcements_from(parts)
                     parts = music_outline.repeat_refrain(parts)
+                    if kind in ("readings", "announcements"):
+                        parts = [piece for part in parts for piece in music_outline.split_long(part)]
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for k, part in enumerate(parts):
