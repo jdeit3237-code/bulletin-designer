@@ -207,6 +207,25 @@ def test_standard_pptx_slides_appear_in_preview(app):
     assert "Lamb of" in page
 
 
+def test_slides_follow_outline_order_with_blanks(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "ENTRANCE WORDS"})
+    outline = OUTLINE.replace("Penitential Act Kyrie (Mass of Saint Ann, Ed Bolduc)\n", "Penitential Act Kyrie (Mass of Saint Ann, Ed Bolduc)\nFirst Reading\nResponsorial Psalm\nSecond Reading\nGospel Acclamation\nGospel\n")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": outline}, follow_redirects=True)
+    p = Presentation()
+    s = p.slides.add_slide(p.slide_layouts[5]); s.shapes.title.text = "HOLY WORDS"
+    buf = io.BytesIO(); p.save(buf); buf.seek(0)
+    c.post("/slides", data={"csrf": t, "kind": "standard", "files": (buf, "Holy_Holy_Holy.pptx")}, content_type="multipart/form-data")
+    txt = b"Reading 1\nFIRSTTEXT.\n\nResponsorial Psalm\nR. PSALMRESP\nPSALMVERSE.\n\nReading 2\nSECONDTEXT.\n\nGospel\nGOSPELTEXT.\n"
+    c.post("/slides", data={"csrf": t, "kind": "readings", "date": "2026-11-01", "files": (io.BytesIO(txt), "Readings.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True).replace("\xa0", " ")
+    order = ["ENTRANCE WORDS", "FIRSTTEXT", "PSALMRESP", "SECONDTEXT", "GOSPELTEXT", "HOLY WORDS"]
+    pos = [page.index(w) for w in order]
+    assert pos == sorted(pos)
+
+
 def test_readings_split_into_one_or_two_sentence_slides():
     from bulletin_designer.outline import reading_sections
     body = " ".join(f"This is sentence number {i} of the reading." for i in range(12))

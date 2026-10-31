@@ -3808,7 +3808,7 @@ def create_app(config=None):
         except (OSError, ValueError):
             return None
 
-    def apply_outline(mass_date, songs):
+    def apply_outline(mass_date, songs, order=None):
         """Fill the week's song sections from the lyrics library; re-running replaces only what an earlier run added."""
         previous = load_outline(mass_date) or {}
         for kind, name in previous.get("auto", []):
@@ -3846,7 +3846,7 @@ def create_app(config=None):
             report.append(dict(song, status=status))
         os.makedirs(os.path.dirname(outline_path(mass_date)), exist_ok=True)
         with open(outline_path(mass_date), "w") as f:
-            json.dump({"songs": report, "auto": auto}, f)
+            json.dump({"songs": report, "auto": auto, "order": order or []}, f)
         return previous, report
 
     @app.route("/slides/outline", methods=["POST"])
@@ -3871,7 +3871,7 @@ def create_app(config=None):
         if not parsed["songs"]:
             flash("No songs were found in that outline.", "error")
             return redirect(url_for("slides", date=mass_date))
-        previous, report = apply_outline(mass_date, parsed["songs"])
+        previous, report = apply_outline(mass_date, parsed["songs"], parsed.get("order"))
         old = {(x["label"], x["title"].lower()) for x in previous.get("songs", [])}
         changed = [x["title"] for x in report if (x["label"], x["title"].lower()) not in old] if old else []
         missing = [x["title"] for x in report if x["status"] == "missing"]
@@ -4125,7 +4125,9 @@ def create_app(config=None):
 
         BLACK_BETWEEN = ("prelude", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "going_forth")
         seen_songs = set()
+        outline_order = (load_outline(mass_date) or {}).get("order") or []
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
+        chunks = []
         for kind in ("prelude", "standard", "entrance", "songs", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
@@ -4138,20 +4140,22 @@ def create_app(config=None):
                     seen_songs.add(key)
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
-                if kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx") and len(plan) > 1 and plan[-1]["type"] != "blank":
-                    plan.append({"type": "blank"})
+                blank_before = kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx")
                 if ext in ("png", "jpg", "jpeg"):
-                    plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
+                    chunks.append({"kind": kind, "name": name, "group": None, "blank": blank_before,
+                                   "items": [{"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name}]})
                 elif ext == "pptx" and kind == "standard":
+                    items = []
                     try:
                         from pptx import Presentation as _P
                         for sl in _P(path).slides:
                             txt = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
                             if txt:
-                                plan.append({"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
-                                             "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
+                                items.append({"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
+                                              "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
                     except Exception:
                         continue
+                    chunks.append({"kind": kind, "name": name, "group": None, "blank": False, "items": items})
                 elif ext in ("txt", "docx"):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
@@ -4171,8 +4175,7 @@ def create_app(config=None):
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
                     for g, (gtitle, parts) in enumerate(groups):
-                        if g and plan[-1]["type"] != "blank":
-                            plan.append({"type": "blank"})
+                        items = []
                         for k, part in enumerate(parts):
                             lines = part.splitlines()
                             credit = " ".join(x.strip() for x in lines if CREDIT_RE.match(x))
@@ -4183,7 +4186,18 @@ def create_app(config=None):
                                 item["title"], item["subtitle"] = section, gtitle
                             elif k == 0 and kind in ("readings", "standard"):
                                 item["title"] = gtitle
-                            plan.append(item)
+                            items.append(item)
+                        chunks.append({"kind": kind, "name": name, "group": gtitle if kind == "readings" else None, "blank": blank_before or g > 0, "items": items})
+        chunks = music_outline.order_chunks(chunks, outline_order)
+        previous = None
+        for ch in chunks:
+            if not ch["items"]:
+                continue
+            gap = previous is not None and (ch["label"] is None or ch["label"] != previous["label"])
+            if gap and plan[-1]["type"] != "blank" and len(plan) > 1:
+                plan.append({"type": "blank"})
+            plan.extend(ch["items"])
+            previous = ch
         for pid in photo_ids:
             row = db().execute("SELECT filename FROM photos WHERE id=?", (pid,)).fetchone()
             path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))

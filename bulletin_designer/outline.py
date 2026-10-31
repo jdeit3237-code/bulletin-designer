@@ -264,4 +264,58 @@ def parse_outline(text):
         elif current is not None:
             current["text"] = (current["text"] + " " + ln).strip()
     songs = [s for r in rows if r["label"] not in SKIP_LABELS for s in [_parse_row(r["label"], r["text"])] if s]
-    return {"date": when.isoformat() if when else "", "songs": songs}
+    return {"date": when.isoformat() if when else "", "songs": songs, "order": [r["label"] for r in rows]}
+
+
+READING_LABELS = ("First Reading", "Responsorial Psalm", "Second Reading", "Gospel Acclamation", "Gospel")
+STANDARD_KEYWORDS = (
+    ("Penitential Act", ("penitential", "confiteor", "i confess", "kyrie", "lord have mercy")),
+    ("Glory to God", ("gloria", "glory to god")),
+    ("Gospel Acclamation", ("alleluia", "acclamation")),
+    ("Creed", ("creed", "profession")),
+    ("Mystery of Faith", ("mystery", "memorial")),
+    ("Holy", ("holy", "sanctus")),
+    ("Lord's Prayer", ("lord's prayer", "lords prayer", "our father")),
+    ("Lamb of God", ("lamb", "agnus")),
+    ("Amen", ("amen",)),
+)
+_NORM = lambda x: re.sub(r"[^a-z0-9]+", "", x.lower())
+
+
+def chunk_label(kind, name, group, order):
+    """Which outline item a slide file or reading section belongs to, or None when unknown."""
+    if kind == "readings" and group in READING_LABELS:
+        return group
+    if kind == "standard":
+        low = name.lower().replace("_", " ")
+        return next((lab for lab, keys in STANDARD_KEYWORDS if any(k in low for k in keys)), None)
+    if kind == "announcements":
+        return "Announcements"
+    if kind == "special":
+        return "Special"
+    stem = _NORM(name)
+    for lab in sorted(order, key=len, reverse=True):
+        if stem.startswith(_NORM(lab)):
+            return lab
+    return next((lab for lab in order if kind != "songs" and LABEL_KIND.get(lab) == kind), None)
+
+
+MASS_ORDER = ["Prelude", "Entrance", "Penitential Act", "Glory to God", "First Reading", "Responsorial Psalm", "Second Reading",
+              "Gospel Acclamation", "Gospel", "Creed", "Presentation and Preparation of the Gifts", "Holy", "Mystery of Faith",
+              "Lord's Prayer", "Amen", "Lamb of God", "Communion", "Song of Praise", "Announcements", "Special", "Final Song"]
+LABEL_ALIAS = {"Presentation of the Gifts": "Presentation and Preparation of the Gifts", "Offertory": "Presentation and Preparation of the Gifts",
+               "Final Song or Hymn": "Final Song", "Recessional": "Final Song", "Sequence": "Gospel Acclamation"}
+
+
+def order_chunks(chunks, order=()):
+    """Sort slide chunks into the order of the Mass (the liturgy outline); each chunk gets its "label". Stable for ties."""
+    names = list(dict.fromkeys(list(order) + MASS_ORDER + list(LABEL_ALIAS)))
+    pos = {lab: float(i) for i, lab in enumerate(MASS_ORDER)}
+    last = -1.0
+    for ch in chunks:
+        lab = chunk_label(ch["kind"], ch["name"], ch.get("group"), names)
+        lab = LABEL_ALIAS.get(lab, lab)
+        ch["label"] = lab
+        ch["rank"] = pos.get(lab, last)
+        last = ch["rank"]
+    return sorted(chunks, key=lambda c: c["rank"])
