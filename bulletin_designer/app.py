@@ -4131,14 +4131,18 @@ def create_app(config=None):
                     continue
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
-                if kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt") and len(plan) > 1 and plan[-1]["type"] != "blank":
+                if kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx") and len(plan) > 1 and plan[-1]["type"] != "blank":
                     plan.append({"type": "blank"})
                 if ext in ("png", "jpg", "jpeg"):
                     plan.append({"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name})
-                elif ext == "txt":
+                elif ext in ("txt", "docx"):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     section = dict(SLIDE_KINDS).get(kind, "").split(" (")[0]
-                    parts = [x.strip() for x in re.split(r"\n\s*\n", open(path, encoding="utf-8", errors="replace").read()) if x.strip()]
+                    try:
+                        raw = docx_text(path) if ext == "docx" else open(path, encoding="utf-8", errors="replace").read()
+                    except Exception:
+                        continue
+                    parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
                     parts = music_outline.repeat_refrain(parts)
                     song = kind in SONG_KINDS
                     bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
