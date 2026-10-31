@@ -130,3 +130,10 @@ def test_word_announcements_become_slides(app):
     prs = Presentation(io.BytesIO(c.get(f"/slides/pptx?date={d}").data))
     text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
     assert "Food drive Sunday" in text and "Choir practice Thursday" in text
+
+
+def test_announcements_start_at_parish_announcements_line():
+    from bulletin_designer.outline import announcements_from
+    parts = ["Opening script", "*Lector: Our Parish Announcements this week:", "Food drive", "Choir Thursday"]
+    assert announcements_from(parts) == ["Our Parish Announcements this week:", "Food drive", "Choir Thursday"]
+    assert announcements_from(["Only", "These"]) == ["Only", "These"]
