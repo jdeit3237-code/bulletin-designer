@@ -298,3 +298,12 @@ def test_graphic_follows_its_announcement():
     assert outline.best_match("Pet wellness clinic flyer", texts) == 1
     assert outline.best_match("Pumpkin patch", texts) == 0
     assert outline.best_match("Bingo night", texts) is None
+
+
+def test_preview_warns_when_required_songs_missing(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "ENTRANCE WORDS"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "Missing songs" in page and "Going Forth" in page

@@ -4360,7 +4360,11 @@ def create_app(config=None):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
             abort(404)
         plan, bg = plan_slides(mass_date, chosen_graphics())
-        return render_template("slides_preview.html", plan=plan, bg=bg, mass_date=mass_date)
+        have = {(it.get("title") or "").lower() for it in plan if it.get("style") == "song"}
+        aliases = {"Entrance Song": ("entrance song", "entrance"), "Presentation of the Gifts": ("presentation of the gifts", "presentation and preparation of the gifts"),
+                   "Communion": ("communion",), "Going Forth": ("going forth", "final song")}
+        missing = [n for n, al in aliases.items() if not any(a in have for a in al)]
+        return render_template("slides_preview.html", plan=plan, bg=bg, mass_date=mass_date, missing_songs=missing)
 
     @app.route("/slides/pptx")
     @need()
