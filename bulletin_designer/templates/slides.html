@@ -14,6 +14,10 @@
 {% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
 {% if mass_date %}
 {% for k, label in kinds if k != 'standard' %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}{% endfor %}
-<p><a class="btn" href="{{ url_for('slides_package', date=mass_date) }}">Download package for {{ mass_date }}</a></p>
+<form method="get" action="{{ url_for('slides_package') }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<h3>Bulletin graphics to match announcements (optional)</h3>
+<p class="small">Tick any bulletin photo or graphic to include it in the package, in a "graphics" folder.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">{% for ph in photos %}<label style="width:110px;font-size:.75rem"><input type="checkbox" name="photo" value="{{ ph.id }}"><br><img src="{{ url_for('uploads', name=ph.filename) }}" alt="{{ ph.title or 'photo' }}" style="max-width:100px;max-height:70px" loading="lazy"><br>{{ ph.title }}</label>{% endfor %}</div>
+<p><button class="btn">Download package for {{ mass_date }}</button></p></form>
 {% endif %}
 {% endblock %}

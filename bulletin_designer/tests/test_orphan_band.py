@@ -87,3 +87,17 @@ def test_slides_area_for_av_ministry(app):
     c.post("/admin/users", data={"action": "role", "uid": "2", "role": "contributor", "areas": ["slides"], "csrf": tok(c, "/admin/users")})
     assert y.get("/slides").status_code == 200 and "Mass slides" in y.get("/").text
     assert y.get("/library").status_code == 403 and y.get("/ads").status_code == 403
+
+
+def test_slides_package_includes_bulletin_graphics(app):
+    import io, zipfile, os, sqlite3
+    c = setup_admin(app); create_bulletin(c)
+    with open(os.path.join(app.config["UPLOAD_DIR"], "g.png"), "wb") as f:
+        f.write(b"\x89PNG fake")
+    conn = sqlite3.connect(app.config["DATABASE"])
+    conn.execute("INSERT INTO photos(id, filename, title) VALUES (901, 'g.png', 'Food Drive')")
+    conn.commit(); conn.close()
+    page = c.get("/slides?date=2026-11-01")
+    assert page.status_code == 200 and 'name="photo" value="901"' in page.text
+    z = zipfile.ZipFile(io.BytesIO(c.get("/slides/package?date=2026-11-01&photo=901").data))
+    assert any(n.startswith("graphics/Food_Drive_901") for n in z.namelist())

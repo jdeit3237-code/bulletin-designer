@@ -3798,7 +3798,8 @@ def create_app(config=None):
             return redirect(url_for("slides", date=mass_date))
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
         return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
-                               files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date})
+                               files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
+                               photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [])
 
     @app.route("/slides/year")
     @need()
@@ -3854,6 +3855,11 @@ def create_app(config=None):
             for kind, _ in SLIDE_KINDS:
                 for name in slides_list(kind, mass_date):
                     z.write(os.path.join(slides_dir(kind, mass_date), name), f"{kind}/{name}")
+            for pid in request.args.getlist("photo")[:40]:
+                row = db().execute("SELECT filename, title FROM photos WHERE id=?", (pid,)).fetchone()
+                path = row and os.path.join(app.config["UPLOAD_DIR"], os.path.basename(row["filename"]))
+                if path and os.path.isfile(path):
+                    z.write(path, f"graphics/{secure_filename(row['title'] or '') or 'photo'}_{pid}{os.path.splitext(path)[1]}")
         buf.seek(0)
         return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=f"Mass-slides-package-{mass_date}.zip")
 
