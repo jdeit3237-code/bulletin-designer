@@ -29,18 +29,32 @@ def extract_pdf_text(file_obj):
 REFRAIN_RE = re.compile(r"^\s*(refrain|chorus|response|antiphon|R\s*[./:])", re.I)
 
 
+VERSE_NUM_RE = re.compile(r"^\s*(?:verse\s*)?\(?\d{1,2}\s*[.):\-]?\s+(?=\S)", re.I | re.M)
+
+
+def strip_verse_numbers(part):
+    """Remove leading verse numbers such as '1.', '2)' or 'Verse 3' from a slide part."""
+    return VERSE_NUM_RE.sub("", part).strip()
+
+
 def repeat_refrain(parts):
-    """Slide parts with the refrain/chorus repeated after every verse that follows it."""
+    """Slide parts with verse numbers removed and the refrain placed between every verse."""
+    numbered = [bool(VERSE_NUM_RE.match(p)) for p in parts]
+    parts = [strip_verse_numbers(p) if n else p for p, n in zip(parts, numbered)]
     refrain = next((p for p in parts if REFRAIN_RE.match(p)), None)
+    if refrain is None and any(numbered):
+        refrain = next((p for p, n in zip(parts, numbered) if not n), None)
     if not refrain:
         return parts
-    out, seen = [], False
+    out = []
     for i, part in enumerate(parts):
-        out.append(part)
-        if REFRAIN_RE.match(part):
-            seen = True
-        elif seen and not (i + 1 < len(parts) and REFRAIN_RE.match(parts[i + 1])):
-            out.append(refrain)
+        if part is refrain or REFRAIN_RE.match(part):
+            out.append(part)
+        else:
+            out.append(part)
+            nxt = parts[i + 1] if i + 1 < len(parts) else None
+            if nxt is None or not (nxt is refrain or REFRAIN_RE.match(nxt)):
+                out.append(refrain)
     return out
 
 
@@ -54,6 +68,18 @@ def no_orphans(text):
         out.append(line)
     return "\n".join(out)
 
+
+
+
+ANNOUNCE_RE = re.compile(r"^[\s*_]*(lector\s*:?\s*)?(?=our parish announcements)", re.I)
+
+
+def announcements_from(parts):
+    """Keep a Word script from 'Our Parish Announcements this week' onward (dropping the lector cue)."""
+    for i, part in enumerate(parts):
+        if ANNOUNCE_RE.match(part):
+            return [ANNOUNCE_RE.sub("", part, count=1)] + parts[i + 1:]
+    return parts
 
 def read_text(path):
     """Read a text file saved as UTF-8 (with or without BOM) or Windows-1252, without junk characters."""

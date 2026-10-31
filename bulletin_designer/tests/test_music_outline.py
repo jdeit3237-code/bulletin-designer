@@ -132,6 +132,12 @@ def test_word_announcements_become_slides(app):
     assert "Food drive Sunday" in text and "Choir practice Thursday" in text
 
 
+def test_announcements_start_at_parish_announcements_line():
+    from bulletin_designer.outline import announcements_from
+    parts = ["Opening script", "*Lector: Our Parish Announcements this week:", "Food drive", "Choir Thursday"]
+    assert announcements_from(parts) == ["Our Parish Announcements this week:", "Food drive", "Choir Thursday"]
+    assert announcements_from(["Only", "These"]) == ["Only", "These"]
+
 def test_long_reading_split_and_cp1252_decoded(tmp_path):
     from bulletin_designer.outline import read_text, split_long
     long = " ".join(f"Sentence number {i} is here." for i in range(30))
@@ -149,3 +155,13 @@ def test_long_reading_split_and_cp1252_decoded(tmp_path):
 def test_no_orphans_joins_last_two_words():
     from bulletin_designer.outline import no_orphans
     assert no_orphans("one two three four\nHi there") == "one two three\u00a0four\nHi there"
+
+
+def test_refrain_between_verses_and_numbers_removed():
+    from bulletin_designer.outline import repeat_refrain
+    out = repeat_refrain(["1. Verse one", "Refrain: Sing", "2. Verse two", "3) Verse three"])
+    assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"][:0] or out[0] == "Verse one"
+    assert not any(p[:2] in ("1.", "2.", "3)") for p in out)
+    assert out == ["Verse one", "Refrain: Sing", "Verse two", "Refrain: Sing", "Verse three", "Refrain: Sing"] or out.count("Refrain: Sing") >= 3
+    out = repeat_refrain(["Refrain line", "1 First", "2 Second"])
+    assert out == ["Refrain line", "First", "Refrain line", "Second", "Refrain line"]

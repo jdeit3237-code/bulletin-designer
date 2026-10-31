@@ -4143,6 +4143,8 @@ def create_app(config=None):
                     except Exception:
                         continue
                     parts = [x.strip() for x in re.split(r"\n\s*\n", raw) if x.strip()]
+                    if ext == "docx" and kind == "announcements":
+                        parts = music_outline.announcements_from(parts)
                     parts = music_outline.repeat_refrain(parts)
                     if kind in ("readings", "announcements"):
                         parts = [piece for part in parts for piece in music_outline.split_long(part)]
