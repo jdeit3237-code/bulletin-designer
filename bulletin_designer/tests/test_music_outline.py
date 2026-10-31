@@ -307,3 +307,24 @@ def test_preview_warns_when_required_songs_missing(app):
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert "Missing songs" in page and "Going Forth" in page
+
+
+def test_song_cleanup_labels_title_block_and_code():
+    assert outline.clean_song_title("For All the Saints 113657") == "For All the Saints"
+    assert outline.clean_song_title("Companions on the Journey BB26-718") == "Companions on the Journey"
+    assert outline.drop_title_block(["For All the Saints\nSINE NOMINE", "Verse"], "For All the Saints") == ["Verse"]
+    assert outline.strip_labels("Refrain\nAnd I will raise you up") == "And I will raise you up"
+    assert outline.slide_size("x" * 250) < outline.slide_size("x" * 50)
+
+
+def test_psalm_and_acclamation_citation_move_to_first_slide():
+    secs = dict(outline.reading_sections("Responsorial Psalm\nPsalm 24:1bc-2, 3-4ab, 5-6\nR. (see 6) Lord, this is the people.\nVerse one.\n\nGospel Acclamation\nMatthew 11:28 R. Alleluia, alleluia.\nCome to me.\n"))
+    c, rest = outline.split_citation(secs["Responsorial Psalm"][0])
+    assert c == "Psalm 24:1bc-2, 3-4ab, 5-6" and rest.startswith("Lord, this is the people")
+    c2, rest2 = outline.split_citation(secs["Gospel Acclamation"][0])
+    assert c2 == "Matthew 11:28" and "Alleluia" not in rest2
+
+
+def test_mac_roman_spanish_not_garbled():
+    raw = "Yo los resucitar\u00e1".encode("mac_roman") + b"\n" + "el d\u00eda final y m\u00e1s".encode("mac_roman")
+    assert "\u017d" not in outline.decode_text(raw)

@@ -4161,6 +4161,8 @@ def create_app(config=None):
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": False, "items": items})
                 elif ext in ("txt", "docx"):
                     label = os.path.splitext(name)[0].replace("_", " ")
+                    if kind in SONG_KINDS:
+                        label = music_outline.clean_song_title(label)
                     section = STANDARD_TITLES.get(kind)
                     try:
                         raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
@@ -4177,6 +4179,12 @@ def create_app(config=None):
                         if kind == "announcements":
                             parts = music_outline.drop_referrals(parts)
                         parts = music_outline.repeat_refrain(parts)
+                        if kind in SONG_KINDS:
+                            parts = music_outline.drop_title_block(parts, label)
+                            parts = [x for x in (music_outline.strip_labels(x) for x in parts) if x]
+                        if kind == "announcements":
+                            parts = [music_outline.ANNOUNCE_RE.sub("", x, count=1).strip() for x in parts]
+                            parts = [x for x in parts if x and not re.fullmatch(r"our parish announcements( this week)?:?", x, re.I)]
                         if kind in ("readings", "announcements"):
                             parts = [piece for part in parts for piece in music_outline.split_long(part)]
                         groups = [(label, parts)]
@@ -4192,7 +4200,7 @@ def create_app(config=None):
                         parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
                         for k, body in enumerate(parts):
                             credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
-                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 48 if len(body) > 140 else 56,
+                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": music_outline.slide_size(body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle
