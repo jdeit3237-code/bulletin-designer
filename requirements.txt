@@ -5,3 +5,4 @@ pytest
 pymupdf
 pypdf
 python-pptx
+reportlab

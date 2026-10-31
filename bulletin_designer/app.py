@@ -33,10 +33,12 @@ def generate_password_hash(pw):
 from werkzeug.utils import secure_filename
 
 try:
-    from . import liturgy, help_content
+    from . import liturgy, help_content, outline as music_outline, routes_choir
 except ImportError:  # run as a script
     import liturgy
     import help_content
+    import outline as music_outline
+    import routes_choir
 
 BULLETS = {"disc": "\u2022 Round dot", "circle": "\u25e6 Open circle", "square": "\u25aa Square", "dash": "\u2013 Dash", "check": "\u2713 Check mark", "arrow": "\u27a4 Arrow", "cross": "\u271d Cross", "star": "\u2605 Star"}
 
@@ -1241,7 +1243,7 @@ def create_app(config=None):
             return wrapper
         return deco
 
-    AREAS = (("ads", "Advertisements"), ("library", "Photo library"), ("browse", "Browse photos"), ("slides", "Mass slides (AV Ministry)"))
+    AREAS = (("ads", "Advertisements"), ("library", "Photo library"), ("browse", "Browse photos"), ("slides", "Mass slides (AV Ministry)"), ("choir", "Choir: find and download music"))
 
     def has_area(name):
         if not g.user:
@@ -3768,6 +3770,170 @@ def create_app(config=None):
         d = slides_dir(kind, mass_date)
         return sorted(os.listdir(d)) if os.path.isdir(d) else []
 
+    routes_choir.register(app, need, need_area)
+
+    SONG_EXTS = ("txt", "png", "jpg", "jpeg")
+
+    def song_library():
+        d = os.path.join(slides_root, "songs")
+        found = {}
+        for n in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+            base, ext = os.path.splitext(n)
+            if ext[1:].lower() in SONG_EXTS:
+                found.setdefault(base, []).append(n)
+        return found
+
+    def song_files(lib, song):
+        for key in (music_outline.slug(song["title"]), music_outline.slug(f"{song['book']}-{song['number']}") if song["number"] else ""):
+            if key and key in lib:
+                return key, lib[key]
+        return "", []
+
+    def outline_path(mass_date):
+        return os.path.join(slides_root, "weeks", mass_date, "outline.json")
+
+    def load_outline(mass_date):
+        try:
+            with open(outline_path(mass_date)) as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+
+    def apply_outline(mass_date, songs):
+        """Fill the week's song sections from the lyrics library; re-running replaces only what an earlier run added."""
+        previous = load_outline(mass_date) or {}
+        for kind, name in previous.get("auto", []):
+            path = os.path.join(slides_dir(kind, mass_date), secure_filename(name))
+            if kind in dict(SLIDE_KINDS) and os.path.isfile(path):
+                os.remove(path)
+        lib, auto, report = song_library(), [], []
+        for song in songs:
+            key, names = song_files(lib, song)
+            status = "found" if names else ("mass part" if song["setting"] else "missing")
+            if names and song["kind"]:
+                for n in names:
+                    ext = n.rsplit(".", 1)[-1].lower()
+                    kind = song["kind"] if ext == "txt" else "notation"
+                    dest = slides_dir(kind, mass_date)
+                    os.makedirs(dest, exist_ok=True)
+                    out = secure_filename(f"{song['label']}-{n}") or n
+                    if os.path.exists(os.path.join(dest, out)):
+                        continue
+                    shutil.copyfile(os.path.join(slides_root, "songs", n), os.path.join(dest, out))
+                    auto.append([kind, out])
+            report.append(dict(song, status=status))
+        os.makedirs(os.path.dirname(outline_path(mass_date)), exist_ok=True)
+        with open(outline_path(mass_date), "w") as f:
+            json.dump({"songs": report, "auto": auto}, f)
+        return previous, report
+
+    @app.route("/slides/outline", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_outline():
+        mass_date = request.form.get("date") or ""
+        text = (request.form.get("outline_text") or "").strip()
+        up = request.files.get("outline_pdf")
+        if up and up.filename:
+            try:
+                text = music_outline.extract_pdf_text(up.stream)
+            except Exception:
+                flash("That PDF could not be read. Try pasting the outline text instead.", "error")
+                return redirect(url_for("slides", date=mass_date))
+        parsed = music_outline.parse_outline(text) if text else {"songs": [], "date": ""}
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            mass_date = parsed["date"]
+        if not mass_date:
+            flash("Choose the Mass date, then upload the outline.", "error")
+            return redirect(url_for("slides"))
+        if not parsed["songs"]:
+            flash("No songs were found in that outline.", "error")
+            return redirect(url_for("slides", date=mass_date))
+        previous, report = apply_outline(mass_date, parsed["songs"])
+        old = {(x["label"], x["title"].lower()) for x in previous.get("songs", [])}
+        changed = [x["title"] for x in report if (x["label"], x["title"].lower()) not in old] if old else []
+        missing = [x["title"] for x in report if x["status"] == "missing"]
+        flash(f"Outline read: {len(report)} songs. Lyrics added for {sum(1 for x in report if x['status'] == 'found')}."
+              + (f" Changed since last upload: {', '.join(changed)}." if changed else "")
+              + (f" Not in the song library yet: {', '.join(missing)}." if missing else ""), "error" if missing else "")
+        return redirect(url_for("slides", date=mass_date))
+
+    @app.route("/slides/songs", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_songs():
+        mass_date = request.form.get("date") or ""
+        title, code = (request.form.get("title") or "").strip(), (request.form.get("code") or "").strip()
+        key = music_outline.slug(title) or music_outline.slug(code)
+        if request.form.get("action") == "delete":
+            name = secure_filename(request.form.get("name", ""))
+            path = os.path.join(slides_root, "songs", name)
+            if name and os.path.isfile(path):
+                os.remove(path)
+            return redirect(url_for("slides", date=mass_date))
+        if not key:
+            flash("Enter the song title.", "error")
+            return redirect(url_for("slides", date=mass_date))
+        os.makedirs(os.path.join(slides_root, "songs"), exist_ok=True)
+        n = 0
+        lyrics = (request.form.get("lyrics") or "").strip()
+        if lyrics:
+            with open(os.path.join(slides_root, "songs", key + ".txt"), "w", encoding="utf-8") as f:
+                f.write(lyrics + "\n")
+            n += 1
+        for f in request.files.getlist("files"):
+            ext = (f.filename or "").rsplit(".", 1)[-1].lower()
+            if ext in SONG_EXTS:
+                f.save(os.path.join(slides_root, "songs", f"{key}.{ext}"))
+                n += 1
+        if code and n:
+            ckey = music_outline.slug(code)
+            for fn in os.listdir(os.path.join(slides_root, "songs")):
+                if fn.startswith(key + ".") and ckey != key:
+                    shutil.copyfile(os.path.join(slides_root, "songs", fn), os.path.join(slides_root, "songs", ckey + "." + fn.rsplit(".", 1)[-1]))
+        flash(f"Saved {title or code} to the song library." if n else "Paste the lyrics or choose a file.", "" if n else "error")
+        return redirect(url_for("slides", date=mass_date))
+
+    def week_status(mass_date):
+        try:
+            with open(os.path.join(slides_root, "weeks", mass_date, "status.json")) as f:
+                if json.load(f).get("ready"):
+                    return "Ready to use"
+        except (OSError, ValueError):
+            pass
+        has_files = any(slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k != "standard")
+        return "In progress" if has_files else "Not started"
+
+    @app.route("/slides/library")
+    @need()
+    @need_area("slides")
+    def slides_library():
+        weeks_dir = os.path.join(slides_root, "weeks")
+        dates = sorted(os.listdir(weeks_dir), reverse=True) if os.path.isdir(weeks_dir) else []
+        today = date.today()
+        upcoming = []
+        for k in range(0, 8):
+            d = today + timedelta(days=(6 - today.weekday()) % 7 + 7 * k)
+            upcoming.append(d.isoformat())
+        rows = []
+        for iso in sorted(set(upcoming) | {d for d in dates if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d)}, reverse=True):
+            li = liturgy.info(date.fromisoformat(iso))
+            rows.append({"iso": iso, "name": li["name"] or f"Sunday in {li['season']}", "status": week_status(iso),
+                         "count": sum(len(slides_list(k, iso)) for k, _ in SLIDE_KINDS if k != "standard" and not k.startswith("ref_"))})
+        return render_template("slides_library.html", rows=rows, standard=slides_list("standard"), songs=song_library())
+
+    @app.route("/slides/status", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_status():
+        mass_date = request.form.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
+        with open(os.path.join(slides_root, "weeks", mass_date, "status.json"), "w") as f:
+            json.dump({"ready": request.form.get("ready") == "1"}, f)
+        return redirect(request.form.get("back") == "week" and url_for("slides", date=mass_date) or url_for("slides_library"))
+
     @app.route("/slides", methods=["GET", "POST"])
     @need()
     @need_area("slides")
@@ -3806,6 +3972,8 @@ def create_app(config=None):
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
         return render_template("slides.html", kinds=SLIDE_KINDS, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
+                               concept=week_concept(mass_date) if mass_date else None, layouts=CONCEPT_LAYOUTS, accents=CONCEPT_ACCENTS,
+                               outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
                                photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [], selected=saved_graphics(mass_date) if mass_date else [])
 
     @app.route("/slides/year")
@@ -3856,8 +4024,46 @@ def create_app(config=None):
         """A different but repeatable design concept for each week, tied to the season's colors."""
         d = date.fromisoformat(mass_date)
         n = d.toordinal() // 7
-        return {"scene": CONCEPT_SCENES[n % len(CONCEPT_SCENES)], "layout": CONCEPT_LAYOUTS[(n * 5 + 1) % len(CONCEPT_LAYOUTS)],
-                "accent": CONCEPT_ACCENTS[(n * 7 + 2) % len(CONCEPT_ACCENTS)]}
+        c = {"scene": CONCEPT_SCENES[n % len(CONCEPT_SCENES)], "layout": CONCEPT_LAYOUTS[(n * 5 + 1) % len(CONCEPT_LAYOUTS)],
+             "accent": CONCEPT_ACCENTS[(n * 7 + 2) % len(CONCEPT_ACCENTS)], "color": "", "scale": 100}
+        c.update({k: v for k, v in load_design(mass_date).items() if v})
+        return c
+
+    def load_design(mass_date):
+        try:
+            with open(os.path.join(slides_root, "weeks", mass_date, "design.json")) as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        out = {}
+        if d.get("layout") in CONCEPT_LAYOUTS:
+            out["layout"] = d["layout"]
+        if d.get("accent") in CONCEPT_ACCENTS:
+            out["accent"] = d["accent"]
+        if re.fullmatch(r"[0-9A-Fa-f]{6}", d.get("color", "")):
+            out["color"] = d["color"]
+        if str(d.get("scale", "")).isdigit() and 70 <= int(d["scale"]) <= 140:
+            out["scale"] = int(d["scale"])
+        return out
+
+    @app.route("/slides/design", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_design():
+        mass_date = request.form.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
+        path = os.path.join(slides_root, "weeks", mass_date, "design.json")
+        if request.form.get("reset"):
+            if os.path.isfile(path):
+                os.remove(path)
+            flash("Design is back to this week's automatic choice.")
+        else:
+            with open(path, "w") as f:
+                json.dump({k: request.form.get(k, "").lstrip("#") if k == "color" else request.form.get(k, "") for k in ("layout", "accent", "color", "scale")}, f)
+            flash("Design saved. Preview or download the slides to see it.")
+        return redirect(url_for("slides", date=mass_date))
 
     SECTION_ACCENT = {"prelude": "8FB8C9", "entrance": "E0B040", "gifts": "E07A5F", "communion": "F4E9D0", "praise": "3FB8AF",
                       "going_forth": "F28C28", "songs": "E0B040"}
@@ -3928,14 +4134,19 @@ def create_app(config=None):
                 plan.append({"type": "image", "path": path, "src": url_for("uploads", name=row["filename"]), "label": "bulletin graphic"})
         return plan, SEASON_BG.get(season, "14527A")
 
-    def build_pptx(plan, bg_hex):
+    def build_pptx(plan, bg_hex, concept=None):
         """Editable 16:9 deck: images become full-slide pictures, text one slide per paragraph."""
         from pptx import Presentation
         from pptx.util import Inches, Pt
         from pptx.dml.color import RGBColor
         from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        from pptx.enum.dml import MSO_LINE
         from PIL import Image
         bg = RGBColor.from_string(bg_hex)
+        scale = (concept or {}).get("scale", 100) / 100
+        for it in plan:
+            if it.get("size"):
+                it["size"] = max(20, int(it["size"] * scale))
         prs = Presentation()
         prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
         blank = prs.slide_layouts[6]
@@ -3981,6 +4192,37 @@ def create_app(config=None):
                     r.font.size = Pt(size); r.font.bold = bold; r.font.italic = italic; r.font.color.rgb = rgb
 
             top, bottom = 0.5, 7.0
+            if concept:
+                lay, acc = concept["layout"], concept["accent"]
+                gold = RGBColor(0xE0, 0xB0, 0x40)
+                if lay.startswith("full-bleed"):
+                    shape(1, 0, 0, sw, sh, RGBColor(0, 0, 0), alpha=35000)
+                elif lay.startswith("left text"):
+                    shape(1, 0, 0, Inches(2.2), sh, RGBColor(0, 0, 0), alpha=30000)
+                elif lay.startswith("framed"):
+                    shape(1, Inches(0.5), Inches(0.5), sw - Inches(1.0), sh - Inches(1.0), RGBColor(0xFA, 0xF1, 0xDC), alpha=22000)
+                elif lay.startswith("gradient"):
+                    shape(1, 0, sh - Inches(2.6), sw, Inches(2.6), RGBColor(0, 0, 0), alpha=40000)
+                elif lay.startswith("centered"):
+                    b = shape(1, Inches(0.25), Inches(0.25), sw - Inches(0.5), sh - Inches(0.5), bg); b.fill.background(); b.line.color.rgb = gold; b.line.width = Pt(3)
+                else:
+                    shape(1, 0, 0, sw, Inches(3.2), RGBColor(255, 255, 255), alpha=18000)
+                if acc.startswith("gold leaf"):
+                    shape(1, 0, 0, Inches(0.18), sh, gold)
+                    shape(1, sw - Inches(0.18), 0, Inches(0.18), sh, gold)
+                elif acc.startswith("wave"):
+                    shape(1, 0, sh - Inches(0.25), sw, Inches(0.25), RGBColor(0x3F, 0xB8, 0xAF), alpha=85000)
+                    shape(1, 0, sh - Inches(0.1), sw, Inches(0.1), RGBColor(255, 255, 255), alpha=70000)
+                elif acc.startswith("small cross"):
+                    cx = sl.shapes.add_textbox(sw - Inches(1.1), Inches(0.15), Inches(0.9), Inches(0.9))
+                    put(cx.text_frame, "\u271d", 40, gold)
+                elif acc.startswith("brush"):
+                    shape(1, 0, Inches(0.12), sw, Inches(0.12), RGBColor(0x8A, 0x16, 0x1E))
+                elif acc.startswith("soft light"):
+                    shape(7, sw - Inches(4), 0, Inches(4), Inches(3), RGBColor(0xFF, 0xF1, 0xB8), alpha=18000)
+                else:
+                    r = shape(1, Inches(0.15), Inches(0.15), sw - Inches(0.3), sh - Inches(0.3), bg); r.fill.background()
+                    r.line.color.rgb = RGBColor(0xC8, 0xA9, 0x6E); r.line.width = Pt(5); r.line.dash_style = MSO_LINE.DASH
             if item.get("credit"):
                 shape(1, 0, sh - Inches(0.95), sw, Inches(0.95), RGBColor(0x6B, 0x14, 0x14))
                 cb = sl.shapes.add_textbox(Inches(0.5), sh - Inches(0.9), sw - Inches(1.0), Inches(0.85))
@@ -4026,7 +4268,8 @@ def create_app(config=None):
             flash("The PowerPoint tool is not installed on the server yet. Ask the administrator to run: pip install -r requirements.txt", "error")
             return redirect(url_for("slides", date=mass_date))
         plan, bg = plan_slides(mass_date, chosen_graphics())
-        return send_file(build_pptx(plan, bg), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
+        concept = week_concept(mass_date)
+        return send_file(build_pptx(plan, concept["color"] or bg, concept), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
                          mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
     @app.route("/slides/package")

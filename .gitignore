@@ -2,3 +2,7 @@ bulletin.db
 uploads/*
 !uploads/.gitkeep
 __pycache__/
+private_music/
+slides_files/
+bulletin_designer/private_music/
+bulletin_designer/slides_files/

@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}Slide library{% endblock %}
+{% block content %}
+<h1>Slide library</h1>
+<p><a class="btn secondary" href="{{ url_for('slides') }}">Back to Mass slides</a></p>
+<h2>Weeks</h2>
+<table><tr><th>Mass date</th><th>Celebration</th><th>Status</th><th>Files</th><th></th></tr>
+{% for r in rows %}<tr><td>{{ r.iso }}</td><td>{{ r.name }}</td>
+<td><strong>{{ r.status }}</strong></td><td>{{ r.count }}</td>
+<td><a class="btn" href="{{ url_for('slides', date=r.iso) }}">Open</a>
+<a class="btn secondary" href="{{ url_for('slides_pptx', date=r.iso) }}">{{ 'PowerPoint' if r.status != 'Not started' else 'Starter PowerPoint' }}</a>
+{% if r.status != 'Not started' %}
+<form method="post" action="{{ url_for('slides_status') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ r.iso }}">
+{% if r.status == 'Ready to use' %}<button class="btn secondary" name="ready" value="0">Back to in progress</button>{% else %}<button class="btn secondary" name="ready" value="1">Mark ready</button>{% endif %}</form>{% endif %}</td></tr>{% endfor %}</table>
+<p class="small">Not started: nothing added yet (you can still download the app-made starter slides for the week). In progress: songs or slides added but not finished. Ready to use: marked ready, so the AV team can download it.</p>
+<h2>Standard slides ({{ standard|length }})</h2>
+{% if standard %}<ul>{% for n in standard %}<li>{{ n }}</li>{% endfor %}</ul>{% else %}<p>None yet.</p>{% endif %}
+<h2>Song library ({{ songs|length }})</h2>
+{% if songs %}<ul>{% for k, names in songs.items() %}<li>{{ k }}: {{ names|join(', ') }}</li>{% endfor %}</ul>{% else %}<p>No songs yet. Add them on the Mass slides page.</p>{% endif %}
+{% endblock %}

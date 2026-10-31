@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Review packet{% endblock %}
+{% block content %}
+<h1>{{ header.title }}{% if header.cycle %} (Year {{ header.cycle }}){% endif %}</h1>
+<p>{{ header.date }}{% if header.setting %} - {{ header.setting }}{% endif %}</p>
+{% if changes %}<div role="status"><strong>This replaces the packet already published for this Sunday</strong> (same download link).
+{% if changes.added or changes.removed %}<ul>
+{% for s in changes.added %}<li>New: {{ s.label }}: {{ s.title }}</li>{% endfor %}
+{% for s in changes.removed %}<li>Removed: {{ s.label }}: {{ s.title }}</li>{% endfor %}</ul>{% else %} No songs changed.{% endif %}</div>{% endif %}
+<form method="post" action="{{ url_for('choir_build', draft_id=draft_id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
+<table><tr><th>Use</th><th>Part</th><th>Song</th><th>Piano / main</th><th>Guitar</th></tr>
+{% for s in songs %}<tr>
+<td><input type="checkbox" aria-label="Use {{ s.title }}" name="include_{{ loop.index0 }}" value="1"{% if s.primary and s.include %} checked{% endif %}{% if not s.primary %} disabled{% endif %}></td>
+<td>{{ s.label }}</td>
+<td>{{ s.title }}{% if s.changed %} <strong>(changed)</strong>{% endif %}<br><span class="small">{{ s.composer }}{% if s.book %} {{ s.book }}-{{ s.number }}{% endif %}{% if s.setting %} Mass of {{ s.setting }}{% endif %}</span></td>
+<td>{% if s.primary %}{{ s.primary.book_name }} ({{ s.primary.edition }}), pp. {{ s.primary.start }}{% if s.primary.end != s.primary.start %}-{{ s.primary.end }}{% endif %}{% else %}<strong>Not in library</strong>{% endif %}</td>
+<td>{% if s.guitar %}<select aria-label="Guitar for {{ s.title }}" name="guitar_{{ loop.index0 }}"><option value="1">Include (pp. {{ s.guitar.start }}{% if s.guitar.end != s.guitar.start %}-{{ s.guitar.end }}{% endif %})</option><option value="0">Skip</option></select>{% else %}-{% endif %}</td></tr>{% endfor %}</table>
+<p><label><input type="checkbox" name="include_guitar" value="1" checked> Include guitar pages after each piano page set</label></p>
+<button class="btn">Build packet and get link</button> <a class="btn secondary" href="{{ url_for('choir_index') }}">Cancel</a></form>
+<p class="small">Songs marked "Not in library" are left out until you add their book in the Song library, then re-read the outline.</p>
+{% endblock %}
