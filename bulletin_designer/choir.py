@@ -19,6 +19,7 @@ from reportlab.pdfgen import canvas
 PIANO_EDITIONS = ("piano", "keyboard", "solo")
 EDITIONS = ("piano", "keyboard", "guitar", "solo")
 EXPIRY_DAYS_AFTER_SUNDAY = 7
+EDITIONS = (("keyboard", "Keyboard"), ("guitar", "Guitar"), ("solo", "Solo instrument"))
 
 SECTION_HEADERS = (
     "INTRODUCTORY RITES",
@@ -362,6 +363,7 @@ def match_songs(lib, songs, outline_date, language="english"):
             (h for ed in PIANO_EDITIONS for h in hits if h[0].get("edition") == ed), None
         )
         guitar = next((h for h in hits if h[0].get("edition") == "guitar"), None)
+        solo = next((h for h in hits if h[0].get("edition") == "solo"), None)
         if primary is None and guitar is not None:
             primary, guitar = guitar, None  # guitar-only book: still better than nothing
         item = dict(song)
@@ -369,6 +371,7 @@ def match_songs(lib, songs, outline_date, language="english"):
         item["english_only"] = bool(language != "english" and has_other and not used_other)
         item["primary"] = _source(primary)
         item["guitar"] = _source(guitar)
+        item["solo"] = _source(solo)
         item["include"] = bool(primary)
         out.append(item)
     return out
@@ -397,7 +400,19 @@ def _book_by_id(lib, book_id):
     return next((b for b in lib.get("books", []) if b["id"] == book_id), None)
 
 
-def _cover(header, contents):
+def _edition_source(song, edition):
+    """Pages for one instrument; psalms and acclamations come from Respond & Acclaim for everyone."""
+    primary = song.get("primary")
+    if edition == "keyboard":
+        src = primary if primary and primary.get("edition") in ("piano", "keyboard") else None
+    else:
+        src = song.get(edition)
+    if not src and song.get("kind") in ("psalm", "acclamation"):
+        src = primary
+    return src
+
+
+def _cover(header, contents, edition_label=""):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=letter)
     w, h = letter
@@ -413,6 +428,10 @@ def _cover(header, contents):
         ) if x
     )
     c.drawCentredString(w / 2, h - 148, sub)
+    if edition_label:
+        c.setFont("Helvetica-Bold", 14)
+        c.drawCentredString(w / 2, h - 172, edition_label)
+        c.setFont("Helvetica", 13)
     y = h - 200
     c.setFont("Helvetica", 12)
     for label, title, page in contents:
@@ -432,8 +451,12 @@ def _cover(header, contents):
     return PdfReader(buf)
 
 
-def build_packet(app, header, songs, include_guitar):
-    """Return (pdf_bytes, missing) for the songs flagged ``include``."""
+def build_packet(app, header, songs, include_guitar, edition=None):
+    """Return (pdf_bytes, missing) for the songs flagged ``include``.
+
+    With ``edition`` ("keyboard", "guitar" or "solo") only that instrument's pages are used and
+    pdf_bytes is None when the week has no pages for it.
+    """
     lib = load_library(app)
     writer = PdfWriter()
     contents, missing, readers = [], [], {}
@@ -465,14 +488,25 @@ def build_packet(app, header, songs, include_guitar):
         if not s.get("primary"):
             missing.append(f"{s['label']}: {s['title']}")
             continue
+        if edition:
+            src = _edition_source(s, edition)
+            if src and s.get(f"{edition}_on", True):
+                add_source(src, s["label"], s["title"])
+            elif not src:
+                missing.append(f"{s['label']}: {s['title']}")
+            continue
         add_source(s["primary"], s["label"], s["title"])
         if include_guitar and s.get("guitar") and s.get("guitar_on", True):
             add_source(s["guitar"], s["label"], s["title"], " (guitar)")
 
+    if edition and not body:
+        return None, missing
+    edition_label = dict(EDITIONS).get(edition, "")
+
     # Cover lists page numbers relative to the full packet, so shift by cover size.
     while True:
         shifted = [(a, b, c + cover_pages) for a, b, c in contents]
-        cover = _cover(header, shifted)
+        cover = _cover(header, shifted, edition_label)
         if len(cover.pages) == cover_pages:
             break
         cover_pages = len(cover.pages)
@@ -542,7 +576,8 @@ def previous_packet(app, outline_date):
     if not outline_date:
         return None
     iso = outline_date.isoformat()
-    return next((p for p in list_packets(app) if p.get("sunday") == iso and p.get("songs")), None)
+    return next((p for p in list_packets(app) if p.get("sunday") == iso and p.get("songs")
+                 and p.get("edition", "keyboard") == "keyboard"), None)
 
 
 def diff_songs(old_songs, new_songs):
@@ -554,18 +589,19 @@ def diff_songs(old_songs, new_songs):
     return added, removed
 
 
-def publish_packet(app, header, pdf_bytes, songs=None):
-    """Store the packet; regenerating the same Sunday keeps the same token."""
+def publish_packet(app, header, pdf_bytes, songs=None, edition=""):
+    """Store the packet; regenerating the same Sunday (and edition) keeps the same token."""
     sunday = header["date"].isoformat() if header.get("date") else None
     token = None
     if sunday:
-        token = next((p["token"] for p in list_packets(app) if p.get("sunday") == sunday), None)
+        token = next((p["token"] for p in list_packets(app) if p.get("sunday") == sunday and p.get("edition", "") == edition), None)
     token = token or secrets.token_urlsafe(16)
     base = header["date"] if header.get("date") else date.today()
     meta = {
         "token": token,
         "sunday": sunday,
         "title": header.get("title", ""),
+        "edition": edition,
         "created": datetime.utcnow().isoformat(timespec="seconds"),
         "expires": (base + timedelta(days=EXPIRY_DAYS_AFTER_SUNDAY)).isoformat(),
         "revoked": False,

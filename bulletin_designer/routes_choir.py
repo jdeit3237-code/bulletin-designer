@@ -24,20 +24,37 @@ def register(app, need, need_area):
             response.headers["Cache-Control"] = "private, no-store"
         return response
 
-    def share_message(meta):
-        sunday = meta.get("sunday")
-        label = date.fromisoformat(sunday).strftime("%B %d").replace(" 0", " ") if sunday else meta.get("title", "")
-        return f"Sheet music for {label}: " + url_for("choir_download", token=meta["token"], _external=True)
+    edition_names = dict(choir.EDITIONS)
+
+    def share_message(packets):
+        """One line per instrument, each with its own link."""
+        lines = []
+        for meta in packets:
+            sunday = meta.get("sunday")
+            label = date.fromisoformat(sunday).strftime("%B %d").replace(" 0", " ") if sunday else meta.get("title", "")
+            kind = edition_names.get(meta.get("edition"), "")
+            head = f"{kind} sheet music for {label}" if kind else f"Sheet music for {label}"
+            lines.append(f"{head}: " + url_for("choir_download", token=meta["token"], _external=True))
+        return "\n".join(lines)
 
     @app.route("/choir")
     @manage
     def choir_index():
         packets = choir.list_packets(current_app)
         today = date.today().isoformat()
+        order = [e for e, _ in choir.EDITIONS]
+        groups = {}
         for p in packets:
-            p["share"] = share_message(p)
             p["live"] = not p.get("revoked") and p["expires"] >= today
-        return render_template("choir_index.html", packets=packets)
+            p["edition_name"] = edition_names.get(p.get("edition"), "")
+            groups.setdefault(p.get("sunday") or p["token"], []).append(p)
+        weeks = []
+        for key, items in groups.items():
+            items.sort(key=lambda x: order.index(x["edition"]) if x.get("edition") in order else -1)
+            live = [x for x in items if x["live"]]
+            weeks.append({"title": items[0].get("title", ""), "sunday": items[0].get("sunday"), "packets": items,
+                          "share": share_message(live) if live else ""})
+        return render_template("choir_index.html", weeks=weeks)
 
     @app.route("/choir/outline", methods=["POST"])
     @manage
@@ -88,16 +105,24 @@ def register(app, need, need_area):
         for i, song in enumerate(data["songs"]):
             song["include"] = request.form.get(f"include_{i}") == "1" and bool(song["primary"])
             song["guitar_on"] = request.form.get(f"guitar_{i}", "1") == "1"
+            song["solo_on"] = request.form.get(f"solo_{i}", "1") == "1"
         _, blocking = lyric_check.check_week(current_app, data["songs"])
         if blocking and request.form.get("override") != "1":
             flash("Not published: lyrics may not match the music for " + "; ".join(
                 f"{b['title']} ({b['detail']})" for b in blocking), "error")
             return redirect(url_for("choir_draft", draft_id=draft_id))
-        pdf, missing = choir.build_packet(current_app, data["header"], data["songs"], request.form.get("include_guitar") == "1")
-        choir.publish_packet(current_app, data["header"], pdf, data["songs"])
-        if missing:
-            flash("Left out (not in the library): " + "; ".join(missing), "error")
-        flash("Packet ready. Copy the link below into your Liturgy.com message.")
+        built = []
+        for edition, name in choir.EDITIONS:
+            pdf, missing = choir.build_packet(current_app, data["header"], data["songs"], False, edition=edition)
+            if pdf is None:
+                flash(f"No {name} pages found for this week, so no {name} packet was made.", "error")
+                continue
+            choir.publish_packet(current_app, data["header"], pdf, data["songs"], edition=edition)
+            built.append(name)
+            if missing:
+                flash(f"{name}: left out (not in that book): " + "; ".join(missing), "error")
+        if built:
+            flash("Ready: " + ", ".join(built) + ". Copy the message below into your Liturgy.com email.")
         return redirect(url_for("choir_index"))
 
     @app.route("/choir/packet/<token>/revoke", methods=["POST"])
@@ -114,7 +139,7 @@ def register(app, need, need_area):
         if not found:
             abort(404)
         meta, path = found
-        return send_file(path, mimetype="application/pdf", download_name=f"St-Peter-Choir-{meta.get('sunday') or 'packet'}.pdf")
+        return send_file(path, mimetype="application/pdf", download_name=f"St-Peter-Choir-{meta.get('sunday') or 'packet'}{'-' + meta['edition'] if meta.get('edition') else ''}.pdf")
 
     @app.route("/choir/find")
     @need()
