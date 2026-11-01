@@ -610,4 +610,22 @@ def test_wrap_pause_and_pages():
 def test_credit_box_is_small_translucent():
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
-    assert "softEdge" in src and 'credit_box(sld, credit)' in src
+    assert "outerShdw" in src and 'credit_box(sld, credit)' in src
+
+
+def test_wrap_pause_no_orphans():
+    import app as appmod
+    t = "For the Lord himself, with a word of command, with the voice of an archangel and with the trumpet of God, will come down from heaven, and the dead in Christ will"
+    w = appmod.wrap_pause(t, 30)
+    assert all(len(x.split()) >= 3 and len(x) <= 30 for x in w)
+
+
+def test_credit_uses_master_placeholder():
+    from pptx import Presentation
+    import io
+    import app as appmod
+    plan = {"SONG": None}
+    src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
+    assert "idx == 11" in src
+    p = Presentation(os.path.join(os.path.dirname(__file__), "..", "assets", "MassTemplate.pptx"))
+    assert any(x.placeholder_format.idx == 11 for x in p.slide_layouts[0].placeholders)
