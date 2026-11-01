@@ -321,6 +321,35 @@ def read_photo_meta(path):
     return out
 
 
+def duplicate_layout(prs, layout, image_path, name):
+    """Copy a slide layout inside the same master and give the copy a picture background."""
+    from lxml import etree
+    from pptx.opc.constants import CONTENT_TYPE as CT, RELATIONSHIP_TYPE as RT
+    from pptx.parts.slide import SlideLayoutPart
+    master = prs.slide_masters[0]
+    pkg = prs.part.package
+    part = SlideLayoutPart.load(pkg.next_partname("/ppt/slideLayouts/slideLayout%d.xml"), CT.PML_SLIDE_LAYOUT, pkg, layout.part.blob)
+    part.relate_to(master.part, RT.SLIDE_MASTER)
+    rid = master.part.relate_to(part, RT.SLIDE_LAYOUT)
+    lst = master._element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}sldLayoutIdLst")
+    new_id = max(int(x.get("id")) for x in lst) + 1
+    item = etree.SubElement(lst, "{http://schemas.openxmlformats.org/presentationml/2006/main}sldLayoutId")
+    item.set("id", str(new_id))
+    item.set("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", rid)
+    new = part.slide_layout
+    csld = new._element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}cSld")
+    csld.set("name", name)
+    _, img_rid = part.get_or_add_image_part(image_path)
+    bg = etree.fromstring(
+        '<p:bg xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="%s"/>'
+        '<a:srcRect/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>' % img_rid)
+    for old in csld.findall("{http://schemas.openxmlformats.org/presentationml/2006/main}bg"):
+        csld.remove(old)
+    csld.insert(0, bg)
+    return new
+
+
 def create_app(config=None):
     app = Flask(__name__)
     base = os.path.dirname(os.path.abspath(__file__))
@@ -4768,7 +4797,7 @@ def create_app(config=None):
         buf.seek(0)
         return send_file(buf, as_attachment=True, download_name=f"ChatGPT-slides-{mass_date}.zip", mimetype="application/zip")
 
-    def outline_rows(plan):
+    def outline_rows(plan, bgs=None, paths=None):
         """One (header, subheader, body, copyright) row per slide plus its kind (SONG / BIBLE / BODY)."""
         def clean(t):
             return (t or "").replace("\xa0", " ").replace("\t", " ").strip()
@@ -4779,31 +4808,52 @@ def create_app(config=None):
 
         rows = []
         kinds = []
+        bgl = []
+        pathl = []
         last_song = None
         for it in plan:
-            if it.get("type") == "image":
+            bg = it.get("bg_path")
+            if it.get("type") == "blank" and paths is not None:
+                last_song = None
+                kinds.append("BLANK")
+                bgl.append(None)
+                pathl.append(None)
+                rows.append(("", "", "", ""))
+            elif it.get("type") == "image":
                 last_song = None
                 kinds.append("BIBLE")
+                bgl.append(bg)
+                pathl.append(it.get("path"))
                 rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
             elif it.get("type") == "text":
                 title = clean(it.get("title"))
                 if it.get("style") == "song" and last_song and title in ("", last_song):
                     kinds.append("BODY")
+                    bgl.append(bg)
+                    pathl.append(None)
                     rows.append(("", "", clean(it.get("text")), ""))
                     continue
                 last_song = title if it.get("style") == "song" else None
                 kinds.append("SONG" if it.get("style") == "song" else ("BIBLE" if title else "BODY"))
+                bgl.append(bg)
+                pathl.append(None)
                 rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
         credit_re = re.compile(r"CCLI|published by|all rights reserved|reprinted|copyright|\u00a9|songselect|used with permission|license", re.I)
-        merged, mkinds, owner = [], [], None
-        for kind, row in zip(kinds, rows):
+        merged, mkinds, mbg, mpath, owner = [], [], [], [], None
+        for kind, row, bg, pth in zip(kinds, rows, bgl, pathl):
             if owner is not None and kind == "BODY" and not row[0] and credit_re.search(row[2]) and len(row[2]) < 450:
                 h, sb, bd, cr = merged[owner]
                 merged[owner] = (h, sb, bd, "\n".join(x for x in (cr, row[2]) if x))
                 continue
             merged.append(row)
             mkinds.append(kind)
+            mbg.append(bg)
+            mpath.append(pth)
             owner = len(merged) - 1 if kind == "SONG" else (owner if kind == "BODY" and not row[0] else None)
+        if bgs is not None:
+            bgs.extend(mbg)
+        if paths is not None:
+            paths.extend(mpath)
         return merged, mkinds
 
     def template_path():
@@ -4833,7 +4883,21 @@ def create_app(config=None):
             ids.remove(sld_id)
         lays = template_layouts(prs)
         song, cont, plain = lays[0] or lays[1] or lays[2], lays[1] or lays[0] or lays[2], lays[2] or lays[0]
-        rows, kinds = outline_rows(plan)
+        bgs, paths = [], []
+        rows, kinds = outline_rows(plan, bgs, paths)
+        sets, bg_no = {}, {}
+
+        def pick(base, bg):
+            if not bg or not os.path.isfile(bg):
+                return base
+            key = (id(base), bg)
+            if key not in sets:
+                try:
+                    n = bg_no.setdefault(bg, len(bg_no) + 1)
+                    sets[key] = duplicate_layout(prs, base, bg, f"{base.name} - design {n}")
+                except Exception:
+                    sets[key] = base
+            return sets[key]
 
         def lines(t, wrap=0):
             def split(ln):
@@ -4869,9 +4933,26 @@ def create_app(config=None):
             p_.level = lvl
             p_.text = text
 
-        for kind, (header, sub, body, credit) in zip(kinds, rows):
+        for kind, (header, sub, body, credit), bg, pth in zip(kinds, rows, bgs, paths):
+            if kind == "BLANK" or (pth and os.path.isfile(pth)):
+                sld = prs.slides.add_slide(plain)
+                if sld.shapes.title is not None:
+                    sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
+                if kind == "BLANK":
+                    from pptx.dml.color import RGBColor
+                    sld.background.fill.solid()
+                    sld.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                else:
+                    from PIL import Image
+                    sw, sh = prs.slide_width, prs.slide_height
+                    with Image.open(pth) as im:
+                        iw, ih = im.size
+                    k = min(sw / iw, sh / ih)
+                    pw, ph_ = int(iw * k), int(ih * k)
+                    sld.shapes.add_picture(pth, int((sw - pw) / 2), int((sh - ph_) / 2), pw, ph_)
+                continue
             if kind == "SONG":
-                sld = prs.slides.add_slide(cont if "CCLI" in credit.upper() else song)
+                sld = prs.slides.add_slide(pick(cont if "CCLI" in credit.upper() else song, bg))
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
@@ -4881,7 +4962,7 @@ def create_app(config=None):
                 if credit:
                     para(ph.text_frame, lines(credit), 2, False)
             elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
-                sld = prs.slides.add_slide(cont)
+                sld = prs.slides.add_slide(pick(cont, bg))
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
@@ -4889,7 +4970,7 @@ def create_app(config=None):
                 para(ph.text_frame, bt, 1, True)
                 fit(ph, bt)
             elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
-                sld = prs.slides.add_slide(cont)
+                sld = prs.slides.add_slide(pick(cont, bg))
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 first = True
@@ -4900,7 +4981,7 @@ def create_app(config=None):
                 para(ph.text_frame, bt, 1, first)
                 fit(ph, bt, 130)
             else:
-                sld = prs.slides.add_slide(plain)
+                sld = prs.slides.add_slide(pick(plain, bg))
                 tf = sld.shapes.title.text_frame
                 first = True
                 for part in (header, sub, body):

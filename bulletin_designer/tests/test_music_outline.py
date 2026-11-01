@@ -516,3 +516,23 @@ def test_credit_only_slide_moves_into_song_copyright(app):
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
     body = c.get("/slides/outline-export?date=2026-11-01").get_data(as_text=True)
     assert "\t\t\tDarryl Ducote" in body or "CCLI Song #253461" not in body.replace("\t\t\t", "X", 0) and "\n\tDarryl" not in body
+
+
+def test_duplicate_layout_with_background(tmp_path):
+    import io as _io
+    from PIL import Image
+    from pptx import Presentation
+    from bulletin_designer.app import duplicate_layout
+    img = tmp_path / "bg.png"
+    Image.new("RGB", (64, 36), (200, 30, 30)).save(img)
+    prs = Presentation(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "MassTemplate.pptx"))
+    base = prs.slide_layouts[0]
+    new = duplicate_layout(prs, base, str(img), "Song - design 1")
+    sld = prs.slides.add_slide(new)
+    out = _io.BytesIO()
+    prs.save(out)
+    again = Presentation(_io.BytesIO(out.getvalue()))
+    names = [l.name for l in again.slide_layouts]
+    assert "Song - design 1" in names and len(names) == 4
+    assert any(sl.slide_layout.name == "Song - design 1" for sl in again.slides)
+
