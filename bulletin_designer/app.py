@@ -214,30 +214,56 @@ def wrap_pause(line, cpl=40):
         return [line]
     weak = {"and", "but", "or", "nor", "for", "so", "yet", "that", "who", "whom", "which", "when", "while", "where", "as", "in", "on", "of", "to",
             "with", "from", "by", "at", "upon", "before", "after", "through", "into", "among", "within", "without", "like", "if", "because", "though"}
-    parts = -(-len(line) // cpl)
-    target = len(line) / parts
-    out, start = [], 0
-    for i in range(1, parts):
-        best, best_cost, pos = None, None, 0
-        for j in range(start + 1, len(words)):
-            seg = " ".join(words[start:j])
-            if len(seg) > cpl:
-                break
-            if len(" ".join(words[j:])) > cpl * (parts - i):
-                continue
-            cost = abs(len(seg) - target)
-            if seg[-1] in ",;:.!?":
-                cost -= 10 if seg[-1] in ";:.!?" else 7
-            elif words[j].lower().strip(",;:.!?") in weak:
-                cost -= 5
-            if best_cost is None or cost < best_cost:
-                best, best_cost = j, cost
-        if best is None:
-            best = max(start + 1, min(len(words) - 1, start + 1))
-        out.append(" ".join(words[start:best]))
-        start = best
-    out.append(" ".join(words[start:]))
-    return out
+    n = len(words)
+    lens = [len(w) for w in words]
+
+    def seg_len(i, j):
+        return sum(lens[i:j]) + (j - i - 1)
+
+    def solve(parts):
+        target = len(line) / parts
+        INF = float("inf")
+        best = {(0, 0): (0.0, None)}
+        for k in range(1, parts + 1):
+            for j in range(1, n + 1):
+                for i in range(k - 1, j):
+                    if (i, k - 1) not in best:
+                        continue
+                    L = seg_len(i, j)
+                    if L > cpl:
+                        continue
+                    cost = (L - target) ** 2 / 4.0
+                    if j - i == 1:
+                        cost += 400
+                    if j < n:
+                        end = words[j - 1][-1]
+                        nxt = words[j].lower().strip(",;:.!?\"'")
+                        if end in ";:.!?":
+                            cost -= 60
+                        elif end == ",":
+                            cost -= 45
+                        elif nxt in weak:
+                            cost -= 25
+                        if words[j - 1].lower().strip(",;:.!?\"'") in weak:
+                            cost += 80
+                    tot = best[(i, k - 1)][0] + cost
+                    if tot < best.get((j, k), (INF, None))[0]:
+                        best[(j, k)] = (tot, i)
+        if (n, parts) not in best:
+            return None
+        cuts, j = [], n
+        for k in range(parts, 0, -1):
+            i = best[(j, k)][1]
+            cuts.append(" ".join(words[i:j]))
+            j = i
+        return cuts[::-1]
+
+    base = -(-len(line) // cpl)
+    for parts in range(base, base + 3):
+        got = solve(min(parts, n))
+        if got:
+            return got
+    return [line]
 
 
 def split_pages(vlines, first_cap, cap):
@@ -5048,9 +5074,9 @@ def create_app(config=None):
             def attempt(size):
                 vl = []
                 for ln in src:
-                    pieces = wrap_pause(ln, int(1920 / size))
+                    pieces = wrap_pause(ln, int(1800 / size))
                     vl += [(t, i == len(pieces) - 1) for i, t in enumerate(pieces)]
-                first_cap, cap = max(1, int((380 - used) // (1.12 * size))), max(1, int(380 // (1.12 * size)))
+                first_cap, cap = max(1, int((380 - used) // (1.2 * size))), max(1, int(380 // (1.2 * size)))
                 return split_pages(vl, first_cap, cap)
 
             base = attempt(48)
