@@ -583,3 +583,15 @@ def test_standard_pptx_music_slides_in_deck(app):
     prs = Presentation(_io.BytesIO(c.get("/slides/pptx-master?date=2026-11-01").data))
     text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
     assert "Glory to God in the highest" in text and "And on earth peace" in text, (r.status_code, text[:300])
+
+
+def test_music_slides_have_white_background(tmp_path):
+    from pptx import Presentation
+    import app as appmod
+    src = Presentation()
+    src.slides.add_slide(src.slide_layouts[6])
+    f = tmp_path / "m.pptx"
+    src.save(str(f))
+    dst = Presentation()
+    out = appmod.copy_slide(dst, dst.slide_layouts[6], str(f), 0)
+    assert out.background.fill.fore_color.rgb == __import__("pptx.dml.color", fromlist=["RGBColor"]).RGBColor(255, 255, 255)
