@@ -4825,8 +4825,18 @@ def create_app(config=None):
         song, cont, plain = lays[0] or lays[1] or lays[2], lays[1] or lays[0] or lays[2], lays[2] or lays[0]
         rows, kinds = outline_rows(plan)
 
-        def lines(t):
-            return "\v".join(ln.strip() for ln in (t or "").split("\n") if ln.strip())
+        def lines(t, wrap=0):
+            def split(ln):
+                if not wrap or len(ln) <= wrap or " " not in ln:
+                    return ln
+                mid = len(ln) // 2
+                cut = min((i for i, ch in enumerate(ln) if ch == " "), key=lambda i: abs(i - mid))
+                return ln[:cut] + "\v" + ln[cut + 1:]
+            return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
+
+        def fit(ph):
+            from pptx.enum.text import MSO_AUTO_SIZE
+            ph.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
@@ -4839,7 +4849,8 @@ def create_app(config=None):
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
-                para(ph.text_frame, lines(body), 1, False)
+                para(ph.text_frame, lines(body, 34), 1, False)
+                fit(ph)
                 if credit:
                     para(ph.text_frame, lines(credit), 2, False)
             elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
@@ -4847,7 +4858,18 @@ def create_app(config=None):
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
-                para(ph.text_frame, lines(body), 1, True)
+                para(ph.text_frame, lines(body, 34), 1, True)
+                fit(ph)
+            elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
+                sld = prs.slides.add_slide(cont)
+                sld.shapes.title.text_frame.text = header
+                ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
+                first = True
+                if sub:
+                    para(ph.text_frame, sub, 0, True)
+                    first = False
+                para(ph.text_frame, lines(body), 1, first)
+                fit(ph)
             else:
                 sld = prs.slides.add_slide(plain)
                 tf = sld.shapes.title.text_frame
