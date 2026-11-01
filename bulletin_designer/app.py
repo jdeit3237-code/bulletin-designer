@@ -4153,11 +4153,12 @@ def create_app(config=None):
 
         BLACK_BETWEEN = ("prelude", "entrance", "songs", "extra", "readings", "notation", "gifts", "communion", "praise", "going_forth")
         seen_songs = set()
+        seen_sigs = []
         outline_order = (load_outline(mass_date) or {}).get("order") or []
         plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
         chunks = []
         extras = extra_meta(mass_date)
-        for kind in ("prelude", "standard", "entrance", "songs", "extra", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth"):
+        for kind in ("prelude", "standard", "entrance", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth", "songs", "extra"):
             for name in slides_list(kind, mass_date):
                 if kind == "standard" and skip(name):
                     continue
@@ -4189,6 +4190,8 @@ def create_app(config=None):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     if kind in SONG_KINDS:
                         label = music_outline.clean_song_title(label)
+                        if label.islower():
+                            label = label.replace("-", " ").title()
                     section = extras.get(name, {}).get("name") if kind == "extra" else STANDARD_TITLES.get(kind)
                     try:
                         raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
@@ -4204,10 +4207,19 @@ def create_app(config=None):
                             parts = music_outline.announcements_from(parts)
                         if kind == "announcements":
                             parts = music_outline.drop_referrals(parts)
+                        if kind in SONG_KINDS:
+                            block_title, parts = music_outline.song_title_block(parts)
+                            if block_title:
+                                label = block_title
+                            else:
+                                parts = music_outline.drop_title_block(parts, label)
                         parts = music_outline.repeat_refrain(parts)
                         if kind in SONG_KINDS:
-                            parts = music_outline.drop_title_block(parts, label)
                             parts = [x for x in (music_outline.strip_labels(x) for x in parts) if x]
+                            sig = set(re.findall(r"[a-z']+", " ".join(parts).lower()))
+                            if len(sig) >= 8 and any(len(sig & o) / min(len(sig), len(o)) >= 0.8 for o in seen_sigs):
+                                continue
+                            seen_sigs.append(sig)
                         if kind == "announcements":
                             parts = [music_outline.ANNOUNCE_RE.sub("", x, count=1).strip() for x in parts]
                             parts = [x for x in parts if x and not re.fullmatch(r"our parish announcements( this week)?:?", x, re.I)]
@@ -4226,7 +4238,7 @@ def create_app(config=None):
                         parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
                         for k, body in enumerate(parts):
                             credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
-                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": music_outline.slide_size(body),
+                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle

@@ -93,6 +93,31 @@ def reading_title(head):
     return {"psalm": "Responsorial Psalm", "alleluia": "Gospel Acclamation"}.get(h, h.title())
 
 
+R_MARK_RE = re.compile(r"(?:\u211f|(?<![A-Za-z])R\s*[./:])\s*")
+
+
+def lead_first(parts, cite):
+    return [cite + " " + parts[0]] + parts[1:] if cite and parts else parts
+
+
+def psalm_response(pieces):
+    """The refrain sung after every verse: the words a later 'R.' piece shares with the first one, cut at a sentence end."""
+    first = pieces[0].split()
+    best = ""
+    for other in pieces[1:]:
+        k = 0
+        for a, b in zip(first, other.split()):
+            if a != b:
+                break
+            k += 1
+        cand = " ".join(first[:k])
+        m = re.match(r"^(.*[.!?])(?:\s|$)", cand)
+        cand = m.group(1) if m else cand
+        if len(cand.split()) >= 3 and len(cand) > len(best):
+            best = cand
+    return best
+
+
 def reading_sections(raw):
     """Split a readings file on its heading lines into [(title, parts)]; None when no headings are found.
 
@@ -112,6 +137,29 @@ def reading_sections(raw):
         return parts
 
     def _flush_body(title, text, cite):
+        if title in ("Gospel Acclamation", "Responsorial Psalm"):
+            text = re.sub(r"\(see [^)]*\)\s*", "", text)
+            pieces = R_MARK_RE.split(re.sub(r"(R_MARK)\s*\(\d+[a-z]*\)".replace("R_MARK", R_MARK_RE.pattern), r"\1 ", text))
+            if len(pieces) > 2:
+                pieces = [" ".join(x.split()) for x in pieces[1:]]
+                resp = psalm_response(pieces)
+                if title == "Responsorial Psalm" and resp:
+                    out = [resp]
+                    for x in pieces:
+                        verse = x[len(resp):].strip() if x.startswith(resp) else x
+                        if verse:
+                            out += split_long(verse) + [resp]
+                    sections.append((title, lead_first(out, cite)))
+                    return
+                if title == "Gospel Acclamation":
+                    verses = []
+                    for x in pieces:
+                        x = re.sub(r"^(?:alleluia[\s.,!]*)+|(?:alleluia[\s.,!]*)+$", "", x, flags=re.I).strip()
+                        if x:
+                            verses.append(x)
+                    if verses:
+                        sections.append((title, lead_first([q for v in verses for q in split_long(v)], cite)))
+                        return
         if title == "Gospel Acclamation":
             lines = [x for x in text.splitlines() if not re.match(r"^[\s*_]*(?:\u211f|R\s*[./:])?\s*(?:alleluia|praise to you)\b[\s.,!*_]*(?:alleluia[\s.,!*_]*)*$", x, re.I)]
             parts = lead([x.strip() for x in re.split(r"\n\s*\n", "\n".join(lines)) if x.strip()], cite)
@@ -449,7 +497,19 @@ def strip_labels(part):
 
 def clean_song_title(name):
     """File-name label -> song title: drop trailing catalogue numbers such as '113657' or 'BB26-718'."""
-    return re.sub(r"[\s_-]+(?:[A-Z]{1,4}\d*-?\d+|\d{3,})$", "", name).strip()
+    name = re.sub(r"[\s_-]+(?:[A-Za-z]{1,4}\d*-?\d+|\d{3,})$", "", name).strip()
+    return re.sub(r"^(?:entrance|presentation and preparation of the gifts|presentation of the gifts|communion|song of praise|final song or hymn|final song)[\s_-]+", "", name, flags=re.I).strip() or name
+
+
+def song_title_block(parts):
+    """(title, rest) when a lyric file opens with a short title/tune/author block; its first line is the song title."""
+    if not parts:
+        return "", parts
+    lines = [x.strip() for x in parts[0].splitlines() if x.strip()]
+    if 2 <= len(lines) <= 3 and all(len(x) < 70 and not re.search(r"[.,;:!?]$", x) and not re.match(r"^\d", x) for x in lines) \
+            and not REFRAIN_RE.match(parts[0]):
+        return re.split(r"\s+/\s+", lines[0])[0].strip(), parts[1:]
+    return "", parts
 
 
 def drop_title_block(parts, title):
