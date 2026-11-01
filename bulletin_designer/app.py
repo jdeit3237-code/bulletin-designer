@@ -237,6 +237,10 @@ def copy_slide(prs, layout, src_path, index):
                 if k.endswith("}embed"):
                     node.set(k, rmap.get(node.get(k), node.get(k)))
         dst._element.cSld.insert(0, nb)
+    if bg is None:
+        from pptx.dml.color import RGBColor
+        dst.background.fill.solid()
+        dst.background.fill.fore_color.rgb = RGBColor(255, 255, 255)
     if abs(sx - 1) > 0.01:
         for sh in dst.shapes:
             sh.left, sh.top, sh.width, sh.height = (int(v * sx) for v in (sh.left, sh.top, sh.width, sh.height))
@@ -4340,7 +4344,7 @@ def create_app(config=None):
                 blank_before = kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx", "pptx")
                 if ext in ("png", "jpg", "jpeg"):
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": blank_before,
-                                   "items": [{"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name}]})
+                                   "items": [{"type": "image", "music": kind == "notation", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name}]})
                 elif ext == "pptx" and kind == "standard":
                     items = []
                     try:
@@ -4872,7 +4876,7 @@ def create_app(config=None):
                 rows.append(("", "", "", ""))
             elif it.get("type") == "image":
                 last_song = None
-                kinds.append("BIBLE")
+                kinds.append("MUSIC" if it.get("music") and paths is not None else "BIBLE")
                 bgl.append(bg)
                 pathl.append(it.get("path"))
                 rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
@@ -5012,7 +5016,7 @@ def create_app(config=None):
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 from pptx.dml.color import RGBColor
                 sld.background.fill.solid()
-                sld.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                sld.background.fill.fore_color.rgb = RGBColor(255, 255, 255) if kind == "MUSIC" else RGBColor(0, 0, 0)
                 if kind != "BLANK":
                     from PIL import Image
                     sw, sh = prs.slide_width, prs.slide_height
