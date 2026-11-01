@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from email.message import EmailMessage
 from functools import wraps
 
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
+from flask import (Flask, abort, flash, g, jsonify, make_response, redirect, render_template, request,
                    send_file, send_from_directory, session, url_for)
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash as _gen
@@ -4527,6 +4527,42 @@ def create_app(config=None):
         concept = week_concept(mass_date)
         return send_file(build_pptx(plan, concept["color"] or bg, concept), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pptx",
                          mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
+
+    @app.route("/slides/chatgpt-prompt")
+    @need()
+    @need_area("slides")
+    def slides_chatgpt_prompt():
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        li = liturgy.info(date.fromisoformat(mass_date))
+        plan, _ = plan_slides(mass_date, chosen_graphics())
+        feast = li["name"] or f"Sunday in {li['season']}"
+        day = date.fromisoformat(mass_date)
+        lines = ["Make a finished 16:9 picture (1920x1080) for every slide listed below, for St. Peter the Fisherman Catholic Church.",
+                 f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
+                 "STYLE: a vivid painterly Florida coast scene with a seasonal border that fits the feast and season, a brown brush-stroke title banner at the top, "
+                 "a cream text panel in the middle and a dark red footer strip at the bottom. Each section gets its own scene. The first slide of a section "
+                 "uses a more distinctive design; the slides after it use a simpler version of the same design.",
+                 "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling. Put the credit text in the footer, "
+                 "with the music copyright on its own line separate from the ONE LICENSE line.",
+                 "Do the first section first so I can check the style, then continue.", ""]
+        n = 0
+        for it in plan:
+            if it.get("type") != "text":
+                continue
+            n += 1
+            lines.append(f"SLIDE {n}")
+            if it.get("title"):
+                lines.append("Banner: " + it["title"] + (" / " + it["subtitle"] if it.get("subtitle") else ""))
+            lines.append("Text:\n" + (it.get("text") or "").replace("\xa0", " ").strip())
+            if it.get("credit"):
+                lines.append("Footer:\n" + it["credit"].strip())
+            lines.append("")
+        resp = make_response("\n".join(lines))
+        resp.headers["Content-Type"] = "text/plain; charset=utf-8"
+        resp.headers["Content-Disposition"] = f'attachment; filename="ChatGPT-slide-prompt-{mass_date}.txt"'
+        return resp
 
     @app.route("/slides/package")
     @need()

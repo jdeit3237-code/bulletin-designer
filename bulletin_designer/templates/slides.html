@@ -62,6 +62,7 @@
 <div style="display:flex;flex-wrap:wrap;gap:8px">{% for ph in photos %}<label style="width:110px;font-size:.75rem"><input type="checkbox" name="photo" value="{{ ph.id }}"{% if ph.id|string in selected %} checked{% endif %}><br><img src="{{ url_for('uploads', name=ph.filename) }}" alt="{{ ph.title or 'photo' }}" style="max-width:100px;max-height:70px" loading="lazy"><br>{{ ph.title }}</label>{% endfor %}</div>
 <p><button class="btn" formmethod="post" formaction="{{ url_for('slides') }}" name="action" value="save_graphics">Save ticked graphics</button>
 <button class="btn" formaction="{{ url_for('slides_preview') }}">Preview slides</button>
-<button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button></p></form>
+<button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button>
+<button class="btn secondary" formaction="{{ url_for('slides_chatgpt_prompt') }}">Download ChatGPT prompt (.txt)</button></p></form>
 {% endif %}
 {% endblock %}
