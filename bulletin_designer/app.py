@@ -258,30 +258,56 @@ def wrap_pause(line, cpl=40):
         return [line]
     weak = {"and", "but", "or", "nor", "for", "so", "yet", "that", "who", "whom", "which", "when", "while", "where", "as", "in", "on", "of", "to",
             "with", "from", "by", "at", "upon", "before", "after", "through", "into", "among", "within", "without", "like", "if", "because", "though"}
-    parts = -(-len(line) // cpl)
-    target = len(line) / parts
-    out, start = [], 0
-    for i in range(1, parts):
-        best, best_cost, pos = None, None, 0
-        for j in range(start + 1, len(words)):
-            seg = " ".join(words[start:j])
-            if len(seg) > cpl:
-                break
-            if len(" ".join(words[j:])) > cpl * (parts - i):
-                continue
-            cost = abs(len(seg) - target)
-            if seg[-1] in ",;:.!?":
-                cost -= 10 if seg[-1] in ";:.!?" else 7
-            elif words[j].lower().strip(",;:.!?") in weak:
-                cost -= 5
-            if best_cost is None or cost < best_cost:
-                best, best_cost = j, cost
-        if best is None:
-            best = max(start + 1, min(len(words) - 1, start + 1))
-        out.append(" ".join(words[start:best]))
-        start = best
-    out.append(" ".join(words[start:]))
-    return out
+    n = len(words)
+    lens = [len(w) for w in words]
+
+    def seg_len(i, j):
+        return sum(lens[i:j]) + (j - i - 1)
+
+    def solve(parts):
+        target = len(line) / parts
+        INF = float("inf")
+        best = {(0, 0): (0.0, None)}
+        for k in range(1, parts + 1):
+            for j in range(1, n + 1):
+                for i in range(k - 1, j):
+                    if (i, k - 1) not in best:
+                        continue
+                    L = seg_len(i, j)
+                    if L > cpl:
+                        continue
+                    cost = (L - target) ** 2 / 4.0
+                    if j - i == 1:
+                        cost += 400
+                    if j < n:
+                        end = words[j - 1][-1]
+                        nxt = words[j].lower().strip(",;:.!?\"'")
+                        if end in ";:.!?":
+                            cost -= 60
+                        elif end == ",":
+                            cost -= 45
+                        elif nxt in weak:
+                            cost -= 25
+                        if words[j - 1].lower().strip(",;:.!?\"'") in weak:
+                            cost += 80
+                    tot = best[(i, k - 1)][0] + cost
+                    if tot < best.get((j, k), (INF, None))[0]:
+                        best[(j, k)] = (tot, i)
+        if (n, parts) not in best:
+            return None
+        cuts, j = [], n
+        for k in range(parts, 0, -1):
+            i = best[(j, k)][1]
+            cuts.append(" ".join(words[i:j]))
+            j = i
+        return cuts[::-1]
+
+    base = -(-len(line) // cpl)
+    for parts in range(base, base + 3):
+        got = solve(min(parts, n))
+        if got:
+            return got
+    return [line]
 
 
 def split_pages(vlines, first_cap, cap):
@@ -5129,15 +5155,15 @@ def create_app(config=None):
             header, sub, body, credit = row
             if kind not in ("SONG", "BODY", "BIBLE") or pth or not body.strip() or body.startswith("("):
                 return [(kind, row, bg, pth, 48)]
-            used = (90 + (50 if credit else 0)) if kind == "SONG" else (130 if header else 0)
+            used = (90 + (credit_lines(credit) * 17 + 14 if credit else 0)) if kind == "SONG" else (130 if header else 0)
             src = [ln for ln in body.replace("\v", "\n").split("\n") if ln.strip()]
 
             def attempt(size):
                 vl = []
                 for ln in src:
-                    pieces = wrap_pause(ln, int(1920 / size))
+                    pieces = wrap_pause(ln, int(1800 / size))
                     vl += [(t, i == len(pieces) - 1) for i, t in enumerate(pieces)]
-                first_cap, cap = max(1, int((380 - used) // (1.12 * size))), max(1, int(380 // (1.12 * size)))
+                first_cap, cap = max(1, int((380 - used) // (1.2 * size))), max(1, int(380 // (1.2 * size)))
                 return split_pages(vl, first_cap, cap)
 
             base = attempt(48)
@@ -5153,23 +5179,26 @@ def create_app(config=None):
                 out.append((kind, (header, sub, text, credit), bg, pth, size) if i == 0 else ("BODY", ("", "", text, ""), bg, None, size))
             return out
 
+        def credit_lines(text):
+            return sum(-(-len(x.strip()) // 105) for x in (text or "").split("\n") if x.strip()) or 1
+
         def credit_box(sld, text):
-            """Small copyright line on a translucent dark box with soft edges."""
+            """Copyright line with a dark blurred shadow (master placeholder when present)."""
             from pptx.util import Pt, Emu
             from pptx.dml.color import RGBColor
             from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
             from pptx.oxml.ns import qn
             from lxml import etree
+            ph_c = next((x for x in sld.placeholders if x.placeholder_format.idx == 11), None)
+            if ph_c is not None:
+                tf = ph_c.text_frame
+                for i, ln in enumerate(x.strip() for x in (text or "").split("\n") if x.strip()):
+                    para(tf, ln, 0, i == 0)
+                return
             sw, sh = prs.slide_width, prs.slide_height
-            w, h = int(sw * 0.86), int(Pt(46))
-            box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(14)), w, h)
-            box.fill.solid()
-            box.fill.fore_color.rgb = RGBColor(0, 0, 0)
-            sp = box._element.spPr
-            clr = sp.find(qn("a:solidFill")).find(qn("a:srgbClr"))
-            etree.SubElement(clr, qn("a:alpha")).set("val", "60000")
-            eff = etree.SubElement(sp, qn("a:effectLst"))
-            etree.SubElement(eff, qn("a:softEdge")).set("rad", str(int(Pt(8))))
+            w = int(sw * 0.86)
+            h = int(Pt(credit_lines(text) * 17 + 8))
+            box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(46)), w, h)
             tf = box.text_frame
             tf.word_wrap = True
             tf.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -5180,8 +5209,13 @@ def create_app(config=None):
                 p_.alignment = PP_ALIGN.CENTER
                 r_ = p_.add_run()
                 r_.text = ln
-                r_.font.size = Pt(10)
+                r_.font.size = Pt(14)
+                r_.font.bold = True
                 r_.font.color.rgb = RGBColor(255, 255, 255)
+                rpr = r_._r.get_or_add_rPr()
+                eff = etree.SubElement(rpr, qn("a:effectLst"))
+                glow = etree.SubElement(eff, qn("a:glow"), rad="101600")
+                etree.SubElement(etree.SubElement(glow, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "85000")
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()

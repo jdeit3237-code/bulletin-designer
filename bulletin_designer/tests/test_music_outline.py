@@ -610,7 +610,7 @@ def test_wrap_pause_and_pages():
 def test_credit_box_is_small_translucent():
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
-    assert "softEdge" in src and 'credit_box(sld, credit)' in src
+    assert "a:glow" in src and 'credit_box(sld, credit)' in src
 
 
 def test_theme_choice_and_css():
@@ -647,3 +647,28 @@ def test_choir_packet_starts_with_outline(tmp_path):
     pdf, _ = choir.build_packet(app, {"date": None, "title": "x"}, songs, False, outline_pdf=buf.getvalue())
     pages = PdfReader(io.BytesIO(pdf)).pages
     assert float(pages[0].mediabox.width) == 300 and len(pages) >= 3
+
+
+def test_wrap_pause_no_orphans():
+    import app as appmod
+    t = "For the Lord himself, with a word of command, with the voice of an archangel and with the trumpet of God, will come down from heaven, and the dead in Christ will"
+    w = appmod.wrap_pause(t, 30)
+    assert all(len(x.split()) >= 3 and len(x) <= 30 for x in w)
+
+
+def test_credit_uses_master_placeholder():
+    from pptx import Presentation
+    import io
+    import app as appmod
+    plan = {"SONG": None}
+    src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
+    assert "idx == 11" in src
+    p = Presentation(os.path.join(os.path.dirname(__file__), "..", "assets", "MassTemplate.pptx"))
+    assert any(x.placeholder_format.idx == 11 for x in p.slide_layouts[0].placeholders)
+
+
+def test_alternate_readings_split():
+    import outline as o
+    raw = "Second Reading\n1 Thessalonians 4:13-18\nWe do not want.\n\nor 1 Thessalonians 4:13-14\nWe do not want you.\n"
+    got = o.reading_sections(raw)
+    assert [g[0] for g in got] == ["Second Reading", "Second Reading"] and got[1][1][0].startswith("1 Thessalonians 4:13-14")
