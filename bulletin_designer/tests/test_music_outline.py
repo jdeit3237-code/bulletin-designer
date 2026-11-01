@@ -469,7 +469,7 @@ def test_outline_export_txt_and_csv(app):
     body = r.get_data(as_text=True)
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
     assert "\nand I will give you rest\n" in body
-    assert "ONE LICENSE" not in body
+    assert "ONE LICENSE" in body
     assert "Presentation of the Gifts\n\tCome To Me\n\t\tCome to me" in body
     r = c.get("/slides/outline-export?date=2026-11-01&format=csv")
     assert r.get_data(as_text=True).splitlines()[0].lstrip("\ufeff") == "Slide,Header,Subheader,Body,Copyright"
