@@ -4834,9 +4834,21 @@ def create_app(config=None):
                 return ln[:cut] + "\v" + ln[cut + 1:]
             return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
 
-        def fit(ph):
-            from pptx.enum.text import MSO_AUTO_SIZE
-            ph.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        def fit(ph, body_text="", used=0):
+            """PowerPoint only shrinks text when someone edits it, so choose a size that fits the 13.3 x 5 inch box."""
+            from pptx.util import Pt
+            segs = [x for x in (body_text or "").split("\v") if x]
+            size = 24
+            for f in range(54, 23, -2):
+                cpl = max(10, int(900 / (0.52 * f)))
+                n = sum(-(-len(x) // cpl) for x in segs)
+                if n * 1.2 * f + used <= 350:
+                    size = f
+                    break
+            for p_ in ph.text_frame.paragraphs:
+                if p_.level == 1:
+                    for r_ in p_.runs:
+                        r_.font.size = Pt(size)
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
@@ -4849,8 +4861,9 @@ def create_app(config=None):
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
-                para(ph.text_frame, lines(body, 34), 1, False)
-                fit(ph)
+                bt = lines(body, 34)
+                para(ph.text_frame, bt, 1, False)
+                fit(ph, bt, 90 + (50 if credit else 0))
                 if credit:
                     para(ph.text_frame, lines(credit), 2, False)
             elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
@@ -4858,8 +4871,9 @@ def create_app(config=None):
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
-                para(ph.text_frame, lines(body, 34), 1, True)
-                fit(ph)
+                bt = lines(body, 34)
+                para(ph.text_frame, bt, 1, True)
+                fit(ph, bt)
             elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
                 sld = prs.slides.add_slide(cont)
                 sld.shapes.title.text_frame.text = header
@@ -4868,8 +4882,9 @@ def create_app(config=None):
                 if sub:
                     para(ph.text_frame, sub, 0, True)
                     first = False
-                para(ph.text_frame, lines(body), 1, first)
-                fit(ph)
+                bt = lines(body)
+                para(ph.text_frame, bt, 1, first)
+                fit(ph, bt, 130)
             else:
                 sld = prs.slides.add_slide(plain)
                 tf = sld.shapes.title.text_frame
