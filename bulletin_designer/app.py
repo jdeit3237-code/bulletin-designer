@@ -4637,7 +4637,10 @@ def create_app(config=None):
         plan, _ = plan_slides(mass_date, chosen_graphics())
         feast = li["name"] or f"Sunday in {li['season']}"
         day = date.fromisoformat(mass_date)
-        lines = ["Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
+        lines = ["READ THIS FIRST. I do NOT want a PowerPoint, a .pptx file, slide code, python, or an editable document. "
+                 "Use your IMAGE GENERATION tool (the same one that draws pictures) and make each slide as a finished PICTURE, like an advertisement or poster "
+                 "in which the words are part of the artwork. Do not write code. Do not offer a file to download. Just show me the picture.", "",
+                 "Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
                  "Never combine slides into a collage or contact sheet, and never reuse the same picture for two slides.",
                  f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
                  "EVERY SLIDE IS INDIVIDUALLY DESIGNED. Keep one shared look so the deck feels like a family, but give each slide its own composition: "
@@ -4658,6 +4661,7 @@ def create_app(config=None):
                  "This list includes the regular weekly slides (Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings.",
                  "Files named MUSIC-nn-... are sheet music from the music book for the Mass part in the file name (Glory to God, Holy Holy Holy, Memorial Acclamation, Great Amen, Alleluia, Lamb of God and so on). "
                  "Use each one on the slide for that part, exactly as given, inside the design.",
+                 "If you start to build a PowerPoint or write code, stop and generate an image instead. Reply \"Ready\" only if you understand, then make slide 1 as an image. "
                  "Make the first slide, then wait for my OK before making the rest, so I can approve the style. Then make them one at a time.", ""]
         n = 0
         for it in plan:

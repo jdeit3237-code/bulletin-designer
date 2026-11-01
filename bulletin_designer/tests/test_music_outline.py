@@ -436,3 +436,11 @@ def test_music_pages_zip_matches_prompt(app):
     assert r.status_code == 200 and r.mimetype == "application/zip"
     assert zipfile.ZipFile(io.BytesIO(r.data)).namelist()
     assert c.get("/slides/music-pages?date=bad").status_code == 404
+
+
+def test_chatgpt_prompt_demands_images_not_powerpoint(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    body = c.get("/slides/chatgpt-prompt?date=2026-11-01").get_data(as_text=True)
+    assert body.startswith("READ THIS FIRST") and "IMAGE GENERATION" in body
