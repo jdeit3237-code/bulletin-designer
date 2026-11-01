@@ -468,9 +468,30 @@ def test_outline_export_txt_and_csv(app):
     r = c.get("/slides/outline-export?date=2026-11-01")
     body = r.get_data(as_text=True)
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
-    assert "\nand I will give you rest\n" in body
+    assert "\n\tand I will give you rest\n" in body and "\nBODY:\n" in body
     assert "ONE LICENSE" not in body
-    assert "Presentation of the Gifts\n\tCome To Me\n\t\tCome to me" in body
+    assert "SONG: Presentation of the Gifts\n\tCome To Me\n\t\tCome to me" in body
+    m = c.get("/slides/outline-macro")
+    assert m.status_code == 200 and b"Sub ApplyMassLayouts" in m.data
     r = c.get("/slides/outline-export?date=2026-11-01&format=csv")
     assert r.get_data(as_text=True).splitlines()[0].lstrip("\ufeff") == "Slide,Header,Subheader,Body,Copyright"
     assert c.get("/slides/outline-export?date=x").status_code == 404
+
+
+def test_master_slides_deck_and_template(app):
+    from pptx import Presentation
+    import io as _io
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/pptx-master?date=2026-11-01")
+    assert r.status_code == 200
+    prs = Presentation(_io.BytesIO(r.data))
+    names = [s.slide_layout.name for s in prs.slides]
+    assert "69_Title Slide No fill" in names and "112_Title Slide No fill" in names
+    text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
+    assert "Come To Me" in text and "and I will give you rest" in text and "ONE LICENSE" not in text
+    assert c.get("/slides/template").status_code == 200
+    bad = c.post("/slides/template", data={"csrf": t, "template": (_io.BytesIO(b"nope"), "x.pptx")}, content_type="multipart/form-data")
+    assert bad.status_code == 302
