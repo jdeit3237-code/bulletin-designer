@@ -4347,8 +4347,8 @@ def create_app(config=None):
                         from pptx import Presentation as _P
                         for si, sl in enumerate(_P(path).slides):
                             txt = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
-                            if txt and ("bilingual" in name.lower() or not music_outline.is_spanish(txt)):
-                                items.append({"type": "text", "src_pptx": (path, si), "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
+                            if len(sl.shapes) and (not txt or "bilingual" in name.lower() or not music_outline.is_spanish(txt)):
+                                items.append({"type": "text", "src_pptx": (path, si), "title": None, "subtitle": None, "text": music_outline.no_orphans(txt) if txt else " ",
                                               "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
                     except Exception:
                         continue
@@ -4959,11 +4959,18 @@ def create_app(config=None):
         def lines(t, wrap=0):
             def split(ln):
                 words = ln.split()
-                if not wrap or len(words) <= wrap:
+                if not wrap or (len(words) <= wrap and len(ln) <= 46):
                     return ln
-                parts = -(-len(words) // wrap)
-                size = -(-len(words) // parts)
-                return "\v".join(" ".join(words[i:i + size]) for i in range(0, len(words), size))
+                parts = max(-(-len(words) // wrap), -(-len(ln) // 46))
+                target = len(ln) / parts
+                out, cur = [], []
+                for w in words:
+                    if cur and len(" ".join(cur + [w])) - target / 2 > target and len(out) < parts - 1:
+                        out.append(" ".join(cur))
+                        cur = []
+                    cur.append(w)
+                out.append(" ".join(cur))
+                return "\v".join(out)
             return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
 
         def fit(ph, body_text="", used=0):
@@ -4995,6 +5002,7 @@ def create_app(config=None):
                 try:
                     copy_slide(prs, plain, pth[0], pth[1])
                 except Exception:
+                    app.logger.exception("copy_slide failed")
                     sld = prs.slides.add_slide(plain)
                     sld.shapes.title.text_frame.text = body
                 continue

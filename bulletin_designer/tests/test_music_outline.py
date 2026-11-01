@@ -563,3 +563,23 @@ def test_copy_slide_keeps_source_slide(tmp_path):
     dst = Presentation()
     out = appmod.copy_slide(dst, dst.slide_layouts[6], str(f), 0)
     assert any(sh.has_text_frame and sh.text_frame.text == "Glory to God" for sh in out.shapes)
+
+
+def test_standard_pptx_music_slides_in_deck(app):
+    from pptx import Presentation
+    from pptx.util import Inches
+    import io as _io
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    src = Presentation()
+    for txt in ("Glory to God in the highest", "And on earth peace"):
+        sl = src.slides.add_slide(src.slide_layouts[6])
+        sl.shapes.add_textbox(Inches(1), Inches(1), Inches(5), Inches(1)).text_frame.text = txt
+    b = _io.BytesIO()
+    src.save(b)
+    b.seek(0)
+    r = c.post("/slides", data={"csrf": t, "kind": "standard", "files": (b, "Gloria_-_Mass_of_Saint_Anne.pptx")}, content_type="multipart/form-data")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    prs = Presentation(_io.BytesIO(c.get("/slides/pptx-master?date=2026-11-01").data))
+    text = " ".join(sh.text_frame.text for s in prs.slides for sh in s.shapes if sh.has_text_frame)
+    assert "Glory to God in the highest" in text and "And on earth peace" in text, (r.status_code, text[:300])

@@ -371,7 +371,7 @@ STANDARD_KEYWORDS = (
     ("Glory to God", ("gloria", "glory to god")),
     ("Gospel Acclamation", ("alleluia", "acclamation")),
     ("Creed", ("creed", "profession")),
-    ("Mystery of Faith", ("mystery", "memorial")),
+    ("Mystery of Faith", ("mystery", "memorial", "proclaim", "dying you destroyed")),
     ("Holy", ("holy", "sanctus")),
     ("Lord's Prayer", ("lord's prayer", "lords prayer", "our father")),
     ("Lamb of God", ("lamb", "agnus")),
