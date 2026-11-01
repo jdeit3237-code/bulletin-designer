@@ -4915,9 +4915,9 @@ def create_app(config=None):
             segs = [x for x in (body_text or "").split("\v") if x]
             size = 24
             for f in range(54, 23, -2):
-                cpl = max(10, int(900 / (0.52 * f)))
+                cpl = max(10, int(900 / (0.45 * f)))
                 n = sum(-(-len(x) // cpl) for x in segs)
-                if n * 1.2 * f + used <= 350:
+                if n * 1.12 * f + used <= 380:
                     size = f
                     break
             for p_ in ph.text_frame.paragraphs:
@@ -4938,11 +4938,10 @@ def create_app(config=None):
                 sld = prs.slides.add_slide(plain)
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
-                if kind == "BLANK":
-                    from pptx.dml.color import RGBColor
-                    sld.background.fill.solid()
-                    sld.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
-                else:
+                from pptx.dml.color import RGBColor
+                sld.background.fill.solid()
+                sld.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
+                if kind != "BLANK":
                     from PIL import Image
                     sw, sh = prs.slide_width, prs.slide_height
                     with Image.open(pth) as im:
