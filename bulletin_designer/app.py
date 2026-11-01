@@ -206,6 +206,70 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
+def wrap_pause(line, cpl=40):
+    """Split one line into even pieces of at most `cpl` characters, preferring pauses (punctuation, conjunctions, prepositions)."""
+    line = " ".join(line.split())
+    words = line.split()
+    if len(line) <= cpl or len(words) < 2:
+        return [line]
+    weak = {"and", "but", "or", "nor", "for", "so", "yet", "that", "who", "whom", "which", "when", "while", "where", "as", "in", "on", "of", "to",
+            "with", "from", "by", "at", "upon", "before", "after", "through", "into", "among", "within", "without", "like", "if", "because", "though"}
+    parts = -(-len(line) // cpl)
+    target = len(line) / parts
+    out, start = [], 0
+    for i in range(1, parts):
+        best, best_cost, pos = None, None, 0
+        for j in range(start + 1, len(words)):
+            seg = " ".join(words[start:j])
+            if len(seg) > cpl:
+                break
+            if len(" ".join(words[j:])) > cpl * (parts - i):
+                continue
+            cost = abs(len(seg) - target)
+            if seg[-1] in ",;:.!?":
+                cost -= 10 if seg[-1] in ";:.!?" else 7
+            elif words[j].lower().strip(",;:.!?") in weak:
+                cost -= 5
+            if best_cost is None or cost < best_cost:
+                best, best_cost = j, cost
+        if best is None:
+            best = max(start + 1, min(len(words) - 1, start + 1))
+        out.append(" ".join(words[start:best]))
+        start = best
+    out.append(" ".join(words[start:]))
+    return out
+
+
+def split_pages(vlines, first_cap, cap):
+    """Group wrapped lines into as few evenly filled slides as possible; cut after sentence ends where possible."""
+    n = len(vlines)
+    k = 1
+    while n > first_cap + (k - 1) * cap:
+        k += 1
+    if k == 1:
+        return [vlines]
+    s1 = min(first_cap, -(-n // k))
+    rest = -(-(n - s1) // (k - 1))
+    cuts = [s1 + i * rest for i in range(k - 1)]
+    cuts = [min(c, n - (k - 2 - i)) for i, c in enumerate(cuts)]
+
+    def score(i):
+        t = vlines[i - 1][0].rstrip()
+        return 3 if t[-1:] in ".;:!?" else (2 if vlines[i - 1][1] else (1 if t[-1:] == "," else 0))
+
+    tuned, prev = [], 0
+    for idx, c in enumerate(cuts):
+        limit = first_cap if idx == 0 else cap
+        opts = [x for x in (c, c - 1, c + 1) if prev < x < n and x - prev <= limit]
+        c = max(opts, key=lambda x: (score(x), x == c)) if opts else c
+        tuned.append(c)
+        prev = c
+    if n - prev > cap or any(b - a <= 0 for a, b in zip([0] + tuned, tuned + [n])):
+        tuned = cuts
+    bounds = [0] + tuned + [n]
+    return [vlines[a:b] for a, b in zip(bounds, bounds[1:])]
+
+
 def copy_slide(prs, layout, src_path, index):
     """Append a copy of slide `index` of another .pptx (shapes, pictures, background) onto the plain layout."""
     import copy
@@ -4960,34 +5024,11 @@ def create_app(config=None):
                     sets[key] = base
             return sets[key]
 
-        def lines(t, wrap=0):
-            def split(ln):
-                words = ln.split()
-                if not wrap or (len(words) <= wrap and len(ln) <= 46):
-                    return ln
-                parts = max(-(-len(words) // wrap), -(-len(ln) // 46))
-                target = len(ln) / parts
-                out, cur = [], []
-                for w in words:
-                    if cur and len(" ".join(cur + [w])) - target / 2 > target and len(out) < parts - 1:
-                        out.append(" ".join(cur))
-                        cur = []
-                    cur.append(w)
-                out.append(" ".join(cur))
-                return "\v".join(out)
-            return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
+        def lines(t):
+            return "\v".join(ln.strip() for ln in (t or "").split("\n") if ln.strip())
 
-        def fit(ph, body_text="", used=0):
-            """PowerPoint only shrinks text when someone edits it, so choose a size that fits the 13.3 x 5 inch box."""
+        def fit(ph, body_text="", used=0, size=48):
             from pptx.util import Pt
-            segs = [x for x in (body_text or "").split("\v") if x]
-            size = 24
-            for f in range(54, 23, -2):
-                cpl = max(10, int(900 / (0.45 * f)))
-                n = sum(-(-len(x) // cpl) for x in segs)
-                if n * 1.12 * f + used <= 380:
-                    size = f
-                    break
             for p_ in ph.text_frame.paragraphs:
                 if p_.level == 1:
                     for r_ in p_.runs:
@@ -4996,12 +5037,72 @@ def create_app(config=None):
                     for r_ in p_.runs:
                         r_.font.size = Pt(14)
 
+        def paginate(kind, row, bg, pth):
+            """Evenly wrap the body at pause points (60 pt if it costs no extra slide, else 54, else 48); a long verse continues on extra slides."""
+            header, sub, body, credit = row
+            if kind not in ("SONG", "BODY", "BIBLE") or pth or not body.strip() or body.startswith("("):
+                return [(kind, row, bg, pth, 48)]
+            used = (90 + (50 if credit else 0)) if kind == "SONG" else (130 if header else 0)
+            src = [ln for ln in body.replace("\v", "\n").split("\n") if ln.strip()]
+
+            def attempt(size):
+                vl = []
+                for ln in src:
+                    pieces = wrap_pause(ln, int(1920 / size))
+                    vl += [(t, i == len(pieces) - 1) for i, t in enumerate(pieces)]
+                first_cap, cap = max(1, int((380 - used) // (1.12 * size))), max(1, int(380 // (1.12 * size)))
+                return split_pages(vl, first_cap, cap)
+
+            base = attempt(48)
+            size, pages = 48, base
+            for cand in (60, 54):
+                got = attempt(cand)
+                if len(got) <= len(base):
+                    size, pages = cand, got
+                    break
+            out = []
+            for i, pg in enumerate(pages):
+                text = "\v".join(t for t, _ in pg)
+                out.append((kind, (header, sub, text, credit), bg, pth, size) if i == 0 else ("BODY", ("", "", text, ""), bg, None, size))
+            return out
+
+        def credit_box(sld, text):
+            """Small copyright line on a translucent dark box with soft edges."""
+            from pptx.util import Pt, Emu
+            from pptx.dml.color import RGBColor
+            from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+            from pptx.oxml.ns import qn
+            from lxml import etree
+            sw, sh = prs.slide_width, prs.slide_height
+            w, h = int(sw * 0.86), int(Pt(46))
+            box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(14)), w, h)
+            box.fill.solid()
+            box.fill.fore_color.rgb = RGBColor(0, 0, 0)
+            sp = box._element.spPr
+            clr = sp.find(qn("a:solidFill")).find(qn("a:srgbClr"))
+            etree.SubElement(clr, qn("a:alpha")).set("val", "60000")
+            eff = etree.SubElement(sp, qn("a:effectLst"))
+            etree.SubElement(eff, qn("a:softEdge")).set("rad", str(int(Pt(8))))
+            tf = box.text_frame
+            tf.word_wrap = True
+            tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            first = True
+            for ln in [x.strip() for x in (text or "").split("\n") if x.strip()]:
+                p_ = tf.paragraphs[0] if first else tf.add_paragraph()
+                first = False
+                p_.alignment = PP_ALIGN.CENTER
+                r_ = p_.add_run()
+                r_.text = ln
+                r_.font.size = Pt(10)
+                r_.font.color.rgb = RGBColor(255, 255, 255)
+
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
             p_.level = lvl
             p_.text = text
 
-        for kind, (header, sub, body, credit), bg, pth in zip(kinds, rows, bgs, paths):
+        expanded = [x for item in zip(kinds, rows, bgs, paths) for x in paginate(*item)]
+        for kind, (header, sub, body, credit), bg, pth, fsize in expanded:
             if kind == "COPY":
                 try:
                     copy_slide(prs, plain, pth[0], pth[1])
@@ -5031,19 +5132,19 @@ def create_app(config=None):
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
-                bt = lines(body, 7)
+                bt = lines(body)
                 para(ph.text_frame, bt, 1, False)
-                fit(ph, bt, 90 + (50 if credit else 0))
+                fit(ph, bt, size=fsize)
                 if credit:
-                    para(ph.text_frame, lines(credit), 2, False)
+                    credit_box(sld, credit)
             elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
                 sld = prs.slides.add_slide(pick(cont, bg))
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
-                bt = lines(body, 7)
+                bt = lines(body)
                 para(ph.text_frame, bt, 1, True)
-                fit(ph, bt)
+                fit(ph, bt, size=fsize)
             elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
                 sld = prs.slides.add_slide(pick(cont, bg))
                 sld.shapes.title.text_frame.text = header
@@ -5054,7 +5155,7 @@ def create_app(config=None):
                     first = False
                 bt = lines(body)
                 para(ph.text_frame, bt, 1, first)
-                fit(ph, bt, 130)
+                fit(ph, bt, size=fsize)
             else:
                 sld = prs.slides.add_slide(pick(plain, bg))
                 tf = sld.shapes.title.text_frame

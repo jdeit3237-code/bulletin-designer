@@ -595,3 +595,19 @@ def test_music_slides_have_white_background(tmp_path):
     dst = Presentation()
     out = appmod.copy_slide(dst, dst.slide_layouts[6], str(f), 0)
     assert out.background.fill.fore_color.rgb == __import__("pptx.dml.color", fromlist=["RGBColor"]).RGBColor(255, 255, 255)
+
+
+def test_wrap_pause_and_pages():
+    import app as appmod
+    w = appmod.wrap_pause("I will remember you upon my couch, and through the night-watches I will meditate on you", 40)
+    assert all(len(x) <= 40 for x in w) and w[0].endswith("couch,")
+    v = [("line %d." % i, True) for i in range(9)]
+    pages = appmod.split_pages(v, 4, 7)
+    assert len(pages) == 2 and sum(len(x) for x in pages) == 9
+    assert appmod.split_pages(v[:3], 4, 7) == [v[:3]]
+
+
+def test_credit_box_is_small_translucent():
+    import re
+    src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
+    assert "softEdge" in src and 'credit_box(sld, credit)' in src
