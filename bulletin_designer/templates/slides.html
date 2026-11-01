@@ -65,6 +65,8 @@
 <button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button>
 <button class="btn" formaction="{{ url_for('slides_pdf') }}">Download PDF (all slides)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_chatgpt_prompt') }}">Download ChatGPT prompt (.txt)</button>
+<button class="btn secondary" formaction="{{ url_for('slides_outline_export') }}">Download outline (.txt)</button>
+<button class="btn secondary" formaction="{{ url_for('slides_outline_export') }}" name="format" value="csv">Download outline (.csv)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_chatgpt_slides') }}">Download one prompt per slide (.zip)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_music_pages') }}">Download music pages (.zip)</button></p></form>
 {% endif %}
