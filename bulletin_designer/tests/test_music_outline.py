@@ -425,3 +425,14 @@ def test_slides_pdf_has_one_page_per_slide(app):
     page_count = len(re.findall(r'style="aspect-ratio:16/9', c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)))
     assert doc.page_count == page_count and doc.page_count >= 3
     assert "give you rest" in "".join(p.get_text() for p in doc)
+
+
+def test_music_pages_zip_matches_prompt(app):
+    import io, zipfile
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/music-pages?date=2026-11-01")
+    assert r.status_code == 200 and r.mimetype == "application/zip"
+    assert zipfile.ZipFile(io.BytesIO(r.data)).namelist()
+    assert c.get("/slides/music-pages?date=bad").status_code == 404

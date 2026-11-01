@@ -4661,7 +4661,7 @@ def create_app(config=None):
         for it in plan:
             if it.get("type") == "image":
                 n += 1
-                lines += [f"SLIDE {n}", f"Sheet music or existing picture ({it.get('label') or 'uploaded image'}): I will attach this picture. Use it exactly as it is, inside the design described above.", ""]
+                lines += [f"SLIDE {n}", f"Sheet music or existing picture ({it.get('label') or 'uploaded image'}): I will attach this picture as the file named SLIDE-{n:02d}. Use it exactly as it is, inside the design described above.", ""]
                 continue
             if it.get("type") != "text":
                 continue
@@ -4679,6 +4679,31 @@ def create_app(config=None):
         resp.headers["Content-Type"] = "text/plain; charset=utf-8"
         resp.headers["Content-Disposition"] = f'attachment; filename="ChatGPT-slide-prompt-{mass_date}.txt"'
         return resp
+
+    @app.route("/slides/music-pages")
+    @need()
+    @need_area("slides")
+    def slides_music_pages():
+        """ZIP of the sheet-music and picture slides, named SLIDE-nn to match the ChatGPT prompt."""
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        plan, _ = plan_slides(mass_date, chosen_graphics())
+        buf, n, found = io.BytesIO(), 0, 0
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for it in plan:
+                if it.get("type") not in ("text", "image"):
+                    continue
+                n += 1
+                if it["type"] == "image" and it.get("path") and os.path.isfile(it["path"]):
+                    label = re.sub(r"[^A-Za-z0-9]+", "-", it.get("label") or "music").strip("-")[:40] or "music"
+                    ext = os.path.splitext(it["path"])[1].lower() or ".png"
+                    z.write(it["path"], f"SLIDE-{n:02d}-{label}{ext}")
+                    found += 1
+            if not found:
+                z.writestr("README.txt", "No sheet-music or picture slides were found for this Mass date.\n")
+        buf.seek(0)
+        return send_file(buf, as_attachment=True, download_name=f"Music-pages-{mass_date}.zip", mimetype="application/zip")
 
     @app.route("/slides/package")
     @need()
