@@ -4871,7 +4871,7 @@ def create_app(config=None):
 
         for kind, (header, sub, body, credit) in zip(kinds, rows):
             if kind == "SONG":
-                sld = prs.slides.add_slide(song)
+                sld = prs.slides.add_slide(cont if "CCLI" in credit.upper() else song)
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
