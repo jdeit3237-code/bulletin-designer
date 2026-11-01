@@ -206,6 +206,17 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
+def pptx_text(path):
+    """Text of each slide in a .pptx, one blank-line-separated block per slide."""
+    from pptx import Presentation
+    out = []
+    for sl in Presentation(path).slides:
+        t = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
+        if t:
+            out.append(t)
+    return "\n\n".join(out)
+
+
 def docx_text(fileobj):
     """Extract paragraph text from a .docx (blank line between paragraphs, tabs kept as ' | ')."""
     with zipfile.ZipFile(fileobj) as z:
@@ -3817,7 +3828,7 @@ def create_app(config=None):
         routes_choir.register(app, need, need_area)
         app.config["CHOIR_ON"] = True
 
-    SONG_EXTS = ("txt", "png", "jpg", "jpeg")
+    SONG_EXTS = ("txt", "pptx", "png", "jpg", "jpeg")
 
     def song_library():
         d = os.path.join(slides_root, "songs")
@@ -3858,7 +3869,7 @@ def create_app(config=None):
             if names and song["kind"]:
                 for n in names:
                     ext = n.rsplit(".", 1)[-1].lower()
-                    kind = song["kind"] if ext == "txt" else "notation"
+                    kind = song["kind"] if ext in ("txt", "pptx") else "notation"
                     dest = slides_dir(kind, mass_date)
                     os.makedirs(dest, exist_ok=True)
                     out = secure_filename(f"{song['label']}-{n}") or n
@@ -3869,7 +3880,7 @@ def create_app(config=None):
             if status == "missing" and (song["label"] in ("Responsorial Psalm", "Gospel Acclamation") or song["kind"]):
                 words_in_readings = song["label"] in ("Responsorial Psalm", "Gospel Acclamation")
                 pages = []
-                if routes_choir:
+                if routes_choir and not words_in_readings:
                     try:
                         pages = routes_choir.choir.book_page_images(app, song, date.fromisoformat(mass_date))
                     except Exception:
@@ -4286,7 +4297,7 @@ def create_app(config=None):
                     seen_songs.add(key)
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
-                blank_before = kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx")
+                blank_before = kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx", "pptx")
                 if ext in ("png", "jpg", "jpeg"):
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": blank_before,
                                    "items": [{"type": "image", "path": path, "src": url_for("slides_file", kind=kind, name=name, date=mass_date, inline=1), "label": name}]})
@@ -4302,7 +4313,7 @@ def create_app(config=None):
                     except Exception:
                         continue
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": False, "items": items})
-                elif ext in ("txt", "docx"):
+                elif ext in ("txt", "docx") or (ext == "pptx" and kind != "standard"):
                     label = os.path.splitext(name)[0].replace("_", " ")
                     if kind in SONG_KINDS:
                         label = music_outline.clean_song_title(label)
@@ -4310,7 +4321,7 @@ def create_app(config=None):
                             label = label.replace("-", " ").title()
                     section = extras.get(name, {}).get("name") if kind == "extra" else STANDARD_TITLES.get(kind)
                     try:
-                        raw = (docx_text(path) if ext == "docx" else music_outline.read_text(path)).replace("\u00a0", " ")
+                        raw = (docx_text(path) if ext == "docx" else pptx_text(path) if ext == "pptx" else music_outline.read_text(path)).replace("\u00a0", " ")
                     except Exception:
                         continue
                     keep_all = "bilingual" in name.lower()
@@ -4738,7 +4749,7 @@ def create_app(config=None):
             have = " ".join(zi.lower() for zi in z.namelist())
             for i, song in enumerate((load_outline(mass_date) or {}).get("songs", []), 1):
                 label = re.sub(r"[^A-Za-z0-9]+", "-", song.get("label") or "music").strip("-")[:40] or "music"
-                if label.lower() in have:
+                if label.lower() in have or song.get("label") in ("Responsorial Psalm", "Gospel Acclamation"):
                     continue
                 try:
                     pages = routes_choir.choir.book_page_images(app, song, date.fromisoformat(mass_date)) if routes_choir else []
