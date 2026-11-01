@@ -3862,22 +3862,26 @@ def create_app(config=None):
             json.dump({"songs": report, "auto": auto, "order": order or []}, f)
         return previous, report
 
-    DESIGN_SECTIONS = (("entrance", "Entrance", "joyful procession, light through stained glass, gathering of the faithful"),
-                       ("readings", "Readings", "an open book of Scripture in soft light, quiet and reverent"),
-                       ("gifts", "Presentation of the Gifts", "bread, wine, wheat and grapes, offering"),
-                       ("communion", "Communion", "bread and chalice, wheat, gentle light, unity"),
-                       ("going_forth", "Going Forth", "sunrise over the water, a path forward, fishing boats on the sea, mission"))
-    DESIGN_ROLES = {"title": "Title-slide design: more distinctive, with a calm, uncluttered area at the top for a title banner and a quiet centre.",
-                    "body": "Continuation-slide design: quieter and simpler, a soft low-contrast version of the same theme."}
+    DESIGN_SECTIONS = (("entrance", "Entrance", "a wooden cross on a rocky shore at sunset, golden light on the water"),
+                       ("readings", "Readings", "a Florida coast scene: a lighthouse, a white heron or a wooden pier over calm water at sunset"),
+                       ("gifts", "Presentation of the Gifts", "a small fishing boat tied to a dock at sunset, palms, offering and gratitude"),
+                       ("communion", "Communion", "a golden chalice with a host, a loaf of bread, grapes and wheat, glowing light"),
+                       ("going_forth", "Going Forth", "a sandy path leading to the beach at sunrise, sea oats, mission and sending"))
+    DESIGN_ROLES = {"title": "Title-slide design: the main scene is clearly visible on the left or right edge, framed by a decorative border.",
+                    "body": "Continuation-slide design: the same painterly style and border, but a simpler scene so the middle stays calm."}
 
     def design_prompt(mass_date, kind, role):
         li = liturgy.info(date.fromisoformat(mass_date))
         label, scene = next((l, sc) for k, l, sc in DESIGN_SECTIONS if k == kind)
         celebration = li["name"] or f"Sunday in {li['season']}"
-        return ("Background picture for a projected Catholic Mass slide at St. Peter the Fisherman Catholic Church. "
-                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Imagery: {scene}. "
-                + DESIGN_ROLES[role] + " Rich seasonal colors, soft focus, slightly darkened and muted so lettering stays easy to read from the back of the church. "
-                "No text, no letters, no logos, no recognizable faces. Keep text areas clear of busy detail.")
+        return ("Decorative, vibrant, painterly 16:9 slide background for a projected Catholic Mass slide at St. Peter the Fisherman "
+                "Catholic Church in Florida. "
+                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Scene: {scene}. "
+                + DESIGN_ROLES[role] + " Surround the edges with a lush seasonal border that fits the feast and season "
+                "(for example autumn leaves and red hibiscus for All Saints, with palm fronds), in rich warm sunset colors. "
+                "Leave a calm, plain, evenly lit horizontal band across the top for a title banner, a large calm centre for a "
+                "text panel, and a plain strip along the bottom for a footer; keep the detail in the border and the edges. "
+                "No text, no letters, no numbers, no logos, no recognizable faces.")
 
     @app.route("/slides/designs", methods=["POST"])
     @need()
