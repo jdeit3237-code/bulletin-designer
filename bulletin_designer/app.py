@@ -3837,7 +3837,8 @@ def create_app(config=None):
                         continue
                     shutil.copyfile(os.path.join(slides_root, "songs", n), os.path.join(dest, out))
                     auto.append([kind, out])
-            if status == "missing" and song["label"] in ("Responsorial Psalm", "Gospel Acclamation"):
+            if status == "missing" and (song["label"] in ("Responsorial Psalm", "Gospel Acclamation") or song["kind"]):
+                words_in_readings = song["label"] in ("Responsorial Psalm", "Gospel Acclamation")
                 pages = []
                 if routes_choir:
                     try:
@@ -3851,7 +3852,10 @@ def create_app(config=None):
                     with open(os.path.join(dest, out), "wb") as f:
                         f.write(png)
                     auto.append(["notation", out])
-                status = "words in readings, music from book" if pages else "in readings"
+                if words_in_readings:
+                    status = "words in readings, music from book" if pages else "in readings"
+                elif pages:
+                    status = "music from book"
             report.append(dict(song, status=status))
         os.makedirs(os.path.dirname(outline_path(mass_date)), exist_ok=True)
         with open(outline_path(mass_date), "w") as f:
