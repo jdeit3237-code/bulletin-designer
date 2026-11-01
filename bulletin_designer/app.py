@@ -5096,7 +5096,7 @@ def create_app(config=None):
             return sum(-(-len(x.strip()) // 105) for x in (text or "").split("\n") if x.strip()) or 1
 
         def credit_box(sld, text):
-            """Small copyright line on a translucent dark box with soft edges."""
+            """Copyright line with a dark blurred shadow (master placeholder when present)."""
             from pptx.util import Pt, Emu
             from pptx.dml.color import RGBColor
             from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
@@ -5112,13 +5112,6 @@ def create_app(config=None):
             w = int(sw * 0.86)
             h = int(Pt(credit_lines(text) * 17 + 8))
             box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(46)), w, h)
-            box.fill.solid()
-            box.fill.fore_color.rgb = RGBColor(0, 0, 0)
-            sp = box._element.spPr
-            clr = sp.find(qn("a:solidFill")).find(qn("a:srgbClr"))
-            etree.SubElement(clr, qn("a:alpha")).set("val", "60000")
-            eff = etree.SubElement(sp, qn("a:effectLst"))
-            etree.SubElement(eff, qn("a:softEdge")).set("rad", str(int(Pt(8))))
             tf = box.text_frame
             tf.word_wrap = True
             tf.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -5131,6 +5124,10 @@ def create_app(config=None):
                 r_.text = ln
                 r_.font.size = Pt(14)
                 r_.font.color.rgb = RGBColor(255, 255, 255)
+                rpr = r_._r.get_or_add_rPr()
+                eff = etree.SubElement(rpr, qn("a:effectLst"))
+                shd = etree.SubElement(eff, qn("a:outerShdw"), blurRad="76200", dist="0", sx="115000", sy="115000", algn="ctr", rotWithShape="0")
+                etree.SubElement(etree.SubElement(shd, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "100000")
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
