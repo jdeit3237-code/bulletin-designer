@@ -264,6 +264,8 @@ def test_song_credit_and_license_only_on_first_slide(app):
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert page.count("ONE LICENSE") == page.count("HOWTEXT") >= 1
     assert page.index("FIRSTVERSE") < page.index("HOWTEXT") < page.index("SECONDVERSE") or page.count("HOWTEXT") == 1
+    credit = page[page.index("HOWTEXT"):page.index("ONE LICENSE")]
+    assert "\n" in credit
 
 
 def test_other_songs_is_never_a_section_title(app):
