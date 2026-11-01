@@ -3862,22 +3862,26 @@ def create_app(config=None):
             json.dump({"songs": report, "auto": auto, "order": order or []}, f)
         return previous, report
 
-    DESIGN_SECTIONS = (("entrance", "Entrance", "joyful procession, light through stained glass, gathering of the faithful"),
-                       ("readings", "Readings", "an open book of Scripture in soft light, quiet and reverent"),
-                       ("gifts", "Presentation of the Gifts", "bread, wine, wheat and grapes, offering"),
-                       ("communion", "Communion", "bread and chalice, wheat, gentle light, unity"),
-                       ("going_forth", "Going Forth", "sunrise over the water, a path forward, fishing boats on the sea, mission"))
-    DESIGN_ROLES = {"title": "Title-slide design: more distinctive, with a calm, uncluttered area at the top for a title banner and a quiet centre.",
-                    "body": "Continuation-slide design: quieter and simpler, a soft low-contrast version of the same theme."}
+    DESIGN_SECTIONS = (("entrance", "Entrance", "a wooden cross on a rocky shore at sunset, golden light on the water"),
+                       ("readings", "Readings", "a Florida coast scene: a lighthouse, a white heron or a wooden pier over calm water at sunset"),
+                       ("gifts", "Presentation of the Gifts", "a small fishing boat tied to a dock at sunset, palms, offering and gratitude"),
+                       ("communion", "Communion", "a golden chalice with a host, a loaf of bread, grapes and wheat, glowing light"),
+                       ("going_forth", "Going Forth", "a sandy path leading to the beach at sunrise, sea oats, mission and sending"))
+    DESIGN_ROLES = {"title": "Title-slide design: the main scene is clearly visible on the left or right edge, framed by a decorative border.",
+                    "body": "Continuation-slide design: the same painterly style and border, but a simpler scene so the middle stays calm."}
 
     def design_prompt(mass_date, kind, role):
         li = liturgy.info(date.fromisoformat(mass_date))
         label, scene = next((l, sc) for k, l, sc in DESIGN_SECTIONS if k == kind)
         celebration = li["name"] or f"Sunday in {li['season']}"
-        return ("Background picture for a projected Catholic Mass slide at St. Peter the Fisherman Catholic Church. "
-                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Imagery: {scene}. "
-                + DESIGN_ROLES[role] + " Rich seasonal colors, soft focus, slightly darkened and muted so lettering stays easy to read from the back of the church. "
-                "No text, no letters, no logos, no recognizable faces. Keep text areas clear of busy detail.")
+        return ("Decorative, vibrant, painterly 16:9 slide background for a projected Catholic Mass slide at St. Peter the Fisherman "
+                "Catholic Church in Florida. "
+                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Scene: {scene}. "
+                + DESIGN_ROLES[role] + " Surround the edges with a lush seasonal border that fits the feast and season "
+                "(for example autumn leaves and red hibiscus for All Saints, with palm fronds), in rich warm sunset colors. "
+                "Leave a calm, plain, evenly lit horizontal band across the top for a title banner, a large calm centre for a "
+                "text panel, and a plain strip along the bottom for a footer; keep the detail in the border and the edges. "
+                "No text, no letters, no numbers, no logos, no recognizable faces.")
 
     @app.route("/slides/designs", methods=["POST"])
     @need()
@@ -4633,20 +4637,38 @@ def create_app(config=None):
         plan, _ = plan_slides(mass_date, chosen_graphics())
         feast = li["name"] or f"Sunday in {li['season']}"
         day = date.fromisoformat(mass_date)
-        lines = ["Make a finished 16:9 picture (1920x1080) for every slide listed below, for St. Peter the Fisherman Catholic Church.",
+        lines = ["Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
+                 "Never combine slides into a collage or contact sheet, and never reuse the same picture for two slides.",
                  f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
-                 "STYLE: a vivid painterly Florida coast scene with a seasonal border that fits the feast and season, a brown brush-stroke title banner at the top, "
-                 "a cream text panel in the middle and a dark red footer strip at the bottom. Each section gets its own scene. The first slide of a section "
-                 "uses a more distinctive design; the slides after it use a simpler version of the same design.",
-                 "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling. Put the credit text in the footer, "
-                 "with the music copyright on its own line separate from the ONE LICENSE line.",
-                 "Do the first section first so I can check the style, then continue.", ""]
+                 "EVERY SLIDE IS INDIVIDUALLY DESIGNED. Keep one shared look so the deck feels like a family, but give each slide its own composition: "
+                 "a different scene, angle or arrangement (for example the cross moves left or right, the sun and clouds change, a different border corner is fullest, "
+                 "a heron, lighthouse, pier, boat or rocky shore appears). Do not repeat a background from slide to slide, even within one song or reading.",
+                 "SHARED LOOK: vivid, glowing, painterly Florida coast at sunset with a border of the season (for All Saints: red and gold maple leaves, red hibiscus, "
+                 "palm fronds, pumpkins and berries, plus a wooden cross, sea, rocks and warm sun). Large, bold, very readable lettering that stays clear of busy detail.",
+                 "PANELS: put the words on a cream parchment panel with a thin gold ornamental border (dark text), or on a deep navy glass panel (white text). "
+                 "Alternate them from slide to slide. Where a slide has a title, add a dark red brush-stroke banner at the top with gold lettering "
+                 "(italic script for songs and readings, small caps for Mass parts such as Holy, Holy, Holy) and a small gold flourish under it. "
+                 "Slides without a title are text only, with no banner.",
+                 "FOOTER: when a slide has a credit, put it in a dark red strip along the bottom in small cream lettering, with the music copyright on its own line, "
+                 "separate from the ONE LICENSE line.",
+                 "MUSIC SLIDES: when a slide says it is sheet music, I will attach the music page. Redraw the slide around it: place the music exactly as given, "
+                 "notes, lyrics and hyphens unchanged, on a cream parchment panel with a gold border, with the title banner above.",
+                 "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling of every line. "
+                 "Set sung responses such as \"Alleluia, alleluia!\" in bold dark red italics.",
+                 "This list includes the regular weekly slides (Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings.",
+                 "Make the first slide, then wait for my OK before making the rest, so I can approve the style. Then make them one at a time.", ""]
         n = 0
         for it in plan:
+            if it.get("type") == "image":
+                n += 1
+                lines += [f"SLIDE {n}", f"Sheet music or existing picture ({it.get('label') or 'uploaded image'}): I will attach this picture. Use it exactly as it is, inside the design described above.", ""]
+                continue
             if it.get("type") != "text":
                 continue
             n += 1
             lines.append(f"SLIDE {n}")
+            if not it.get("title") and it.get("style") != "song":
+                lines.append("Regular weekly Mass slide (prayer, response or announcement): its own individual design, text panel, no banner unless one is given.")
             if it.get("title"):
                 lines.append("Banner: " + it["title"] + (" / " + it["subtitle"] if it.get("subtitle") else ""))
             lines.append("Text:\n" + (it.get("text") or "").replace("\xa0", " ").strip())
