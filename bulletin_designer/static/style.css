@@ -34,10 +34,20 @@
 @font-face { font-family: "Helvetica Neue"; src: url(fonts/LiberationSans-BoldItalic.ttf) format("truetype"); font-weight: bold; font-style: italic; }
 /* St. Peter the Fisherman Bulletin Designer. No font size anywhere is below 12pt. */
 :root {
-  --navy: #0b3d2e; --blue: #146245; --gold: #7a5c12; --gold-bright: #d4b873; --cream: #fbf8f1;
+  --lit-a: #1f6b4d; --lit-b: #2f8a69; --navy: #0b3d2e; --blue: #146245; --gold: #7a5c12; --gold-bright: #d4b873; --cream: #fbf8f1;
   --ink: #1b1b1b; --line: #c9d3e0; --ok: #1b6b34; --err: #a1121f;
   --min: 12pt; --body: 13pt;
 }
+/* Liturgical colors: set on <body class="lit-<color> season-<season>"> for a bulletin. Green is the default above. */
+.lit-violet { --lit-a: #5b3a82; --lit-b: #7a54a6; --navy: #3a2257; --blue: #5b3a82; }
+.lit-white { --lit-a: #8a6d1f; --lit-b: #b8964a; --navy: #5c4710; --blue: #8a6d1f; }
+.lit-red { --lit-a: #9c1c26; --lit-b: #c0392b; --navy: #6b0f18; --blue: #9c1c26; }
+.lit-rose { --lit-a: #b3557a; --lit-b: #d27a9c; --navy: #7d3050; --blue: #b3557a; }
+/* Florida Keys seasons tint the trim (--gold-bright) */
+.season-winter { --gold-bright: #a9d8d6; }
+.season-spring { --gold-bright: #b7dd9a; }
+.season-summer { --gold-bright: #ffd36b; }
+.season-fall { --gold-bright: #e9a860; }
 * { box-sizing: border-box; }
 body { margin: 0; font: var(--body)/1.5 Georgia, "Times New Roman", serif; color: var(--ink); background: #fff; }
 h1, h2, h3, nav, label, button, th, .btn { font-family: "Helvetica Neue", Arial, sans-serif; }
@@ -80,7 +90,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet { width: 8.5in; height: 11in; margin: 1em auto; padding: .25in; background: #fff; position: relative;
   border: 1px solid #999; overflow: hidden; display: flex; flex-direction: column; }
 .sheet .pg-head { display: flex; align-items: center; justify-content: space-between; gap: .2in; color: #fff;
-  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 4px solid var(--gold-bright);
+  background: linear-gradient(135deg, var(--lit-a) 0%, var(--lit-b) 100%); border-bottom: 4px solid var(--gold-bright);
   border-radius: 4px; padding: .06in .2in; margin-bottom: .1in; font: bold 13pt Arial, sans-serif; -webkit-print-color-adjust: exact; }
 .sheet .pg-head .head-title { flex: 1; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
 .sheet .pg-head .head-date { white-space: nowrap; color: var(--gold-bright); }
@@ -88,7 +98,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet h2 { font-family: "Serif Condensed", Georgia, serif; font-weight: bold; }
 .sheet h2 { margin: .2em 0 .03125in; border-left: 8px solid var(--gold-bright); padding-left: .4em; }
 .sheet .pg-foot { display: flex; justify-content: space-between; align-items: center; gap: .2in; color: #fff;
-  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 4px solid var(--gold-bright);
+  background: linear-gradient(135deg, var(--lit-a) 0%, var(--lit-b) 100%); border-top: 4px solid var(--gold-bright);
   border-radius: 4px; padding: .1in .25in; font: bold 12pt Arial, sans-serif; -webkit-print-color-adjust: exact; }
 .sheet .pg-foot .foot-page { white-space: nowrap; color: var(--gold-bright); }
 .sheet figure { margin: .6em 0; text-align: center; }
@@ -99,7 +109,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet .sec.is-cut { outline: 2px dashed #c0392b; }
 .sheet.cover h1 { font-size: 26pt; text-align: center; margin: .2em; }
 .banner { display: flex; flex-wrap: wrap; align-items: center; color: #fff;
-  background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-bottom: 6px solid var(--gold-bright);
+  background: linear-gradient(135deg, var(--lit-a) 0%, var(--lit-b) 100%); border-bottom: 6px solid var(--gold-bright);
   border-radius: 6px; padding: .2in .3in .12in; margin-bottom: .15in; -webkit-print-color-adjust: exact; }
 .banner .banner-text { flex: 1; padding-left: .25in; }
 .banner img { height: .9in; width: auto; max-height: none; }
@@ -275,7 +285,7 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 .sheet.no-ul .intent h4 { border-bottom: 0; padding-bottom: 0; text-decoration: none; }
 .sheet.no-ul .staff-role, .sheet.no-ul .toc a, .sheet.no-ul h3, .sheet.no-ul h4, .sheet.no-ul a { text-decoration: none; }
 
-.sheet .sec-mass-schedule h2 { background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); color: #fff; border-radius: 4px;
+.sheet .sec-mass-schedule h2 { background: linear-gradient(135deg, var(--lit-a) 0%, var(--lit-b) 100%); color: #fff; border-radius: 4px;
   border-bottom: 4px solid var(--gold-bright); padding: .06in .1in; text-align: center; overflow: hidden; -webkit-print-color-adjust: exact; }
 .sec + .sec.has-ig { margin-top: var(--ig); }
 .sec.has-ig > :last-child, .sec.has-ig > .intent:last-child, .sec.has-ig > .mass:last-child { margin-bottom: 0; }
@@ -298,13 +308,13 @@ legend { font-weight: bold; font-family: Arial, sans-serif; }
 
 .sec.hide-title > h2 { display: none; }
 
-.sheet .ad-title { text-align: center; font: bold 13pt Arial, sans-serif; color: #1f6b4d; margin: .1in 0 .1in; }
+.sheet .ad-title { text-align: center; font: bold 13pt Arial, sans-serif; color: var(--lit-a); margin: .1in 0 .1in; }
 .sheet .ad-grid { height: 8.0in; }
-.sheet .ad-banner { text-align: center; color: #fff; background: linear-gradient(135deg, #1f6b4d 0%, #2f8a69 100%); border-top: 3px solid var(--gold-bright); border-bottom: 3px solid var(--gold-bright); border-radius: 4px; padding: .03in .2in; margin: .03in 0; -webkit-print-color-adjust: exact; }
+.sheet .ad-banner { text-align: center; color: #fff; background: linear-gradient(135deg, var(--lit-a) 0%, var(--lit-b) 100%); border-top: 3px solid var(--gold-bright); border-bottom: 3px solid var(--gold-bright); border-radius: 4px; padding: .03in .2in; margin: .03in 0; -webkit-print-color-adjust: exact; }
 .sheet .ad-banner strong { display: block; font: bold 15pt Georgia, serif; letter-spacing: .05em; text-transform: uppercase; color: var(--gold-bright); }
 .sheet .ad-banner span { display: block; font: 12pt Arial, sans-serif; }
 .sheet .ad-contact { background: #fbf6e4; color: #14573d; border-color: #c9a84c; }
-.sheet .ad-contact strong { color: #1f6b4d; }
+.sheet .ad-contact strong { color: var(--lit-a); }
 .sheet .ad-row { text-align: center; font-size: 0; line-height: 0; white-space: nowrap; }
 .sheet .ad-grid img.ad { display: inline-block; vertical-align: middle; margin: 0 .125in; max-width: none; max-height: none; object-fit: contain; border: .5pt solid #bbb; background: #fff; }
 

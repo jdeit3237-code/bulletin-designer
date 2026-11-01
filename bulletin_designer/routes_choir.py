@@ -61,9 +61,11 @@ def register(app, need, need_area):
     def choir_outline():
         text = (request.form.get("outline_text") or "").strip()
         upload = request.files.get("outline_pdf")
+        outline_pdf = None
         if upload and upload.filename:
             try:
-                text = choir.extract_pdf_text(upload.stream)
+                outline_pdf = upload.stream.read()
+                text = choir.extract_pdf_text(io.BytesIO(outline_pdf))
             except Exception:
                 flash("That PDF could not be read. Try pasting the outline text instead.", "error")
                 return redirect(url_for("choir_index"))
@@ -84,7 +86,7 @@ def register(app, need, need_area):
             added_keys = {choir._song_key(s) for s in added}
             for song in songs:
                 song["changed"] = choir._song_key(song) in added_keys
-        return redirect(url_for("choir_draft", draft_id=choir.save_draft(current_app, parsed["header"], songs, changes)))
+        return redirect(url_for("choir_draft", draft_id=choir.save_draft(current_app, parsed["header"], songs, changes, outline_pdf)))
 
     @app.route("/choir/draft/<draft_id>")
     @manage
@@ -112,8 +114,12 @@ def register(app, need, need_area):
                 f"{b['title']} ({b['detail']})" for b in blocking), "error")
             return redirect(url_for("choir_draft", draft_id=draft_id))
         built = []
+        outline_pdf = None
+        if os.path.exists(choir.draft_outline_path(current_app, draft_id)):
+            with open(choir.draft_outline_path(current_app, draft_id), "rb") as fh:
+                outline_pdf = fh.read()
         for edition, name in choir.EDITIONS:
-            pdf, missing = choir.build_packet(current_app, data["header"], data["songs"], False, edition=edition)
+            pdf, missing = choir.build_packet(current_app, data["header"], data["songs"], False, edition=edition, outline_pdf=outline_pdf)
             if pdf is None:
                 flash(f"No {name} pages found for this week, so no {name} packet was made.", "error")
                 continue

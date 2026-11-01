@@ -18,6 +18,8 @@
 <form method="get"><label for="date">Mass date</label><input id="date" type="date" name="date" value="{{ mass_date }}" required> <button class="btn">Open week</button>
 {% if dates %}<span class="small">Existing weeks: {% for d in dates %}<a href="{{ url_for('slides', date=d) }}">{{ d }}</a> {% endfor %}</span>{% endif %}</form>
 {% if mass_date %}
+<h2>Slide colors (liturgical color and Florida Keys season)</h2>
+{% with pick_color=theme_pick[0], pick_season=theme_pick[1], action=url_for('slides'), theme_hint=theme_hint %}{% include "_theme_picker.html" %}{% endwith %}
 <p><strong>Status of this week's slides: {{ status }}</strong>
 <form method="post" action="{{ url_for('slides_status') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="back" value="week">
 {% if status == 'Ready to use' %}<button class="btn secondary" name="ready" value="0">Back to in progress</button>{% else %}<button class="btn" name="ready" value="1">Mark ready to use</button>{% endif %}</form></p>

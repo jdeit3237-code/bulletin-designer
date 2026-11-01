@@ -185,6 +185,8 @@
   <input id="theme" name="theme" type="text" maxlength="120" value="{{ b.theme }}">
   <p><button class="btn">Save header date and title</button></p>
 </form>
+<h2 class="band" id="area-colors">Bulletin colors (liturgical color and Florida Keys season)</h2>
+{% with pick_color=b.color_theme, pick_season=b.season_theme, action=url_for('set_bulletin_theme', bid=b.id), mass_date=none %}{% include "_theme_picker.html" %}{% endwith %}
 <h2 class="band" id="area-footer">Footer text</h2>
 <form method="post" action="{{ url_for('set_footer', bid=b.id) }}">
   <input type="hidden" name="csrf" value="{{ csrf() }}">

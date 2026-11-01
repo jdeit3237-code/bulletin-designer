@@ -124,12 +124,17 @@ def reading_sections(raw):
     Responsorial Psalm and Gospel Acclamation: each 'R.' response is its own slide, with the verses between."""
     sections, title, buf = [], None, []
 
+    ALT_RE = re.compile(r"(?:^|\n|(?<=[.!?\"\u201d]) )[\s*_]*(?:or|OR)[\s*_:,\-]+(?=(?:[1-3]\s)?[A-Z][A-Za-z]+(?:\s(?:of\s)?[A-Z][A-Za-z]+)?\s\d+(?::|,)\s?\d)")
+
     def flush():
         if title is None:
             return
         text = "\n".join(buf).strip()
-        cite, text = split_citation(text)
-        _flush_body(title, text, cite)
+        chunks = ALT_RE.split(text) if title in ("First Reading", "Second Reading", "Third Reading", "Gospel") else [text]
+        for chunk in chunks:
+            if chunk.strip():
+                cite, body = split_citation(chunk.strip())
+                _flush_body(title, body, cite)
 
     def lead(parts, cite):
         if cite and parts:
