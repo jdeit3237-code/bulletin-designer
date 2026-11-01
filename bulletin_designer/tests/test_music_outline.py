@@ -610,7 +610,43 @@ def test_wrap_pause_and_pages():
 def test_credit_box_is_small_translucent():
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
-    assert "outerShdw" in src and 'credit_box(sld, credit)' in src
+    assert "a:glow" in src and 'credit_box(sld, credit)' in src
+
+
+def test_theme_choice_and_css():
+    import app as appmod
+    import liturgy
+    from datetime import date
+    css = open(os.path.join(os.path.dirname(__file__), "..", "static", "style.css")).read()
+    d = date(2026, 12, 13)
+    assert appmod.theme_choice("auto", "auto", d) == ("rose", "winter")
+    assert appmod.theme_choice("", "", d) == (None, None)
+    assert appmod.theme_choice("none", "none", d) == (None, None)
+    for c in ("violet", "white", "red", "rose"):
+        assert ".lit-" + c in css
+    for se in appmod.THEME_SEASONS:
+        assert ".season-" + se in css
+    li = liturgy.info(d)
+    assert appmod.keys_context(d, li) == ""
+    assert "Keys" in appmod.keys_context(d, li, "auto", "auto")
+
+
+def test_choir_packet_starts_with_outline(tmp_path):
+    import io, choir
+    from pypdf import PdfReader, PdfWriter
+    w = PdfWriter(); w.add_blank_page(300, 400)
+    buf = io.BytesIO(); w.write(buf)
+    book = PdfWriter(); book.add_blank_page(200, 200)
+    bp = tmp_path / "b.pdf"; bp.write_bytes(b"")
+    with open(bp, "wb") as fh: book.write(fh)
+    app = type("A", (), {})()
+    choir.load_library = lambda a: {"books": [{"id": "b"}]}
+    choir._book_by_id = lambda lib, i: {"id": "b", "page_offset": 0}
+    choir.book_path = lambda a, b: str(bp)
+    songs = [{"include": True, "label": "Entrance", "title": "T", "primary": {"book_id": "b", "start": 1, "end": 1}}]
+    pdf, _ = choir.build_packet(app, {"date": None, "title": "x"}, songs, False, outline_pdf=buf.getvalue())
+    pages = PdfReader(io.BytesIO(pdf)).pages
+    assert float(pages[0].mediabox.width) == 300 and len(pages) >= 3
 
 
 def test_wrap_pause_no_orphans():
@@ -629,3 +665,10 @@ def test_credit_uses_master_placeholder():
     assert "idx == 11" in src
     p = Presentation(os.path.join(os.path.dirname(__file__), "..", "assets", "MassTemplate.pptx"))
     assert any(x.placeholder_format.idx == 11 for x in p.slide_layouts[0].placeholders)
+
+
+def test_alternate_readings_split():
+    import outline as o
+    raw = "Second Reading\n1 Thessalonians 4:13-18\nWe do not want.\n\nor 1 Thessalonians 4:13-14\nWe do not want you.\n"
+    got = o.reading_sections(raw)
+    assert [g[0] for g in got] == ["Second Reading", "Second Reading"] and got[1][1][0].startswith("1 Thessalonians 4:13-14")

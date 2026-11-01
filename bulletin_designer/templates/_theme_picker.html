@@ -1,0 +1,25 @@
+{% set names = {'green': 'Green', 'violet': 'Purple (violet)', 'white': 'White / gold', 'red': 'Red', 'rose': 'Rose'} %}
+{% set seas = {'winter': 'Winter', 'spring': 'Spring', 'summer': 'Summer', 'fall': 'Fall'} %}
+<div class="notice" role="note" style="border:2px solid var(--gold-bright);padding:.5em .8em;margin:.6em 0">
+<strong>Reminder:</strong> think about the liturgical color and the Florida Keys season for this week{% if theme_hint.name %} ({{ theme_hint.name }}){% endif %}.
+The Church color for this day is <strong>{{ names[theme_hint.color] }}</strong> and the Keys season is <strong>{{ seas[theme_hint.season] }}</strong>.
+Use them if they fit, or choose something else below.{% if not pick_color or not pick_season %} <strong>No choice saved yet.</strong>{% endif %}
+</div>
+<form method="post" action="{{ action }}">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">{% if mass_date %}<input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="action" value="save_theme">{% endif %}
+  <label for="color_theme">Main color</label>
+  <select id="color_theme" name="color_theme">
+    <option value=""{{ ' selected' if not pick_color }}>Not chosen yet</option>
+    <option value="auto"{{ ' selected' if pick_color == 'auto' }}>Follow the liturgical color for this day ({{ names[theme_hint.color] }})</option>
+    {% for k, v in names.items() %}<option value="{{ k }}"{{ ' selected' if pick_color == k }}>{{ v }}</option>{% endfor %}
+    <option value="none"{{ ' selected' if pick_color == 'none' }}>Keep the usual parish look (no change)</option>
+  </select>
+  <label for="season_theme">Florida Keys season</label>
+  <select id="season_theme" name="season_theme">
+    <option value=""{{ ' selected' if not pick_season }}>Not chosen yet</option>
+    <option value="auto"{{ ' selected' if pick_season == 'auto' }}>Follow the season for this date ({{ seas[theme_hint.season] }})</option>
+    {% for k, v in seas.items() %}<option value="{{ k }}"{{ ' selected' if pick_season == k }}>{{ v }}</option>{% endfor %}
+    <option value="none"{{ ' selected' if pick_season == 'none' }}>No seasonal change</option>
+  </select>
+  <p><button class="btn">Save colors</button></p>
+</form>

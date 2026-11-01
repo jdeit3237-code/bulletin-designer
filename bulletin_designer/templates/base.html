@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 {% if font_css %}<style>{{ font_css }}</style>{% endif %}
 </head>
-<body>
+<body{% if b is defined and b and b.sunday %} class="{{ theme_classes(b) }}"{% endif %}>
 <a class="skip" href="#main">Skip to main content</a>
 <header class="site" role="banner">
   <nav aria-label="Main">

@@ -471,7 +471,7 @@ def _cover(header, contents, edition_label=""):
     return PdfReader(buf)
 
 
-def build_packet(app, header, songs, include_guitar, edition=None):
+def build_packet(app, header, songs, include_guitar, edition=None, outline_pdf=None):
     """Return (pdf_bytes, missing) for the songs flagged ``include``.
 
     With ``edition`` ("keyboard", "guitar" or "solo") only that instrument's pages are used and
@@ -482,6 +482,12 @@ def build_packet(app, header, songs, include_guitar, edition=None):
     contents, missing, readers = [], [], {}
     cover_pages = 1
     body = []
+    outline_pages = []
+    if outline_pdf:
+        try:
+            outline_pages = list(PdfReader(io.BytesIO(outline_pdf)).pages)
+        except Exception:
+            outline_pages = []
 
     def add_source(src, label, title, tag=""):
         book = _book_by_id(lib, src["book_id"])
@@ -525,11 +531,13 @@ def build_packet(app, header, songs, include_guitar, edition=None):
 
     # Cover lists page numbers relative to the full packet, so shift by cover size.
     while True:
-        shifted = [(a, b, c + cover_pages) for a, b, c in contents]
+        shifted = [(a, b, c + cover_pages + len(outline_pages)) for a, b, c in contents]
         cover = _cover(header, shifted, edition_label)
         if len(cover.pages) == cover_pages:
             break
         cover_pages = len(cover.pages)
+    for page in outline_pages:
+        writer.add_page(page)
     for page in cover.pages:
         writer.add_page(page)
     for page in body:
@@ -549,8 +557,15 @@ def _json_default(o):
     raise TypeError(type(o))
 
 
-def save_draft(app, header, songs, changes=None):
+def draft_outline_path(app, draft_id):
+    return os.path.join(library_dir(app), "drafts", draft_id + ".pdf")
+
+
+def save_draft(app, header, songs, changes=None, outline_pdf=None):
     draft_id = uuid.uuid4().hex[:12]
+    if outline_pdf:
+        with open(draft_outline_path(app, draft_id), "wb") as fh:
+            fh.write(outline_pdf)
     path = os.path.join(library_dir(app), "drafts", draft_id + ".json")
     with open(path, "w", encoding="utf-8") as fh:
         json.dump({"header": header, "songs": songs, "changes": changes}, fh, default=_json_default)

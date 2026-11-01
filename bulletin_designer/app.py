@@ -206,6 +206,50 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
+def keys_season(d):
+    """The Florida Keys season for a date (the palette lives in static/style.css as .season-*)."""
+    return "winter" if d.month in (12, 1, 2) else "spring" if d.month in (3, 4, 5) else "summer" if d.month in (6, 7, 8) else "fall"
+
+
+KEYS_SCENE = {
+    "winter": "cool, dry, clear winter days in the Keys with calm turquoise water and bright sun",
+    "spring": "warm spring in the Keys with blooming tropical flowers and gentle breezes",
+    "summer": "hot, humid summer in the Keys with towering clouds, bright sun and glassy water",
+    "fall": "warm early-fall Keys weather, hurricane season with dramatic clouds over the water and golden light",
+}
+LIT_COLOR_WORDS = {"Green": "green (Ordinary Time: hope, life, growth)", "Violet": "purple/violet (penance and preparation)",
+                   "White": "white and gold (joy, light, glory)", "Red": "red (Holy Spirit and martyrs)", "Rose": "rose pink (joy within a penitential season)"}
+
+
+THEME_COLORS = ("green", "violet", "white", "red", "rose")
+THEME_SEASONS = ("winter", "spring", "summer", "fall")
+
+
+def theme_choice(color, season, d):
+    """Resolve a saved choice ('', 'auto', a name, or 'none') to (color, season) names; None means no tint."""
+    try:
+        lit = liturgy.info(d)["color"].lower()
+    except (ValueError, TypeError, KeyError):
+        lit = "green"
+    c = lit if color == "auto" else color if color in THEME_COLORS else None
+    se = keys_season(d) if season == "auto" else season if season in THEME_SEASONS else None
+    return c, se
+
+
+def keys_context(d, li, color="", season=""):
+    """Sentence for the AI prompts, only for what the designer chose: liturgical color, Keys season, and St. Peter's church style."""
+    c, se = theme_choice(color, season, d)
+    out = ""
+    if c:
+        out += f"Liturgical color: {LIT_COLOR_WORDS.get(c.capitalize(), c)}; let it lead the palette. "
+    if se:
+        out += f"Setting: {KEYS_SCENE[se]}, in the Florida Keys (Big Pine Key). "
+    if c or se:
+        out += ("Church style: Key West/Caribbean conch-house look with covered porches, Bahamian shutters, white stucco and metal roofs, "
+                "a lighthouse-like beacon of hope, the Rock of St. Peter, a fishing net, and blue glass for water. ")
+    return out
+
+
 def wrap_pause(line, cpl=40):
     """Split one line into even pieces of at most `cpl` characters, preferring pauses (punctuation, conjunctions, prepositions)."""
     line = " ".join(line.split())
@@ -571,7 +615,7 @@ def create_app(config=None):
             conn.execute("ALTER TABLE bulletins ADD COLUMN footer TEXT DEFAULT ''")
         bcols = {r[1] for r in conn.execute("PRAGMA table_info(bulletins)")}
         for col, ddl in (("hdr2_image", "TEXT DEFAULT ''"), ("hdr2_alt", "TEXT DEFAULT ''"), ("hdr2_zoom", "REAL DEFAULT 1"), ("hdr2_x", "REAL DEFAULT 50"), ("hdr2_y", "REAL DEFAULT 50"), ("hdr_split", "REAL DEFAULT 62"), ("hdr_image", "TEXT DEFAULT ''"), ("hdr_alt", "TEXT DEFAULT ''"), ("hdr_h", "REAL DEFAULT 2.4"),
-                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("blank_at", "TEXT DEFAULT ''"), ("total_pages", "INTEGER DEFAULT 0"), ("ad_page_count", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1")):
+                         ("hdr_zoom", "REAL DEFAULT 1"), ("hdr_x", "REAL DEFAULT 50"), ("hdr_y", "REAL DEFAULT 50"), ("hdr_style", "TEXT DEFAULT 'waves'"), ("hdr_date", "TEXT DEFAULT ''"), ("extra_pages", "INTEGER DEFAULT 0"), ("blank_at", "TEXT DEFAULT ''"), ("total_pages", "INTEGER DEFAULT 0"), ("ad_page_count", "INTEGER DEFAULT 0"), ("toc_title", "TEXT DEFAULT ''"), ("toc_title_gap", "REAL DEFAULT 0"), ("no_underline", "INTEGER DEFAULT 0"), ("toc_item_gap", "REAL DEFAULT 0"), ("toc_start", "INTEGER DEFAULT 2"), ("toc_show", "INTEGER DEFAULT 1"), ("toc_pt", "INTEGER DEFAULT 0"), ("toc_style", "TEXT DEFAULT ''"), ("toc_place", "TEXT DEFAULT 'left'"), ("toc_cols", "INTEGER DEFAULT 1"), ("no_stragglers", "INTEGER DEFAULT 1"), ("color_theme", "TEXT DEFAULT ''"), ("season_theme", "TEXT DEFAULT ''")):
             if col not in bcols:
                 conn.execute(f"ALTER TABLE bulletins ADD COLUMN {col} {ddl}")
         ucols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
@@ -2093,7 +2137,7 @@ def create_app(config=None):
             if want >= 2 and spans[s_["id"]][2] and spans[s_["id"]][0] != want:
                 others = [o["title"] for o in secs if o["id"] != s_["id"] and spans[o["id"]][2] and spans[o["id"]][0] <= want <= spans[o["id"]][1]]
                 why[s_["id"]] = (f"Page {want} is already used by " + " and ".join(others) + ". Give that section a different page, or set this one to the same page with 1 page each.") if others else f"Page {want} could not be used, so this went to page {spans[s_['id']][0]}."
-        return render_template("edit.html", font_styles=all_fonts(), photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
+        return render_template("edit.html", theme_hint=theme_hint(b["sunday"]), font_styles=all_fonts(), photos=photo_choices(), b=b, secs=secs, total=len(pages), editable=editable, removed=removed,
                                where=spans, why=why)
 
     @app.route("/bulletins/<int:bid>/section/<int:sid>", methods=["GET", "POST"])
@@ -2976,6 +3020,18 @@ def create_app(config=None):
         flash("Header date and title saved.", "ok")
         return redirect(url_for("edit", bid=bid))
 
+    @app.route("/bulletins/<int:bid>/theme", methods=["POST"])
+    @need("admin", "editor")
+    def set_bulletin_theme(bid):
+        open_bulletin(bid)
+        color, season = request.form.get("color_theme", ""), request.form.get("season_theme", "")
+        color = color if color in ("auto", "none") + THEME_COLORS else ""
+        season = season if season in ("auto", "none") + THEME_SEASONS else ""
+        db().execute("UPDATE bulletins SET color_theme=?, season_theme=? WHERE id=?", (color, season, bid))
+        db().commit()
+        flash("Bulletin colors saved.", "ok")
+        return redirect(url_for("edit", bid=bid))
+
     @app.route("/bulletins/<int:bid>/header-photo", methods=["POST"])
     @need("admin", "editor")
     def set_header_photo(bid):
@@ -3803,6 +3859,21 @@ def create_app(config=None):
             pass
         return d
 
+    def theme_hint(sunday):
+        try:
+            d = date.fromisoformat(sunday)
+            return {"color": liturgy.info(d)["color"].lower(), "season": keys_season(d), "name": liturgy.info(d)["name"] or ""}
+        except (ValueError, TypeError, KeyError):
+            return {"color": "green", "season": "fall", "name": ""}
+
+    def theme_classes(b):
+        """Body classes (lit-<color> season-<season>) for the choices saved on this bulletin; none chosen keeps the parish green."""
+        try:
+            c, se = theme_choice(b["color_theme"] or "", b["season_theme"] or "", date.fromisoformat(b["sunday"]))
+        except (ValueError, TypeError, KeyError, IndexError):
+            return ""
+        return " ".join(x for x in (f"lit-{c}" if c else "", f"season-{se}" if se else "") if x)
+
     @app.context_processor
     def font_css():
         from markupsafe import Markup
@@ -3815,7 +3886,7 @@ def create_app(config=None):
             nm = "".join(ch for ch in r["name"] if ch.isalnum() or ch in " -")
             css += ('@font-face { font-family: "%s"; src: url(/uploads/fonts/%s); }\n.fs-cf%d, .fs-cf%d * { font-family: "%s", Georgia, serif; }\n'
                     '.toc-box.fs-cf%d .toc li { font-family: inherit; }\n' % (nm, r["filename"], r["id"], r["id"], nm, r["id"]))
-        return {"font_css": Markup(css)}
+        return {"font_css": Markup(css), "theme_classes": theme_classes}
 
     @app.route("/design-studio")
     @need()
@@ -4047,7 +4118,8 @@ def create_app(config=None):
         celebration = li["name"] or f"Sunday in {li['season']}"
         return ("Decorative, vibrant, painterly 16:9 slide background for a projected Catholic Mass slide at St. Peter the Fisherman "
                 "Catholic Church in Florida. "
-                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Scene: {scene}. "
+                f"Celebration: {celebration} ({li['season']}), {mass_date}. " + keys_context(date.fromisoformat(mass_date), li, *slide_theme(mass_date))
+                + f"Section of the Mass: {label}. Scene: {scene}. "
                 + DESIGN_ROLES[role] + " Surround the edges with a lush seasonal border that fits the feast and season "
                 "(for example autumn leaves and red hibiscus for All Saints, with palm fronds), in rich warm sunset colors. "
                 "Leave a calm, plain, evenly lit horizontal band across the top for a title banner, a large calm centre for a "
@@ -4211,6 +4283,14 @@ def create_app(config=None):
             json.dump({"ready": request.form.get("ready") == "1"}, f)
         return redirect(request.form.get("back") == "week" and url_for("slides", date=mass_date) or url_for("slides_library"))
 
+    def slide_theme(mass_date):
+        try:
+            with open(os.path.join(slides_root, "weeks", mass_date, "theme.json")) as f:
+                t = json.load(f)
+            return t.get("color", ""), t.get("season", "")
+        except (OSError, ValueError, TypeError):
+            return "", ""
+
     @app.route("/slides", methods=["GET", "POST"])
     @need()
     @need_area("slides")
@@ -4221,6 +4301,13 @@ def create_app(config=None):
         if request.method == "POST":
             kind = request.form.get("kind")
             action = request.form.get("action")
+            if action == "save_theme" and mass_date:
+                c, se = request.form.get("color_theme", ""), request.form.get("season_theme", "")
+                os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
+                with open(os.path.join(slides_root, "weeks", mass_date, "theme.json"), "w") as f:
+                    json.dump({"color": c if c in ("auto", "none") + THEME_COLORS else "", "season": se if se in ("auto", "none") + THEME_SEASONS else ""}, f)
+                flash("Saved the colors for this week's slide designs.")
+                return redirect(url_for("slides", date=mass_date))
             if action == "save_graphics" and mass_date:
                 os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
                 with open(os.path.join(slides_root, "weeks", mass_date, "graphics.json"), "w") as f:
@@ -4265,7 +4352,7 @@ def create_app(config=None):
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
         design_has = {f"{k}-{r}": os.path.isfile(os.path.join(slides_dir("ref_" + k, mass_date), f"ai-{r}.png"))
                       for k, _, _ in DESIGN_SECTIONS for r in ("title", "body")} if mass_date else {}
-        return render_template("slides.html", design_sections=DESIGN_SECTIONS, design_has=design_has, kinds=SLIDE_KINDS, mass_order=music_outline.MASS_ORDER, extras=extra_meta(mass_date) if mass_date else {}, mass_date=mass_date, dates=dates,
+        return render_template("slides.html", theme_hint=theme_hint(mass_date) if mass_date else None, theme_pick=slide_theme(mass_date), design_sections=DESIGN_SECTIONS, design_has=design_has, kinds=SLIDE_KINDS, mass_order=music_outline.MASS_ORDER, extras=extra_meta(mass_date) if mass_date else {}, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
                                concept=week_concept(mass_date) if mass_date else None, layouts=CONCEPT_LAYOUTS, accents=CONCEPT_ACCENTS,
                                outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
@@ -4816,7 +4903,7 @@ def create_app(config=None):
                  "in which the words are part of the artwork. Do not write code. Do not offer a file to download. Just show me the picture.", "",
                  "Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
                  "Never combine slides into a collage or contact sheet, and never reuse the same picture for two slides.",
-                 f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
+                 f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", keys_context(day, li, *slide_theme(mass_date)), "",
                  "EVERY SLIDE IS INDIVIDUALLY DESIGNED. Keep one shared look so the deck feels like a family, but give each slide its own composition: "
                  "a different scene, angle or arrangement (for example the cross moves left or right, the sun and clouds change, a different border corner is fullest, "
                  "a heron, lighthouse, pier, boat or rocky shore appears). Do not repeat a background from slide to slide, even within one song or reading.",
@@ -4911,7 +4998,7 @@ def create_app(config=None):
         start = ("Use your IMAGE GENERATION tool for every message in this chat. Never make a PowerPoint, a file, or code; just show me one picture each time.\n"
                  "I will paste one slide description at a time. Each one is ONE finished 16:9 picture (1920x1080) for St. Peter the Fisherman Catholic Church, "
                  "designed like a professional advertisement or poster, with the words part of the artwork.\n"
-                 f"This week: {feast} ({li['season']}). Look: vivid, glowing, painterly Florida coast at sunset, with a seasonal border "
+                 f"This week: {feast} ({li['season']}). " + keys_context(date.fromisoformat(mass_date), li, *slide_theme(mass_date)) + "Look: vivid, glowing, painterly Florida coast at sunset, with a seasonal border "
                  "(All Saints: red and gold maple leaves, red hibiscus, palms, pumpkins, a wooden cross, sea and rocks). "
                  "Every slide gets a different scene and composition but the same family look.\n"
                  "Reply only: Ready.")
@@ -5123,11 +5210,12 @@ def create_app(config=None):
                 r_ = p_.add_run()
                 r_.text = ln
                 r_.font.size = Pt(14)
+                r_.font.bold = True
                 r_.font.color.rgb = RGBColor(255, 255, 255)
                 rpr = r_._r.get_or_add_rPr()
                 eff = etree.SubElement(rpr, qn("a:effectLst"))
-                shd = etree.SubElement(eff, qn("a:outerShdw"), blurRad="76200", dist="0", sx="115000", sy="115000", algn="ctr", rotWithShape="0")
-                etree.SubElement(etree.SubElement(shd, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "100000")
+                glow = etree.SubElement(eff, qn("a:glow"), rad="101600")
+                etree.SubElement(etree.SubElement(glow, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "85000")
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
