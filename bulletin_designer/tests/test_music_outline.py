@@ -29,12 +29,12 @@ def test_parse():
 def test_outline_fills_slides_and_replaces_on_change(app):
     c = setup_admin(app)
     t = tok(c, "/slides")
-    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "For all the saints\n\nwho from their labors rest"})
-    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me"})
+    c.post("/slides/songs", data={"csrf": t, "title": "For All the Saints", "code": "BB26-718", "lyrics": "For all the saints who sing\n\nwho from their labors rest"})
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
     r = c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
     assert b"Not in song library" in r.data
     plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")
-    assert b"For all the saints" in plan.data and b"Come to me" in plan.data
+    assert b"who from their labors rest" in plan.data and b"Come to me, all you who labor" in plan.data
     changed = OUTLINE.replace("Come to Me (Gregory Norbet) BB26-538", "Another Hymn (X) BB26-1")
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": changed})
     plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")
@@ -339,3 +339,23 @@ def test_extra_section_uses_given_name_and_place():
     out = outline.order_chunks(chunks, [])
     assert [c["kind"] for c in out] == ["communion", "extra", "going_forth"]
     assert out[1]["label"] == "Extra: Thanksgiving Hymn"
+
+
+def test_psalm_inline_responses_and_acclamation():
+    raw = ("Responsorial Psalm\nPsalm 24:1bc-2, 3-4ab, 5-6\nR. (6) Lord, this is the people that longs to see your face. "
+           "The LORD's are the earth and its fullness. For he founded it upon the seas. R. Lord, this is the people that longs to see your face. "
+           "Who can ascend the mountain of the LORD? R. Lord, this is the people that longs to see your face.\n\n"
+           "Gospel Acclamation\nMatthew 11:28\nR. Alleluia, alleluia. Come to me, all you who labor and are burdened, says the Lord. R. Alleluia, alleluia.\n")
+    secs = dict(outline.reading_sections(raw))
+    psalm = secs["Responsorial Psalm"]
+    resp = "Lord, this is the people that longs to see your face."
+    assert psalm[0].endswith(resp) and psalm[-1] == resp and not any("R." in p for p in psalm)
+    assert not any(resp in p and len(p) > len(resp) + 40 for p in psalm[1:])
+    acc = secs["Gospel Acclamation"]
+    assert len(acc) == 1 and "R." not in acc[0] and "Alleluia" not in acc[0] and "Come to me" in acc[0]
+
+
+def test_title_block_becomes_song_title_and_clean_name():
+    title, rest = outline.song_title_block(["For All the Saints\nSINE NOMINE", "1. For all the saints who from their labors rest,"])
+    assert title == "For All the Saints" and len(rest) == 1
+    assert outline.clean_song_title("Entrance-bb26") == "Entrance"
