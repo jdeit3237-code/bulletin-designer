@@ -400,3 +400,14 @@ def test_first_slide_has_written_date_theme_and_church_photo(app):
     c = setup_admin(app)
     r = c.get("/slides/preview?date=2026-11-01")
     assert b"November 1, 2026" in r.data and b"All Saints" in r.data and b"church.jpg" in r.data
+
+
+def test_chatgpt_prompt_lists_every_slide_text(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/chatgpt-prompt?date=2026-11-01")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
+    assert "November 1, 2026" in body and "SLIDE 1" in body and "and I will give you rest" in body
