@@ -444,3 +444,17 @@ def test_chatgpt_prompt_demands_images_not_powerpoint(app):
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
     body = c.get("/slides/chatgpt-prompt?date=2026-11-01").get_data(as_text=True)
     assert body.startswith("READ THIS FIRST") and "IMAGE GENERATION" in body
+
+
+def test_chatgpt_per_slide_zip(app):
+    import io, zipfile
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/chatgpt-slides?date=2026-11-01")
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    names = z.namelist()
+    assert "00_START_HERE.txt" in names and "SLIDE-01.txt" in names
+    assert "IMAGE GENERATION" in z.read("00_START_HERE.txt").decode()
+    assert any("and I will give you rest" in z.read(n).decode() for n in names)
