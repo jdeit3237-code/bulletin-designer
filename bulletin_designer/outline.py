@@ -501,6 +501,18 @@ def clean_song_title(name):
     return re.sub(r"^(?:entrance|presentation and preparation of the gifts|presentation of the gifts|communion|song of praise|final song or hymn|final song)[\s_-]+", "", name, flags=re.I).strip() or name
 
 
+def tidy_song_parts(parts):
+    """Tabs to spaces, a lone lowercase 'l' to 'I', and no slide repeated twice in a row."""
+    out = []
+    for part in parts:
+        part = re.sub(r"[ \t]+", " ", part)
+        part = re.sub(r"(?<![\w'])l(?=\s)", "I", part).strip()
+        key = re.sub(r"[^a-z0-9]", "", part.lower())
+        if part and (not out or key != re.sub(r"[^a-z0-9]", "", out[-1].lower())):
+            out.append(part)
+    return out
+
+
 def song_title_block(parts):
     """(title, rest) when a lyric file opens with a short title/tune/author block; its first line is the song title."""
     if not parts:
