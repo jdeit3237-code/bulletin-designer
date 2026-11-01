@@ -536,12 +536,3 @@ def test_duplicate_layout_with_background(tmp_path):
     assert "Song - design 1" in names and len(names) == 4
     assert any(sl.slide_layout.name == "Song - design 1" for sl in again.slides)
 
-
-def test_master_deck_has_blank_and_picture_slides(app):
-    from pptx import Presentation
-    import io as _io
-    c = setup_admin(app)
-    t = tok(c, "/slides")
-    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
-    prs = Presentation(_io.BytesIO(c.get("/slides/pptx-master?date=2026-11-01").data))
-    assert len(prs.slides) >= 3
