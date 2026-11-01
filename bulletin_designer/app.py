@@ -4794,7 +4794,17 @@ def create_app(config=None):
                 last_song = title if it.get("style") == "song" else None
                 kinds.append("SONG" if it.get("style") == "song" else ("BIBLE" if title else "BODY"))
                 rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
-        return rows, kinds
+        credit_re = re.compile(r"CCLI|published by|all rights reserved|reprinted|copyright|\u00a9|songselect|used with permission|license", re.I)
+        merged, mkinds, owner = [], [], None
+        for kind, row in zip(kinds, rows):
+            if owner is not None and kind == "BODY" and not row[0] and credit_re.search(row[2]) and len(row[2]) < 450:
+                h, sb, bd, cr = merged[owner]
+                merged[owner] = (h, sb, bd, "\n".join(x for x in (cr, row[2]) if x))
+                continue
+            merged.append(row)
+            mkinds.append(kind)
+            owner = len(merged) - 1 if kind == "SONG" else (owner if kind == "BODY" and not row[0] else None)
+        return merged, mkinds
 
     def template_path():
         custom = os.path.join(app.config["UPLOAD_DIR"], "mass_template.pptx")
@@ -4827,16 +4837,32 @@ def create_app(config=None):
 
         def lines(t, wrap=0):
             def split(ln):
-                if not wrap or len(ln) <= wrap or " " not in ln:
+                words = ln.split()
+                if not wrap or len(words) <= wrap:
                     return ln
-                mid = len(ln) // 2
-                cut = min((i for i, ch in enumerate(ln) if ch == " "), key=lambda i: abs(i - mid))
-                return ln[:cut] + "\v" + ln[cut + 1:]
+                parts = -(-len(words) // wrap)
+                size = -(-len(words) // parts)
+                return "\v".join(" ".join(words[i:i + size]) for i in range(0, len(words), size))
             return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
 
-        def fit(ph):
-            from pptx.enum.text import MSO_AUTO_SIZE
-            ph.text_frame.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+        def fit(ph, body_text="", used=0):
+            """PowerPoint only shrinks text when someone edits it, so choose a size that fits the 13.3 x 5 inch box."""
+            from pptx.util import Pt
+            segs = [x for x in (body_text or "").split("\v") if x]
+            size = 24
+            for f in range(54, 23, -2):
+                cpl = max(10, int(900 / (0.52 * f)))
+                n = sum(-(-len(x) // cpl) for x in segs)
+                if n * 1.2 * f + used <= 350:
+                    size = f
+                    break
+            for p_ in ph.text_frame.paragraphs:
+                if p_.level == 1:
+                    for r_ in p_.runs:
+                        r_.font.size = Pt(size)
+                elif p_.level == 2:
+                    for r_ in p_.runs:
+                        r_.font.size = Pt(14)
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
@@ -4845,12 +4871,13 @@ def create_app(config=None):
 
         for kind, (header, sub, body, credit) in zip(kinds, rows):
             if kind == "SONG":
-                sld = prs.slides.add_slide(song)
+                sld = prs.slides.add_slide(cont if "CCLI" in credit.upper() else song)
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
-                para(ph.text_frame, lines(body, 34), 1, False)
-                fit(ph)
+                bt = lines(body, 7)
+                para(ph.text_frame, bt, 1, False)
+                fit(ph, bt, 90 + (50 if credit else 0))
                 if credit:
                     para(ph.text_frame, lines(credit), 2, False)
             elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
@@ -4858,8 +4885,9 @@ def create_app(config=None):
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
-                para(ph.text_frame, lines(body, 34), 1, True)
-                fit(ph)
+                bt = lines(body, 7)
+                para(ph.text_frame, bt, 1, True)
+                fit(ph, bt)
             elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
                 sld = prs.slides.add_slide(cont)
                 sld.shapes.title.text_frame.text = header
@@ -4868,8 +4896,9 @@ def create_app(config=None):
                 if sub:
                     para(ph.text_frame, sub, 0, True)
                     first = False
-                para(ph.text_frame, lines(body), 1, first)
-                fit(ph)
+                bt = lines(body)
+                para(ph.text_frame, bt, 1, first)
+                fit(ph, bt, 130)
             else:
                 sld = prs.slides.add_slide(plain)
                 tf = sld.shapes.title.text_frame
