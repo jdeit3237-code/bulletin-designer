@@ -411,3 +411,17 @@ def test_chatgpt_prompt_lists_every_slide_text(app):
     body = r.get_data(as_text=True)
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
     assert "November 1, 2026" in body and "SLIDE 1" in body and "and I will give you rest" in body and "regular weekly slides" in body and "INDIVIDUALLY DESIGNED" in body
+
+
+def test_slides_pdf_has_one_page_per_slide(app):
+    import pymupdf, re
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/pdf?date=2026-11-01")
+    assert r.status_code == 200 and r.mimetype == "application/pdf"
+    doc = pymupdf.open(stream=r.data, filetype="pdf")
+    page_count = len(re.findall(r'style="aspect-ratio:16/9', c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)))
+    assert doc.page_count == page_count and doc.page_count >= 3
+    assert "give you rest" in "".join(p.get_text() for p in doc)

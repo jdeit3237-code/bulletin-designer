@@ -2,7 +2,8 @@
 {% block content %}
 <h1>Preview: {{ mass_date }}</h1>
 <p>{{ plan|length }} slides. Layout in PowerPoint is the same; you can edit it there. <a class="btn secondary" href="{{ url_for('slides', date=mass_date) }}">Back to uploads</a>
-<a class="btn" href="{{ url_for('slides_pptx', date=mass_date) }}">Download PowerPoint (.pptx)</a></p>
+<a class="btn" href="{{ url_for('slides_pptx', date=mass_date) }}">Download PowerPoint (.pptx)</a>
+<a class="btn" href="{{ url_for('slides_pdf', date=mass_date) }}">Download PDF (all slides)</a></p>
 {% if missing_songs %}<p class="alert" style="background:#fff3cd;border:1px solid #c9a227;padding:8px;border-radius:4px"><strong>Missing songs:</strong> {{ missing_songs|join(', ') }}. Every Mass needs an Entrance, Presentation of the Gifts, Communion and Going Forth song.</p>{% endif %}
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
 {% for it in plan %}{% set song = it.style == 'song' %}<div style="aspect-ratio:16/9;position:relative;overflow:hidden;border:1px solid #999;border-radius:4px;{% if it.type == 'blank' %}background:#000{% elif it.type == 'image' %}background:#faf5e6{% elif it.bg_src %}background:#{{ bg }} url('{{ it.bg_src }}') center/cover{% else %}background:#{{ bg }}{% endif %}">

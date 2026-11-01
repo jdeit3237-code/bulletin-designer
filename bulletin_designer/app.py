@@ -4515,6 +4515,100 @@ def create_app(config=None):
         missing = [n for n, al in aliases.items() if not any(a in have for a in al)]
         return render_template("slides_preview.html", plan=plan, bg=bg, mass_date=mass_date, missing_songs=missing)
 
+    def build_pdf(plan, bg_hex):
+        """One 16:9 page per slide, same layout as the preview. Pictures, not editable."""
+        from reportlab.pdfgen import canvas as rl
+        from reportlab.lib.utils import ImageReader, simpleSplit
+        from reportlab.lib.colors import HexColor, Color
+        W, H = 960.0, 540.0
+        buf = io.BytesIO()
+        c = rl.Canvas(buf, pagesize=(W, H))
+        c.setTitle("Mass slides")
+
+        def clean(t):
+            return (t or "").replace("\xa0", " ").replace("\t", " ")
+
+        def cover(path):
+            im = ImageReader(path)
+            iw, ih = im.getSize()
+            k = max(W / iw, H / ih)
+            c.saveState()
+            p = c.beginPath(); p.rect(0, 0, W, H); c.clipPath(p, stroke=0, fill=0)
+            c.drawImage(im, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k)
+            c.restoreState()
+
+        def centred(lines, font, size, x, top, width, color):
+            c.setFillColor(color); c.setFont(font, size)
+            y = top
+            for ln in lines:
+                y -= size * 1.18
+                c.drawCentredString(x + width / 2, y, ln)
+
+        for it in plan:
+            if it["type"] == "blank":
+                c.setFillColor(HexColor("#000000")); c.rect(0, 0, W, H, stroke=0, fill=1)
+                c.showPage(); continue
+            if it["type"] == "image":
+                c.setFillColor(HexColor("#FAF5E6")); c.rect(0, 0, W, H, stroke=0, fill=1)
+                try:
+                    im = ImageReader(it["path"]); iw, ih = im.getSize()
+                    k = min(W / iw, H / ih)
+                    c.drawImage(im, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k)
+                except Exception:
+                    pass
+                c.showPage(); continue
+            song = it.get("style") == "song"
+            c.setFillColor(HexColor("#" + (bg_hex or "1F3A5F"))); c.rect(0, 0, W, H, stroke=0, fill=1)
+            if it.get("bg_path"):
+                try:
+                    cover(it["bg_path"])
+                except Exception:
+                    pass
+            top, bottom = 36.0, 36.0
+            if it.get("credit"):
+                c.setFillColor(HexColor("#6B1414")); c.rect(0, 0, W, 68, stroke=0, fill=1)
+                cl = [ln for part in clean(it["credit"]).split("\n") for ln in simpleSplit(part, "Helvetica", 10, W - 70)]
+                centred(cl, "Helvetica", 10, 0, 34 + len(cl) * 6, W, HexColor("#FFFFFF"))
+                bottom = 80.0
+            if it.get("title"):
+                bh = 100.0 if it.get("subtitle") else 68.0
+                c.setFillColor(HexColor("#8A161E")); c.rect(158, H - 22 - bh, 644, bh, stroke=0, fill=1)
+                tfont = "Helvetica-BoldOblique" if song else "Helvetica-Bold"
+                centred([clean(it["title"])], tfont, 28, 158, H - 22 - (6 if it.get("subtitle") else 14), 644, HexColor("#FFE9A8"))
+                if it.get("subtitle"):
+                    centred([clean(it["subtitle"])], "Helvetica-Oblique", 17, 158, H - 22 - 40, 644, HexColor("#FFE9A8"))
+                top = 22 + bh + 12
+            bx, bw = 64.0, W - 128.0
+            by_top, by_bot = H - top, bottom
+            if song:
+                c.setFillColor(Color(0.98, 0.945, 0.86, alpha=0.88)); c.roundRect(bx, by_bot, bw, by_top - by_bot, 14, stroke=0, fill=1)
+            ink = HexColor("#3B0F0F") if song else HexColor("#FFFFFF")
+            text = clean(it.get("text"))
+            size = float(it.get("size") or 56)
+            font = "Helvetica-Bold"
+            while True:
+                lines = [ln for part in text.split("\n") for ln in (simpleSplit(part, font, size, bw - 40) or [""])]
+                if len(lines) * size * 1.18 <= by_top - by_bot - 16 or size <= 14:
+                    break
+                size -= 2
+            block = len(lines) * size * 1.18
+            centred(lines, font, size, bx, by_bot + (by_top - by_bot + block) / 2, bw, ink)
+            c.showPage()
+        c.save(); buf.seek(0)
+        return buf
+
+    @app.route("/slides/pdf")
+    @need()
+    @need_area("slides")
+    def slides_pdf():
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        plan, bg = plan_slides(mass_date, chosen_graphics())
+        concept = week_concept(mass_date)
+        return send_file(build_pdf(plan, concept["color"] or bg), as_attachment=True, download_name=f"Mass-slides-{mass_date}.pdf",
+                         mimetype="application/pdf")
+
     @app.route("/slides/pptx")
     @need()
     @need_area("slides")
