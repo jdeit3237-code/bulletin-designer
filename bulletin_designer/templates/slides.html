@@ -63,6 +63,7 @@
 <p><button class="btn" formmethod="post" formaction="{{ url_for('slides') }}" name="action" value="save_graphics">Save ticked graphics</button>
 <button class="btn" formaction="{{ url_for('slides_preview') }}">Preview slides</button>
 <button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button>
+<button class="btn" formaction="{{ url_for('slides_pdf') }}">Download PDF (all slides)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_chatgpt_prompt') }}">Download ChatGPT prompt (.txt)</button></p></form>
 {% endif %}
 {% endblock %}
