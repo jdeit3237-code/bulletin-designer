@@ -3671,7 +3671,7 @@ def create_app(config=None):
         row = conn.execute("SELECT n FROM ai_usage WHERE day=?", (day,)).fetchone()
         if row and row["n"] >= limit:
             return jsonify(error="The daily limit of %d AI pictures has been reached. Try again tomorrow." % limit), 429
-        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1"), "prompt": prompt, "size": size, "n": 1}).encode()
+        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2"), "prompt": prompt, "size": size, "n": 1}).encode()
         req = urllib.request.Request("https://api.openai.com/v1/images/generations", data=body,
                                      headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
         try:
@@ -3899,7 +3899,7 @@ def create_app(config=None):
         if row and row["n"] >= limit:
             flash("The daily limit of %d AI pictures has been reached. Try again tomorrow." % limit, "error")
             return back
-        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1"), "prompt": design_prompt(mass_date, kind, role),
+        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2"), "prompt": design_prompt(mass_date, kind, role),
                            "size": "1536x1024", "n": 1}).encode()
         req = urllib.request.Request("https://api.openai.com/v1/images/generations", data=body,
                                      headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
