@@ -4794,7 +4794,17 @@ def create_app(config=None):
                 last_song = title if it.get("style") == "song" else None
                 kinds.append("SONG" if it.get("style") == "song" else ("BIBLE" if title else "BODY"))
                 rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
-        return rows, kinds
+        credit_re = re.compile(r"CCLI|published by|all rights reserved|reprinted|copyright|\u00a9|songselect|used with permission|license", re.I)
+        merged, mkinds, owner = [], [], None
+        for kind, row in zip(kinds, rows):
+            if owner is not None and kind == "BODY" and not row[0] and credit_re.search(row[2]) and len(row[2]) < 450:
+                h, sb, bd, cr = merged[owner]
+                merged[owner] = (h, sb, bd, "\n".join(x for x in (cr, row[2]) if x))
+                continue
+            merged.append(row)
+            mkinds.append(kind)
+            owner = len(merged) - 1 if kind == "SONG" else (owner if kind == "BODY" and not row[0] else None)
+        return merged, mkinds
 
     def template_path():
         custom = os.path.join(app.config["UPLOAD_DIR"], "mass_template.pptx")
@@ -4850,6 +4860,9 @@ def create_app(config=None):
                 if p_.level == 1:
                     for r_ in p_.runs:
                         r_.font.size = Pt(size)
+                elif p_.level == 2:
+                    for r_ in p_.runs:
+                        r_.font.size = Pt(14)
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()

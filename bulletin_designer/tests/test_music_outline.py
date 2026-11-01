@@ -507,3 +507,12 @@ def test_master_deck_reading_uses_header_subheader_body(app):
     for s in prs.slides:
         if s.slide_layout.name.startswith("70_"):
             assert False, "reading fell into the title-only layout"
+
+
+def test_credit_only_slide_moves_into_song_copyright(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest\n\nDarryl Ducote\nCCLI Song #253461"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    body = c.get("/slides/outline-export?date=2026-11-01").get_data(as_text=True)
+    assert "\t\t\tDarryl Ducote" in body or "CCLI Song #253461" not in body.replace("\t\t\t", "X", 0) and "\n\tDarryl" not in body
