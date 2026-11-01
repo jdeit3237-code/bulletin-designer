@@ -525,6 +525,8 @@ def duplicate_layout(prs, layout, image_path, name):
     new = part.slide_layout
     csld = new._element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}cSld")
     csld.set("name", name)
+    if not image_path:
+        return new
     _, img_rid = part.get_or_add_image_part(image_path)
     bg = etree.fromstring(
         '<p:bg xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
@@ -533,6 +535,52 @@ def duplicate_layout(prs, layout, image_path, name):
     for old in csld.findall("{http://schemas.openxmlformats.org/presentationml/2006/main}bg"):
         csld.remove(old)
     csld.insert(0, bg)
+    return new
+
+
+COVER_LAYOUT = "Mass Cover (first slide)"
+
+
+def find_cover_layout(prs):
+    return next((lay for lay in prs.slide_layouts if "cover" in lay.name.lower()), None)
+
+
+def add_cover_layout(prs):
+    """First-slide master: week name at the top, smaller date at the bottom, no copyright or ONE LICENSE line.
+
+    Copies the song layout inside the same master; returns the existing cover layout when there already is one."""
+    from pptx.util import Emu
+    from lxml import etree
+    existing = find_cover_layout(prs)
+    if existing is not None:
+        return existing
+    base = next((lay for lay in prs.slide_layouts if any(ph.placeholder_format.idx == 10 for ph in lay.placeholders)), None)
+    if base is None:
+        return None
+    new = duplicate_layout(prs, base, None, COVER_LAYOUT)
+    A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+    for sh in list(new.shapes):
+        idx = sh.placeholder_format.idx if sh.is_placeholder else None
+        if idx == 11 or (not sh.is_placeholder and sh.has_text_frame and "LICENSE" in sh.text_frame.text.upper()):
+            sh._element.getparent().remove(sh._element)
+    for sh in new.placeholders:
+        idx = sh.placeholder_format.idx
+        body = sh._element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}txBody")
+        bp = body.find(A + "bodyPr")
+        if idx == 0:
+            sh.left, sh.top, sh.width, sh.height = Emu(0), Emu(365126), Emu(12192000), Emu(2400000)
+            bp.set("anchor", "t")
+            for t in sh._element.iter(A + "t"):
+                t.text = "Name of the week"
+        elif idx == 10:
+            sh.left, sh.top, sh.width, sh.height = Emu(0), Emu(5650000), Emu(12192000), Emu(700000)
+            bp.set("anchor", "b")
+            lvl1 = body.find(A + "lstStyle").find(A + "lvl1pPr")
+            lvl1.find(A + "defRPr").set("sz", "3200")
+            for i, t in enumerate(sh._element.iter(A + "t")):
+                t.text = ("Date" if i == 0 else "")
+            for extra in sh._element.findall(".//" + A + "p")[1:]:
+                extra.getparent().remove(extra)
     return new
 
 
@@ -1110,18 +1158,18 @@ def create_app(config=None):
         return beside, rest
     cs_cache = {}
 
-    def cs_plan(r, width_in, text_w_in, no_str=True):
+    def cs_plan(r, width_in, text_w_in, no_str=True, fit=0):
         """Decide exactly where the text beside a column-spanning photo stops and the text under the photo begins.
         The real PDF engine lays out the row for each candidate split, and the largest amount of text that keeps the
         beside column no taller than the photo + continued-text block is chosen. Nothing is estimated."""
         import hashlib
         key = hashlib.sha1(repr((r["body"], r["image"], r["caption"], r["cols"], r["font_pt"], r["font_style"], r["para_gap"],
                                  r["crop_t"], r["crop_b"], r["crop_l"], r["crop_r"], r["crop_h"], r["img_w"], r["bullet_style"],
-                                 r["slug"], r["img_pos"], round(width_in, 3), round(text_w_in, 3), no_str)).encode()).hexdigest()
+                                 r["slug"], r["img_pos"], round(width_in, 3), round(text_w_in, 3), no_str, fit or 0)).encode()).hexdigest()
         if key in cs_cache:
             return cs_cache[key]
         try:
-            res = cs_plan_exact(r, width_in, text_w_in, no_str)
+            res = cs_plan_exact(r, width_in, text_w_in, no_str, fit or 0)
         except Exception:
             app.logger.exception("exact column-wrap layout failed; using estimate")
             res = tuple(cs_plan_est(r, width_in, text_w_in)) + (None,)
@@ -1133,7 +1181,7 @@ def create_app(config=None):
     class ContPara(list):
         cont = True
 
-    def cs_plan_exact(r, width_in, text_w_in, no_str):
+    def cs_plan_exact(r, width_in, text_w_in, no_str, fit=0):
         from weasyprint import HTML
         from markupsafe import Markup, escape
         from PIL import Image
@@ -1184,7 +1232,8 @@ def create_app(config=None):
         cap = Markup("<figcaption>%s</figcaption>") % r["caption"] if r["caption"] else Markup("")
         sty = ""
         if r["font_pt"]:
-            sty += "--fs: %spt;" % r["font_pt"]
+            fp = float(r["font_pt"])
+            sty += "--fs: %spt;" % round(fp if not fit else max(fp * [1, 0.94, 0.88, 0.82][min(fit, 3)], 12), 2)
         if r["para_gap"]:
             sty += "--pg: %sin;" % r["para_gap"]
         cls = "sec sec-%s %s %s %s" % (r["slug"], "has-pg" if r["para_gap"] else "", "custom-size" if r["font_pt"] else "",
@@ -1203,8 +1252,8 @@ def create_app(config=None):
             cells = (photo + '<td class="cs-gap"></td>' + text) if r["img_pos"] == "cols-left" else (text + '<td class="cs-gap"></td>' + photo)
             html = ('<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%sstatic/style.css">'
                     '<style>@page{size:9in 80in;margin:0}.sheet{display:block;width:9in;height:auto;margin:0;padding:0;border:0;overflow:visible}.sheet .pg-body{position:static!important;display:block;width:8in;height:auto!important;overflow:visible;flex:none}</style></head>'
-                    '<body><div class="sheet"><div class="pg-body"><div class="%s" style="%s"><div data-m="t">%s<table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></div></body></html>'
-                    % (PDF_BASE, cls, sty, title_h, aw, cells))
+                    '<body><div class="sheet %s"><div class="pg-body"><div class="%s" style="%s"><div data-m="t">%s<table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></div></body></html>'
+                    % (PDF_BASE, ("fit%d" % fit) if fit else "", cls, sty, title_h, aw, cells))
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
             hs = {}
             for page in doc.pages:
@@ -4499,7 +4548,7 @@ def create_app(config=None):
         d0 = date.fromisoformat(mass_date)
         church = os.path.join(app.static_folder, "church.jpg")
         plan = [{"type": "text", "title": f"{d0.strftime('%B')} {d0.day}, {d0.year}", "subtitle": None, "text": li["name"] or f"Sunday in {season}", "size": 60,
-                 "style": "song", "credit": "", "bg_path": church if os.path.isfile(church) else None,
+                 "style": "song", "credit": "", "cover": True, "bg_path": church if os.path.isfile(church) else None,
                  "bg_src": url_for("static", filename="church.jpg") if os.path.isfile(church) else None}]
         chunks = []
         extras = extra_meta(mass_date)
@@ -5102,6 +5151,8 @@ def create_app(config=None):
         """Pick the song (with footer), song-continuation (no footer) and plain (title only) layouts by structure, not name."""
         song = cont = plain = None
         for lay in prs.slide_layouts:
+            if "cover" in lay.name.lower():
+                continue
             has_body = any(ph.placeholder_format.type == 2 for ph in lay.placeholders)
             footer = any(not sh.is_placeholder and sh.has_text_frame and "ONE LICENSE" in sh.text_frame.text.upper() for sh in lay.shapes)
             if has_body and footer and song is None:
@@ -5120,6 +5171,7 @@ def create_app(config=None):
             prs.part.drop_rel(sld_id.rId)
             ids.remove(sld_id)
         lays = template_layouts(prs)
+        cover = find_cover_layout(prs)
         song, cont, plain = lays[0] or lays[1] or lays[2], lays[1] or lays[0] or lays[2], lays[2] or lays[0]
         bgs, paths = [], []
         rows, kinds = outline_rows(plan, bgs, paths)
@@ -5179,8 +5231,16 @@ def create_app(config=None):
                 out.append((kind, (header, sub, text, credit), bg, pth, size) if i == 0 else ("BODY", ("", "", text, ""), bg, None, size))
             return out
 
+        def split_credit(text):
+            """A copyright with both a Text and a Music section gets a soft return (vertical tab) between them."""
+            out = []
+            for ln in (text or "").split("\n"):
+                m = re.match(r"^\s*(Text\b.*?)\s+(Music\s*:.*)$", ln.strip(), re.I)
+                out.append(m.group(1) + "\v" + m.group(2) if m else ln)
+            return "\n".join(out)
+
         def credit_lines(text):
-            return sum(-(-len(x.strip()) // 105) for x in (text or "").split("\n") if x.strip()) or 1
+            return sum(-(-len(x.strip()) // 105) for x in re.split(r"[\n\v]", split_credit(text)) if x.strip()) or 1
 
         def credit_box(sld, text):
             """Copyright line with a dark blurred shadow (master placeholder when present)."""
@@ -5189,6 +5249,7 @@ def create_app(config=None):
             from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
             from pptx.oxml.ns import qn
             from lxml import etree
+            text = split_credit(text)
             ph_c = next((x for x in sld.placeholders if x.placeholder_format.idx == 11), None)
             if ph_c is not None:
                 tf = ph_c.text_frame
@@ -5207,15 +5268,18 @@ def create_app(config=None):
                 p_ = tf.paragraphs[0] if first else tf.add_paragraph()
                 first = False
                 p_.alignment = PP_ALIGN.CENTER
-                r_ = p_.add_run()
-                r_.text = ln
-                r_.font.size = Pt(14)
-                r_.font.bold = True
-                r_.font.color.rgb = RGBColor(255, 255, 255)
-                rpr = r_._r.get_or_add_rPr()
-                eff = etree.SubElement(rpr, qn("a:effectLst"))
-                glow = etree.SubElement(eff, qn("a:glow"), rad="101600")
-                etree.SubElement(etree.SubElement(glow, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "85000")
+                for k, piece in enumerate(ln.split("\v")):
+                    if k:
+                        p_.add_line_break()
+                    r_ = p_.add_run()
+                    r_.text = piece
+                    r_.font.size = Pt(14)
+                    r_.font.bold = True
+                    r_.font.color.rgb = RGBColor(255, 255, 255)
+                    rpr = r_._r.get_or_add_rPr()
+                    eff = etree.SubElement(rpr, qn("a:effectLst"))
+                    glow = etree.SubElement(eff, qn("a:glow"), rad="101600")
+                    etree.SubElement(etree.SubElement(glow, qn("a:srgbClr"), val="000000"), qn("a:alpha")).set("val", "85000")
 
         def para(tf, text, lvl, first):
             p_ = tf.paragraphs[0] if first else tf.add_paragraph()
@@ -5248,7 +5312,12 @@ def create_app(config=None):
                     pw, ph_ = int(iw * k), int(ih * k)
                     sld.shapes.add_picture(pth, int((sw - pw) / 2), int((sh - ph_) / 2), pw, ph_)
                 continue
-            if kind == "SONG":
+            if kind == "SONG" and cover is not None and not len(prs.slides) and plan and plan[0].get("cover"):
+                sld = prs.slides.add_slide(pick(cover, bg))
+                sld.shapes.title.text_frame.text = body
+                ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
+                para(ph.text_frame, header, 0, True)
+            elif kind == "SONG":
                 sld = prs.slides.add_slide(pick(cont if "CCLI" in credit.upper() else song, bg))
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
@@ -5334,6 +5403,26 @@ def create_app(config=None):
             return redirect(back)
         os.replace(tmp, custom)
         flash("Master slides updated. New decks will use them.", "ok")
+        return redirect(back)
+
+    @app.route("/slides/template/cover", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_template_cover():
+        """Add the first-slide master (week name on top, date at the bottom, no ONE LICENSE) to the current master slides."""
+        from pptx import Presentation
+        back = url_for("slides", date=request.form.get("date") or "")
+        prs = Presentation(template_path())
+        if find_cover_layout(prs) is not None:
+            flash("Your master slides already have a first-slide layout. Edit it in PowerPoint (View > Slide Master).", "ok")
+            return redirect(back)
+        if add_cover_layout(prs) is None:
+            flash("Could not add the first-slide layout to these master slides.", "error")
+            return redirect(back)
+        custom = os.path.join(app.config["UPLOAD_DIR"], "mass_template.pptx")
+        prs.save(custom + ".new")
+        os.replace(custom + ".new", custom)
+        flash("First-slide master added. Download the master slides to restyle it; new decks use it for slide 1.", "ok")
         return redirect(back)
 
     @app.route("/slides/outline-export")

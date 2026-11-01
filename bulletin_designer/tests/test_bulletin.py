@@ -2186,3 +2186,24 @@ def test_preview_pdf_built_per_page_matches_full_pdf(app):
     c.post("/bulletins/1/section/9", data={"body": "Changed words here", "csrf": tok(c, "/bulletins/1")}, follow_redirects=True)
     again = PdfReader(_io.BytesIO(c.get("/bulletins/1/download/web?inline=1").data))
     assert "Changed" in " ".join((p.extract_text() or "") for p in again.pages)
+
+
+def test_pdf_with_photo_spanning_long_article_does_not_overflow(app):
+    from io import BytesIO
+    import sqlite3
+    c = setup_admin(app)
+    create_bulletin(c)
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (300, 400), "gray").save(buf, "PNG")
+    png = buf.getvalue()
+    body = "\n\n".join("Dorothy Day, the most famous Catholic crusader for social justice in American history, shows the impact one ordinary person can have on society. " * 3 for _ in range(14))
+    c.post("/bulletins/1/section/5", data={"body": body, "img_pos": "cols-right", "alt": "x", "caption": "Dorothy Day",
+           "image": (BytesIO(png), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
+    db = sqlite3.connect(app.config["DATABASE"])
+    db.execute("UPDATE items SET cols=3, crop_h=3.2 WHERE section_id=5")
+    db.commit()
+    r = c.get("/bulletins/1/download/web")
+    assert r.status_code == 200 and r.data[:4] == b"%PDF"
+    html = c.get("/bulletins/1/preview").text
+    assert "cs-photo" in html

@@ -533,7 +533,7 @@ def test_duplicate_layout_with_background(tmp_path):
     prs.save(out)
     again = Presentation(_io.BytesIO(out.getvalue()))
     names = [l.name for l in again.slide_layouts]
-    assert "Song - design 1" in names and len(names) == 4
+    assert "Song - design 1" in names and len(names) == 5
     assert any(sl.slide_layout.name == "Song - design 1" for sl in again.slides)
 
 
@@ -672,3 +672,29 @@ def test_alternate_readings_split():
     raw = "Second Reading\n1 Thessalonians 4:13-18\nWe do not want.\n\nor 1 Thessalonians 4:13-14\nWe do not want you.\n"
     got = o.reading_sections(raw)
     assert [g[0] for g in got] == ["Second Reading", "Second Reading"] and got[1][1][0].startswith("1 Thessalonians 4:13-14")
+
+
+def test_first_slide_uses_cover_master_and_credit_soft_return(app):
+    from pptx import Presentation
+    import io as _io
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nText: A. Author, 1990. Music: B. Composer, 1991.\nCCLI Song #253461"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    prs = Presentation(_io.BytesIO(c.get("/slides/pptx-master?date=2026-11-01").data))
+    first = prs.slides[0]
+    assert "cover" in first.slide_layout.name.lower()
+    assert not any(sh.has_text_frame and "LICENSE" in sh.text_frame.text.upper() for sh in first.shapes)
+    assert "2026" in next(x for x in first.placeholders if x.placeholder_format.idx == 10).text_frame.text
+    assert "2026" not in first.shapes.title.text_frame.text
+
+
+def test_add_cover_layout_to_old_template(app):
+    from pptx import Presentation
+    import app as appmod
+    p = Presentation(os.path.join(os.path.dirname(__file__), "..", "assets", "MassTemplate.pptx"))
+    lay = appmod.find_cover_layout(p)
+    el = lay._element
+    p.slide_masters[0].slide_layouts.remove(lay)
+    assert appmod.find_cover_layout(p) is None
+    assert appmod.add_cover_layout(p) is not None
