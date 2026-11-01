@@ -4121,7 +4121,7 @@ def create_app(config=None):
     STANDARD_TITLES = {"prelude": "Prelude", "entrance": "Entrance Song", "gifts": "Presentation of the Gifts", "communion": "Communion",
                        "praise": "Song of Praise", "going_forth": "Going Forth"}
     ONELICENSE_LINE = os.environ.get("ONELICENSE_LINE") or "Reprinted with permission under ONE LICENSE # A-738536. All rights reserved."
-    CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:)", re.I)
+    CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:|text and music|music and text|text and tune)|©", re.I)
 
     def section_ref(kind, mass_date):
         names = [n for n in slides_list("ref_" + kind, mass_date) if n.rsplit(".", 1)[-1].lower() in ("png", "jpg", "jpeg")]
@@ -4159,7 +4159,14 @@ def create_app(config=None):
         seen_songs = set()
         seen_sigs = []
         outline_order = (load_outline(mass_date) or {}).get("order") or []
-        plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
+        outline_songs = (load_outline(mass_date) or {}).get("songs") or []
+        GENERIC_SONG_LABELS = ("entrance", "communion", "song of praise", "final song", "final song or hymn", "presentation of the gifts",
+                               "presentation and preparation of the gifts", "offertory", "recessional", "other song")
+        d0 = date.fromisoformat(mass_date)
+        church = os.path.join(app.static_folder, "church.jpg")
+        plan = [{"type": "text", "title": f"{d0.strftime('%B')} {d0.day}, {d0.year}", "subtitle": None, "text": li["name"] or f"Sunday in {season}", "size": 60,
+                 "style": "song", "credit": "", "bg_path": church if os.path.isfile(church) else None,
+                 "bg_src": url_for("static", filename="church.jpg") if os.path.isfile(church) else None}]
         chunks = []
         extras = extra_meta(mass_date)
         for kind in ("prelude", "standard", "entrance", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth", "songs", "extra"):
@@ -4213,13 +4220,18 @@ def create_app(config=None):
                             parts = music_outline.drop_referrals(parts)
                         if kind in SONG_KINDS:
                             block_title, parts = music_outline.song_title_block(parts)
+                            if not block_title and label.lower() in GENERIC_SONG_LABELS:
+                                for osong in outline_songs:
+                                    if osong.get("title") and name.lower().startswith(secure_filename(osong["label"]).lower() + "-"):
+                                        label = re.split(r"\s+/\s+", osong["title"])[0].strip()
+                                        break
                             if block_title:
                                 label = block_title
                             else:
                                 parts = music_outline.drop_title_block(parts, label)
                         parts = music_outline.repeat_refrain(parts)
                         if kind in SONG_KINDS:
-                            parts = [x for x in (music_outline.strip_labels(x) for x in parts) if x]
+                            parts = music_outline.tidy_song_parts([x for x in (music_outline.strip_labels(x) for x in parts) if x])
                             sig = set(re.findall(r"[a-z']+", " ".join(parts).lower()))
                             if len(sig) >= 8 and any(len(sig & o) / min(len(sig), len(o)) >= 0.8 for o in seen_sigs):
                                 continue

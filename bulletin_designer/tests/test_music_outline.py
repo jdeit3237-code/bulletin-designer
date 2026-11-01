@@ -359,3 +359,14 @@ def test_title_block_becomes_song_title_and_clean_name():
     title, rest = outline.song_title_block(["For All the Saints\nSINE NOMINE", "1. For all the saints who from their labors rest,"])
     assert title == "For All the Saints" and len(rest) == 1
     assert outline.clean_song_title("Entrance-bb26") == "Entrance"
+
+
+def test_tidy_song_parts_fixes_tabs_l_and_repeats():
+    parts = outline.tidy_song_parts(["For l am meek\n\tand humble", "Refrain line", "Refrain  line", "Next verse"])
+    assert parts == ["For I am meek\n and humble", "Refrain line", "Next verse"]
+
+
+def test_first_slide_has_written_date_theme_and_church_photo(app):
+    c = setup_admin(app)
+    r = c.get("/slides/preview?date=2026-11-01")
+    assert b"November 1, 2026" in r.data and b"All Saints" in r.data and b"church.jpg" in r.data
