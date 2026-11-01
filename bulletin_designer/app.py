@@ -4656,6 +4656,8 @@ def create_app(config=None):
                  "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling of every line. "
                  "Set sung responses such as \"Alleluia, alleluia!\" in bold dark red italics.",
                  "This list includes the regular weekly slides (Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings.",
+                 "Files named MUSIC-nn-... are sheet music from the music book for the Mass part in the file name (Glory to God, Holy Holy Holy, Memorial Acclamation, Great Amen, Alleluia, Lamb of God and so on). "
+                 "Use each one on the slide for that part, exactly as given, inside the design.",
                  "Make the first slide, then wait for my OK before making the rest, so I can approve the style. Then make them one at a time.", ""]
         n = 0
         for it in plan:
@@ -4699,6 +4701,18 @@ def create_app(config=None):
                     label = re.sub(r"[^A-Za-z0-9]+", "-", it.get("label") or "music").strip("-")[:40] or "music"
                     ext = os.path.splitext(it["path"])[1].lower() or ".png"
                     z.write(it["path"], f"SLIDE-{n:02d}-{label}{ext}")
+                    found += 1
+            have = " ".join(zi.lower() for zi in z.namelist())
+            for i, song in enumerate((load_outline(mass_date) or {}).get("songs", []), 1):
+                label = re.sub(r"[^A-Za-z0-9]+", "-", song.get("label") or "music").strip("-")[:40] or "music"
+                if label.lower() in have:
+                    continue
+                try:
+                    pages = routes_choir.choir.book_page_images(app, song, date.fromisoformat(mass_date)) if routes_choir else []
+                except Exception:
+                    pages = []
+                for k, png in enumerate(pages, 1):
+                    z.writestr(f"MUSIC-{i:02d}-{label}-page{k}.png", png)
                     found += 1
             if not found:
                 z.writestr("README.txt", "No sheet-music or picture slides were found for this Mass date.\n")
