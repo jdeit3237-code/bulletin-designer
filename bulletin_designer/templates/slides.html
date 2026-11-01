@@ -9,7 +9,7 @@
 <li>Press <strong>Preview slides</strong> to check every slide, then <strong>Download PowerPoint</strong>.</li></ol>
 <p><a class="btn" href="{{ url_for('slides_library') }}">Slide library</a> <a class="btn" href="{{ url_for('slides_year') }}">See the whole church year</a></p>
 <h2>Standard slides (included every week)</h2>
-{% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>
+{% macro filelist(kind) %}{% if files[kind] %}<ul>{% for n in files[kind] %}<li><a href="{{ url_for('slides_file', kind=kind, name=n, date=mass_date) }}">{{ n }}</a>{% if kind == 'extra' and extras.get(n) %} &mdash; "{{ extras[n].name }}", after {{ extras[n].after }}{% endif %}
 <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form></li>{% endfor %}</ul>{% else %}<p class="small">Nothing uploaded yet.</p>{% endif %}{% endmacro %}
 {% macro uploader(kind, label) %}<form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="date" value="{{ mass_date }}">
 <label for="up-{{ kind }}">Add files: {{ label }}</label><input id="up-{{ kind }}" type="file" name="files" multiple> <button class="btn">Upload</button></form>{% endmacro %}
@@ -47,8 +47,11 @@
 {% if library %}<details><summary>{{ library|length }} songs in the library</summary><ul>{% for k, names in library.items() %}<li>{{ k }}: {% for n in names %}{{ n }}
 <form method="post" action="{{ url_for('slides_songs') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="name" value="{{ n }}"><button class="btn secondary">Remove</button></form> {% endfor %}</li>{% endfor %}</ul></details>{% endif %}
 {% if mass_date %}
-{% for k, label in kinds if k != 'standard' and not k.startswith('ref_') %}<h3>{{ label }}</h3>{{ filelist(k) }}{{ uploader(k, label) }}
-{% if k in ['entrance','gifts','communion','praise','songs','prelude','going_forth'] %}<details><summary>Reference photos for this section (optional, used as background)</summary>{{ filelist('ref_'+k) }}{{ uploader('ref_'+k, 'Reference photo') }}</details>{% endif %}{% endfor %}
+{% for k, label in kinds if k not in ('standard', 'songs') and not k.startswith('ref_') %}<h3>{{ label }}</h3>{{ filelist(k) }}{% if k == 'extra' %}<form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="kind" value="extra"><input type="hidden" name="date" value="{{ mass_date }}">
+<p class="small">For a song or slides that is not one of the usual Mass parts. Name the section (it becomes the slide title) and say where it goes. Each file you add with the same name and place becomes one section.</p>
+<label for="ex-name">Section name</label><input id="ex-name" name="section_name" required> <label for="ex-after">Place it after</label><select id="ex-after" name="after">{% for m in mass_order %}<option>{{ m }}</option>{% endfor %}</select><br>
+<label for="up-extra">Files (.txt lyrics, .docx, .png/.jpg)</label><input id="up-extra" type="file" name="files" multiple required> <button class="btn">Add extra section</button></form>{% else %}{{ uploader(k, label) }}{% endif %}
+{% if k in ['entrance','gifts','communion','praise','prelude','going_forth'] %}<details><summary>Reference photos for this section (optional, used as background)</summary>{{ filelist('ref_'+k) }}{{ uploader('ref_'+k, 'Reference photo') }}</details>{% endif %}{% endfor %}
 <form method="get" action="{{ url_for('slides_package') }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <h3>Bulletin graphics to match announcements (optional)</h3>
 <p class="small">Tick the bulletin photos or graphics to use, then press Save. Your ticks are remembered for this week.</p>

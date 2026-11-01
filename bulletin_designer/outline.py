@@ -103,9 +103,18 @@ def reading_sections(raw):
         if title is None:
             return
         text = "\n".join(buf).strip()
+        cite, text = split_citation(text)
+        _flush_body(title, text, cite)
+
+    def lead(parts, cite):
+        if cite and parts:
+            parts = [cite + " " + parts[0]] + parts[1:]
+        return parts
+
+    def _flush_body(title, text, cite):
         if title == "Gospel Acclamation":
             lines = [x for x in text.splitlines() if not re.match(r"^[\s*_]*(?:\u211f|R\s*[./:])?\s*(?:alleluia|praise to you)\b[\s.,!*_]*(?:alleluia[\s.,!*_]*)*$", x, re.I)]
-            parts = [x.strip() for x in re.split(r"\n\s*\n", "\n".join(lines)) if x.strip()]
+            parts = lead([x.strip() for x in re.split(r"\n\s*\n", "\n".join(lines)) if x.strip()], cite)
             sections.append((title, [piece for p in parts for piece in split_long(p)]))
             return
         if title == "Responsorial Psalm":
@@ -132,7 +141,7 @@ def reading_sections(raw):
                 if dedup[0] != resp:
                     dedup.insert(0, resp)
                 parts = dedup
-        parts = [piece for p in parts for piece in split_long(p)]
+        parts = [piece for p in lead(parts, cite) for piece in split_long(p)]
         sections.append((title, parts))
 
     for line in raw.splitlines():
@@ -191,6 +200,8 @@ def decode_text(raw):
         mac = sum(raw.count(bytes([b])) for b in (0xCA, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5))
         win = sum(raw.count(bytes([b])) for b in (0xA0, 0x91, 0x92, 0x93, 0x94, 0x96, 0x97))
         text = raw.decode("mac_roman" if mac > win else "cp1252", errors="replace")
+        if mac <= win and len(re.findall(r"[a-z][\u017d\u0160\u2021][a-z ]", text)) >= 2:
+            text = raw.decode("mac_roman", errors="replace")
     return text.replace("\u00a0", " ").replace("\r\n", "\n").replace("\r", "\n")
 
 
@@ -367,6 +378,10 @@ def order_chunks(chunks, order=()):
         pos = newpos
     last = -1.0
     for ch in chunks:
+        if ch.get("custom"):
+            ch["label"] = "Extra: " + ch["custom"]
+            ch["rank"] = pos.get(LABEL_ALIAS.get(ch["after"], ch["after"]), last) + 0.25
+            continue
         lab = chunk_label(ch["kind"], ch["name"], ch.get("group"), names)
         lab = LABEL_ALIAS.get(lab, lab)
         ch["label"] = lab
@@ -422,3 +437,32 @@ def best_match(graphic_text, texts, minimum=1):
         if score > best_score:
             best, best_score = i, score
     return best if best_score >= minimum else None
+
+
+LABEL_LINE_RE = re.compile(r"^\s*(refrain|chorus|estribillo|coro|antiphon|verse\s*\d*)\s*[:.]?\s*$", re.I)
+
+
+def strip_labels(part):
+    """Remove stand-alone 'Refrain' / 'Chorus' / 'Estribillo' label lines from a song slide."""
+    return "\n".join(x for x in part.splitlines() if not LABEL_LINE_RE.match(x)).strip()
+
+
+def clean_song_title(name):
+    """File-name label -> song title: drop trailing catalogue numbers such as '113657' or 'BB26-718'."""
+    return re.sub(r"[\s_-]+(?:[A-Z]{1,4}\d*-?\d+|\d{3,})$", "", name).strip()
+
+
+def drop_title_block(parts, title):
+    """Lyric files often start with a title (and tune/author) block; the title slide already shows it."""
+    def norm(x):
+        return re.sub(r"[^a-z0-9]", "", x.lower())
+    if parts and norm(title) and norm(parts[0].splitlines()[0]) and (norm(parts[0].splitlines()[0]) == norm(title) or norm(title).startswith(norm(parts[0].splitlines()[0]))) \
+            and len(parts[0].splitlines()) <= 3:
+        return parts[1:]
+    return parts
+
+
+def slide_size(text):
+    """Font size (pt) that keeps a verse on the slide."""
+    n = len(text)
+    return 56 if n <= 110 else 48 if n <= 160 else 40 if n <= 220 else 34 if n <= 300 else 28
