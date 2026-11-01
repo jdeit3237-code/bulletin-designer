@@ -495,3 +495,15 @@ def test_master_slides_deck_and_template(app):
     assert c.get("/slides/template").status_code == 200
     bad = c.post("/slides/template", data={"csrf": t, "template": (_io.BytesIO(b"nope"), "x.pptx")}, content_type="multipart/form-data")
     assert bad.status_code == 302
+
+
+def test_master_deck_reading_uses_header_subheader_body(app):
+    from pptx import Presentation
+    import io as _io
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    prs = Presentation(_io.BytesIO(c.get("/slides/pptx-master?date=2026-11-01").data))
+    for s in prs.slides:
+        if s.slide_layout.name.startswith("70_"):
+            assert False, "reading fell into the title-only layout"

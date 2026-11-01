@@ -4848,6 +4848,15 @@ def create_app(config=None):
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, lines(body), 1, True)
+            elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
+                sld = prs.slides.add_slide(cont)
+                sld.shapes.title.text_frame.text = header
+                ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
+                first = True
+                if sub:
+                    para(ph.text_frame, sub, 0, True)
+                    first = False
+                para(ph.text_frame, lines(body), 1, first)
             else:
                 sld = prs.slides.add_slide(plain)
                 tf = sld.shapes.title.text_frame
