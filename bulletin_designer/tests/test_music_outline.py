@@ -359,3 +359,31 @@ def test_title_block_becomes_song_title_and_clean_name():
     title, rest = outline.song_title_block(["For All the Saints\nSINE NOMINE", "1. For all the saints who from their labors rest,"])
     assert title == "For All the Saints" and len(rest) == 1
     assert outline.clean_song_title("Entrance-bb26") == "Entrance"
+
+
+def test_section_designs_make_two_pictures_and_apply_to_slides(app, monkeypatch):
+    import base64
+    import io as _io
+    import json as _json
+    import urllib.request
+    from PIL import Image
+    buf = _io.BytesIO(); Image.new("RGB", (30, 20), "navy").save(buf, "PNG")
+    payload = _json.dumps({"data": [{"b64_json": base64.b64encode(buf.getvalue()).decode()}]}).encode()
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return payload
+
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Resp())
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    for role in ("title", "body"):
+        r = c.post("/slides/designs", data={"csrf": t, "date": "2026-11-01", "kind": "gifts", "role": role}, follow_redirects=True)
+        assert b"Made the" in r.data
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
+    assert "ai-title.png" in page and "ai-body.png" in page
+    assert c.post("/slides/designs", data={"csrf": t, "date": "2026-11-01", "kind": "bogus", "role": "title"}).status_code == 302

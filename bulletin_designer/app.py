@@ -3768,7 +3768,7 @@ def create_app(config=None):
     SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("entrance", "Entrance song"), ("gifts", "Presentation of the Gifts song"), ("communion", "Communion song"), ("praise", "Song of Praise (optional, not every week)"), ("songs", "Songs filled from the outline"), ("extra", "Extra sections (you name each one and choose where it goes)"), ("readings", "Readings"),
                    ("announcements", "Announcements"), ("notation", "Music notation"), ("going_forth", "Going Forth (after Mass, may be secular)"),
                    ("special", "Special slides (optional, this week only)"),
-                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"))
+                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"), ("ref_readings", "Reference photos for Readings"))
 
     def slides_dir(kind, mass_date=""):
         return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
@@ -3861,6 +3861,65 @@ def create_app(config=None):
         with open(outline_path(mass_date), "w") as f:
             json.dump({"songs": report, "auto": auto, "order": order or []}, f)
         return previous, report
+
+    DESIGN_SECTIONS = (("entrance", "Entrance", "joyful procession, light through stained glass, gathering of the faithful"),
+                       ("readings", "Readings", "an open book of Scripture in soft light, quiet and reverent"),
+                       ("gifts", "Presentation of the Gifts", "bread, wine, wheat and grapes, offering"),
+                       ("communion", "Communion", "bread and chalice, wheat, gentle light, unity"),
+                       ("going_forth", "Going Forth", "sunrise over the water, a path forward, fishing boats on the sea, mission"))
+    DESIGN_ROLES = {"title": "Title-slide design: more distinctive, with a calm, uncluttered area at the top for a title banner and a quiet centre.",
+                    "body": "Continuation-slide design: quieter and simpler, a soft low-contrast version of the same theme."}
+
+    def design_prompt(mass_date, kind, role):
+        li = liturgy.info(date.fromisoformat(mass_date))
+        label, scene = next((l, sc) for k, l, sc in DESIGN_SECTIONS if k == kind)
+        celebration = li["name"] or f"Sunday in {li['season']}"
+        return ("Background picture for a projected Catholic Mass slide at St. Peter the Fisherman Catholic Church. "
+                f"Celebration: {celebration} ({li['season']}), {mass_date}. Section of the Mass: {label}. Imagery: {scene}. "
+                + DESIGN_ROLES[role] + " Rich seasonal colors, soft focus, slightly darkened and muted so lettering stays easy to read from the back of the church. "
+                "No text, no letters, no logos, no recognizable faces. Keep text areas clear of busy detail.")
+
+    @app.route("/slides/designs", methods=["POST"])
+    @need()
+    @need_area("slides")
+    def slides_designs():
+        mass_date = request.form.get("date") or ""
+        kind, role = request.form.get("kind", ""), request.form.get("role", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date) or kind not in dict((k, 1) for k, _, _ in DESIGN_SECTIONS) or role not in DESIGN_ROLES:
+            return redirect(url_for("slides"))
+        back = redirect(url_for("slides", date=mass_date) + "#designs")
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            flash("AI pictures are not turned on (the OpenAI key is not set on the server).", "error")
+            return back
+        limit = int(os.environ.get("AI_IMAGE_DAILY_LIMIT", "10"))
+        day = date.today().isoformat()
+        conn = db()
+        row = conn.execute("SELECT n FROM ai_usage WHERE day=?", (day,)).fetchone()
+        if row and row["n"] >= limit:
+            flash("The daily limit of %d AI pictures has been reached. Try again tomorrow." % limit, "error")
+            return back
+        body = json.dumps({"model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1"), "prompt": design_prompt(mass_date, kind, role),
+                           "size": "1536x1024", "n": 1}).encode()
+        req = urllib.request.Request("https://api.openai.com/v1/images/generations", data=body,
+                                     headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                raw = base64.b64decode(json.loads(resp.read())["data"][0]["b64_json"])
+        except Exception:
+            flash("The AI service could not make the picture. Check the key and account balance, or try again.", "error")
+            return back
+        conn.execute("INSERT INTO ai_usage(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n=n+1", (day,))
+        conn.commit()
+        dest = slides_dir("ref_" + kind, mass_date)
+        os.makedirs(dest, exist_ok=True)
+        for old in os.listdir(dest):
+            if old.startswith("ai-" + role + "."):
+                os.remove(os.path.join(dest, old))
+        with open(os.path.join(dest, "ai-%s.png" % role), "wb") as fh:
+            fh.write(raw)
+        flash("Made the %s design for %s." % (role, dict((k, l) for k, l, _ in DESIGN_SECTIONS)[kind]), "ok")
+        return back
 
     @app.route("/slides/outline", methods=["POST"])
     @need()
@@ -4021,7 +4080,9 @@ def create_app(config=None):
                 flash(f"Uploaded {n} file(s)." if n else "Choose at least one file.", "" if n else "error")
             return redirect(url_for("slides", date=mass_date))
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
-        return render_template("slides.html", kinds=SLIDE_KINDS, mass_order=music_outline.MASS_ORDER, extras=extra_meta(mass_date) if mass_date else {}, mass_date=mass_date, dates=dates,
+        design_has = {f"{k}-{r}": os.path.isfile(os.path.join(slides_dir("ref_" + k, mass_date), f"ai-{r}.png"))
+                      for k, _, _ in DESIGN_SECTIONS for r in ("title", "body")} if mass_date else {}
+        return render_template("slides.html", design_sections=DESIGN_SECTIONS, design_has=design_has, kinds=SLIDE_KINDS, mass_order=music_outline.MASS_ORDER, extras=extra_meta(mass_date) if mass_date else {}, mass_date=mass_date, dates=dates,
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
                                concept=week_concept(mass_date) if mass_date else None, layouts=CONCEPT_LAYOUTS, accents=CONCEPT_ACCENTS,
                                outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
@@ -4123,12 +4184,15 @@ def create_app(config=None):
     ONELICENSE_LINE = os.environ.get("ONELICENSE_LINE") or "Reprinted with permission under ONE LICENSE # A-738536. All rights reserved."
     CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:)", re.I)
 
-    def section_ref(kind, mass_date):
+    def section_ref(kind, mass_date, role="title"):
+        """Background picture for a section: the AI/own picture made for this role, else the first reference photo."""
         names = [n for n in slides_list("ref_" + kind, mass_date) if n.rsplit(".", 1)[-1].lower() in ("png", "jpg", "jpeg")]
         if not names:
             return None, None
-        return (os.path.join(slides_dir("ref_" + kind, mass_date), names[0]),
-                url_for("slides_file", kind="ref_" + kind, name=names[0], date=mass_date, inline=1))
+        pick = next((n for n in names if n.startswith("ai-" + role + ".")), None) \
+            or next((n for n in names if not n.startswith("ai-")), None) or names[0]
+        return (os.path.join(slides_dir("ref_" + kind, mass_date), pick),
+                url_for("slides_file", kind="ref_" + kind, name=pick, date=mass_date, inline=1))
 
     SONG_KINDS = ("prelude", "entrance", "songs", "extra", "gifts", "communion", "praise", "going_forth")
     SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
@@ -4231,7 +4295,9 @@ def create_app(config=None):
                             parts = [piece for part in parts for piece in music_outline.split_long(part)]
                         groups = [(label, parts)]
                     song = kind in SONG_KINDS
-                    bgp, bgs = section_ref(kind, mass_date) if song else (None, None)
+                    has_bg = song or kind == "readings"
+                    bg_first = section_ref(kind, mass_date, "title") if has_bg else (None, None)
+                    bg_rest = section_ref(kind, mass_date, "body") if has_bg else (None, None)
                     for g, (gtitle, parts) in enumerate(groups):
                         items = []
                         file_credit = []
@@ -4243,7 +4309,7 @@ def create_app(config=None):
                         for k, body in enumerate(parts):
                             credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
-                                    "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
+                                    "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": (bg_first if k == 0 else bg_rest)[0], "bg_src": (bg_first if k == 0 else bg_rest)[1]}
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle
                             elif k == 0 and kind in ("readings", "standard"):
@@ -4331,7 +4397,13 @@ def create_app(config=None):
             ink = RGBColor(0x3B, 0x0F, 0x0F) if song else RGBColor(255, 255, 255)
             if item.get("bg_path"):
                 try:
-                    sl.shapes.add_picture(item["bg_path"], 0, 0, sw, sh)
+                    pic = sl.shapes.add_picture(item["bg_path"], 0, 0, sw, sh)
+                    with Image.open(item["bg_path"]) as bim:
+                        ratio = bim.size[0] / bim.size[1]
+                    if ratio < sw / sh:
+                        pic.crop_top = pic.crop_bottom = (1 - ratio / (sw / sh)) / 2
+                    elif ratio > sw / sh:
+                        pic.crop_left = pic.crop_right = (1 - (sw / sh) / ratio) / 2
                 except Exception:
                     pass
 
