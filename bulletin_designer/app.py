@@ -4723,6 +4723,51 @@ def create_app(config=None):
         buf.seek(0)
         return send_file(buf, as_attachment=True, download_name=f"Music-pages-{mass_date}.zip", mimetype="application/zip")
 
+    @app.route("/slides/chatgpt-slides")
+    @need()
+    @need_area("slides")
+    def slides_chatgpt_slides():
+        """ZIP with one short, self-contained prompt per slide, to paste into ChatGPT one at a time."""
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        li = liturgy.info(date.fromisoformat(mass_date))
+        plan, _ = plan_slides(mass_date, chosen_graphics())
+        feast = li["name"] or f"Sunday in {li['season']}"
+        start = ("Use your IMAGE GENERATION tool for every message in this chat. Never make a PowerPoint, a file, or code; just show me one picture each time.\n"
+                 "I will paste one slide description at a time. Each one is ONE finished 16:9 picture (1920x1080) for St. Peter the Fisherman Catholic Church, "
+                 "designed like a professional advertisement or poster, with the words part of the artwork.\n"
+                 f"This week: {feast} ({li['season']}). Look: vivid, glowing, painterly Florida coast at sunset, with a seasonal border "
+                 "(All Saints: red and gold maple leaves, red hibiscus, palms, pumpkins, a wooden cross, sea and rocks). "
+                 "Every slide gets a different scene and composition but the same family look.\n"
+                 "Reply only: Ready.")
+        style = ("Make ONE finished 16:9 picture (1920x1080) with your image generation tool. Not a PowerPoint, not code, not a file. "
+                 "Professional poster style, vivid painterly Florida coast at sunset with the season's border, a different scene from the last slide. "
+                 "Use the words EXACTLY as written, spelled correctly, large and readable.")
+        buf, n = io.BytesIO(), 0
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("00_START_HERE.txt", start + "\n\nThen paste SLIDE-01.txt, SLIDE-02.txt and so on, one per message. Attach the matching music file when the slide says so.\n")
+            for it in plan:
+                if it.get("type") not in ("text", "image"):
+                    continue
+                n += 1
+                panel = "cream parchment panel with a gold border, dark text" if n % 2 else "deep navy glass panel, white text"
+                if it["type"] == "image":
+                    body = (f"{style}\nThis slide is sheet music. I am attaching the picture file SLIDE-{n:02d}. Build the poster around it and keep the music exactly as given, "
+                            f"on a {panel}.")
+                    if it.get("label"):
+                        body += f"\nBanner: {it['label']}"
+                else:
+                    body = f"{style}\nPanel: {panel}."
+                    if it.get("title"):
+                        body += "\nBanner (dark red brush stroke, gold lettering): " + it["title"] + (" / " + it["subtitle"] if it.get("subtitle") else "")
+                    body += "\nWords:\n" + (it.get("text") or "").replace("\xa0", " ").strip()
+                    if it.get("credit"):
+                        body += "\nFooter (dark red strip, small cream lettering, music copyright on its own line):\n" + it["credit"].strip()
+                z.writestr(f"SLIDE-{n:02d}.txt", body + "\n")
+        buf.seek(0)
+        return send_file(buf, as_attachment=True, download_name=f"ChatGPT-slides-{mass_date}.zip", mimetype="application/zip")
+
     @app.route("/slides/package")
     @need()
     @need_area("slides")
