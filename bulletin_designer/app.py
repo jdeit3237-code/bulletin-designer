@@ -4242,7 +4242,7 @@ def create_app(config=None):
                         parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
                         for k, body in enumerate(parts):
                             credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
-                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": music_outline.slide_size(body * 2 if (k == 0 and song) else body),
+                            item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle
