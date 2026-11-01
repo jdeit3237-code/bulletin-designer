@@ -536,3 +536,15 @@ def test_duplicate_layout_with_background(tmp_path):
     assert "Song - design 1" in names and len(names) == 4
     assert any(sl.slide_layout.name == "Song - design 1" for sl in again.slides)
 
+
+
+def test_pptx_pages_text(tmp_path):
+    from pptx import Presentation
+    import app as appmod
+    prs = Presentation()
+    for t in ("Verse one\nline two", "Refrain here"):
+        sl = prs.slides.add_slide(prs.slide_layouts[5])
+        sl.shapes.title.text = t
+    f = tmp_path / "s.pptx"
+    prs.save(str(f))
+    assert appmod.pptx_text(str(f)).split("\n\n") == ["Verse one\nline two", "Refrain here"]
