@@ -4241,7 +4241,7 @@ def create_app(config=None):
                             file_credit = list(dict.fromkeys(file_credit))
                         parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
                         for k, body in enumerate(parts):
-                            credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
+                            credit = "\n".join([" ".join(file_credit)] * bool(file_credit) + [ONELICENSE_LINE]) if k == 0 else ""
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": bgp, "bg_src": bgs}
                             if k == 0 and song:
@@ -4387,7 +4387,7 @@ def create_app(config=None):
                 shape(1, 0, sh - Inches(0.95), sw, Inches(0.95), RGBColor(0x6B, 0x14, 0x14))
                 cb = sl.shapes.add_textbox(Inches(0.5), sh - Inches(0.9), sw - Inches(1.0), Inches(0.85))
                 cb.text_frame.word_wrap = True; cb.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-                put(cb.text_frame, item["credit"], 12 if len(item["credit"]) > 160 else 14, RGBColor(255, 255, 255), bold=False)
+                put(cb.text_frame, item["credit"], 12 if len(item["credit"]) > 160 or item["credit"].count("\n") else 14, RGBColor(255, 255, 255), bold=False)
                 bottom = 6.4
             if item["title"]:
                 bh = 1.4 if item.get("subtitle") else 0.95
