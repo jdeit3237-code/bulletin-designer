@@ -4827,11 +4827,12 @@ def create_app(config=None):
 
         def lines(t, wrap=0):
             def split(ln):
-                if not wrap or len(ln) <= wrap or " " not in ln:
+                words = ln.split()
+                if not wrap or len(words) <= wrap:
                     return ln
-                mid = len(ln) // 2
-                cut = min((i for i, ch in enumerate(ln) if ch == " "), key=lambda i: abs(i - mid))
-                return ln[:cut] + "\v" + ln[cut + 1:]
+                parts = -(-len(words) // wrap)
+                size = -(-len(words) // parts)
+                return "\v".join(" ".join(words[i:i + size]) for i in range(0, len(words), size))
             return "\v".join(split(ln.strip()) for ln in (t or "").split("\n") if ln.strip())
 
         def fit(ph, body_text="", used=0):
@@ -4861,7 +4862,7 @@ def create_app(config=None):
                 sld.shapes.title.text_frame.text = header
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
                 para(ph.text_frame, sub, 0, True)
-                bt = lines(body, 34)
+                bt = lines(body, 7)
                 para(ph.text_frame, bt, 1, False)
                 fit(ph, bt, 90 + (50 if credit else 0))
                 if credit:
@@ -4871,7 +4872,7 @@ def create_app(config=None):
                 if sld.shapes.title is not None:
                     sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
                 ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
-                bt = lines(body, 34)
+                bt = lines(body, 7)
                 para(ph.text_frame, bt, 1, True)
                 fit(ph, bt)
             elif header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
