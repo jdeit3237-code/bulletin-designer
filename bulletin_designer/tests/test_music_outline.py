@@ -610,7 +610,7 @@ def test_wrap_pause_and_pages():
 def test_credit_box_is_small_translucent():
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "app.py")).read()
-    assert "softEdge" in src and 'credit_box(sld, credit)' in src
+    assert "outerShdw" in src and 'credit_box(sld, credit)' in src
 
 
 def test_wrap_pause_no_orphans():
