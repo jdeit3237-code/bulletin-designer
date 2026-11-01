@@ -4182,7 +4182,7 @@ def create_app(config=None):
     STANDARD_TITLES = {"prelude": "Prelude", "entrance": "Entrance Song", "gifts": "Presentation of the Gifts", "communion": "Communion",
                        "praise": "Song of Praise", "going_forth": "Going Forth"}
     ONELICENSE_LINE = os.environ.get("ONELICENSE_LINE") or "Reprinted with permission under ONE LICENSE # A-738536. All rights reserved."
-    CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:)", re.I)
+    CREDIT_RE = re.compile(r"^\s*(©|\(c\)|copyright|reprinted|used with permission|text:|music:|words:|text and music|music and text|text and tune)|©", re.I)
 
     def section_ref(kind, mass_date, role="title"):
         """Background picture for a section: the AI/own picture made for this role, else the first reference photo."""
@@ -4223,7 +4223,14 @@ def create_app(config=None):
         seen_songs = set()
         seen_sigs = []
         outline_order = (load_outline(mass_date) or {}).get("order") or []
-        plan = [{"type": "text", "title": mass_date, "text": li["name"] or f"Sunday in {season}", "size": 60}]
+        outline_songs = (load_outline(mass_date) or {}).get("songs") or []
+        GENERIC_SONG_LABELS = ("entrance", "communion", "song of praise", "final song", "final song or hymn", "presentation of the gifts",
+                               "presentation and preparation of the gifts", "offertory", "recessional", "other song")
+        d0 = date.fromisoformat(mass_date)
+        church = os.path.join(app.static_folder, "church.jpg")
+        plan = [{"type": "text", "title": f"{d0.strftime('%B')} {d0.day}, {d0.year}", "subtitle": None, "text": li["name"] or f"Sunday in {season}", "size": 60,
+                 "style": "song", "credit": "", "bg_path": church if os.path.isfile(church) else None,
+                 "bg_src": url_for("static", filename="church.jpg") if os.path.isfile(church) else None}]
         chunks = []
         extras = extra_meta(mass_date)
         for kind in ("prelude", "standard", "entrance", "readings", "notation", "gifts", "communion", "praise", "announcements", "special", "going_forth", "songs", "extra"):
@@ -4277,13 +4284,18 @@ def create_app(config=None):
                             parts = music_outline.drop_referrals(parts)
                         if kind in SONG_KINDS:
                             block_title, parts = music_outline.song_title_block(parts)
+                            if not block_title and label.lower() in GENERIC_SONG_LABELS:
+                                for osong in outline_songs:
+                                    if osong.get("title") and name.lower().startswith(secure_filename(osong["label"]).lower() + "-"):
+                                        label = re.split(r"\s+/\s+", osong["title"])[0].strip()
+                                        break
                             if block_title:
                                 label = block_title
                             else:
                                 parts = music_outline.drop_title_block(parts, label)
                         parts = music_outline.repeat_refrain(parts)
                         if kind in SONG_KINDS:
-                            parts = [x for x in (music_outline.strip_labels(x) for x in parts) if x]
+                            parts = music_outline.tidy_song_parts([x for x in (music_outline.strip_labels(x) for x in parts) if x])
                             sig = set(re.findall(r"[a-z']+", " ".join(parts).lower()))
                             if len(sig) >= 8 and any(len(sig & o) / min(len(sig), len(o)) >= 0.8 for o in seen_sigs):
                                 continue
@@ -4307,7 +4319,7 @@ def create_app(config=None):
                             file_credit = list(dict.fromkeys(file_credit))
                         parts = [p2 for p2 in (("\n".join(x for x in part.splitlines() if not CREDIT_RE.match(x)).strip() if song else part) for part in parts) if p2]
                         for k, body in enumerate(parts):
-                            credit = " ".join(file_credit + [ONELICENSE_LINE]) if k == 0 else ""
+                            credit = "\n".join([" ".join(file_credit)] * bool(file_credit) + [ONELICENSE_LINE]) if k == 0 else ""
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": (bg_first if k == 0 else bg_rest)[0], "bg_src": (bg_first if k == 0 else bg_rest)[1]}
                             if k == 0 and song:
@@ -4459,7 +4471,7 @@ def create_app(config=None):
                 shape(1, 0, sh - Inches(0.95), sw, Inches(0.95), RGBColor(0x6B, 0x14, 0x14))
                 cb = sl.shapes.add_textbox(Inches(0.5), sh - Inches(0.9), sw - Inches(1.0), Inches(0.85))
                 cb.text_frame.word_wrap = True; cb.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-                put(cb.text_frame, item["credit"], 12 if len(item["credit"]) > 160 else 14, RGBColor(255, 255, 255), bold=False)
+                put(cb.text_frame, item["credit"], 12 if len(item["credit"]) > 160 or item["credit"].count("\n") else 14, RGBColor(255, 255, 255), bold=False)
                 bottom = 6.4
             if item["title"]:
                 bh = 1.4 if item.get("subtitle") else 0.95

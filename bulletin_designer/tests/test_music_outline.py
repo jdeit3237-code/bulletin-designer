@@ -264,6 +264,8 @@ def test_song_credit_and_license_only_on_first_slide(app):
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert page.count("ONE LICENSE") == page.count("HOWTEXT") >= 1
     assert page.index("FIRSTVERSE") < page.index("HOWTEXT") < page.index("SECONDVERSE") or page.count("HOWTEXT") == 1
+    credit = page[page.index("HOWTEXT"):page.index("ONE LICENSE")]
+    assert "\n" in credit
 
 
 def test_other_songs_is_never_a_section_title(app):
@@ -387,3 +389,14 @@ def test_section_designs_make_two_pictures_and_apply_to_slides(app, monkeypatch)
     page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True)
     assert "ai-title.png" in page and "ai-body.png" in page
     assert c.post("/slides/designs", data={"csrf": t, "date": "2026-11-01", "kind": "bogus", "role": "title"}).status_code == 302
+
+
+def test_tidy_song_parts_fixes_tabs_l_and_repeats():
+    parts = outline.tidy_song_parts(["For l am meek\n\tand humble", "Refrain line", "Refrain  line", "Next verse"])
+    assert parts == ["For I am meek\n and humble", "Refrain line", "Next verse"]
+
+
+def test_first_slide_has_written_date_theme_and_church_photo(app):
+    c = setup_admin(app)
+    r = c.get("/slides/preview?date=2026-11-01")
+    assert b"November 1, 2026" in r.data and b"All Saints" in r.data and b"church.jpg" in r.data
