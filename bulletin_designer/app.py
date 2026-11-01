@@ -5068,7 +5068,7 @@ def create_app(config=None):
             header, sub, body, credit = row
             if kind not in ("SONG", "BODY", "BIBLE") or pth or not body.strip() or body.startswith("("):
                 return [(kind, row, bg, pth, 48)]
-            used = (90 + (50 if credit else 0)) if kind == "SONG" else (130 if header else 0)
+            used = (90 + (credit_lines(credit) * 17 + 14 if credit else 0)) if kind == "SONG" else (130 if header else 0)
             src = [ln for ln in body.replace("\v", "\n").split("\n") if ln.strip()]
 
             def attempt(size):
@@ -5092,6 +5092,9 @@ def create_app(config=None):
                 out.append((kind, (header, sub, text, credit), bg, pth, size) if i == 0 else ("BODY", ("", "", text, ""), bg, None, size))
             return out
 
+        def credit_lines(text):
+            return sum(-(-len(x.strip()) // 105) for x in (text or "").split("\n") if x.strip()) or 1
+
         def credit_box(sld, text):
             """Small copyright line on a translucent dark box with soft edges."""
             from pptx.util import Pt, Emu
@@ -5099,9 +5102,16 @@ def create_app(config=None):
             from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
             from pptx.oxml.ns import qn
             from lxml import etree
+            ph_c = next((x for x in sld.placeholders if x.placeholder_format.idx == 11), None)
+            if ph_c is not None:
+                tf = ph_c.text_frame
+                for i, ln in enumerate(x.strip() for x in (text or "").split("\n") if x.strip()):
+                    para(tf, ln, 0, i == 0)
+                return
             sw, sh = prs.slide_width, prs.slide_height
-            w, h = int(sw * 0.86), int(Pt(46))
-            box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(14)), w, h)
+            w = int(sw * 0.86)
+            h = int(Pt(credit_lines(text) * 17 + 8))
+            box = sld.shapes.add_textbox(int((sw - w) / 2), int(sh - h - Pt(46)), w, h)
             box.fill.solid()
             box.fill.fore_color.rgb = RGBColor(0, 0, 0)
             sp = box._element.spPr
@@ -5119,7 +5129,7 @@ def create_app(config=None):
                 p_.alignment = PP_ALIGN.CENTER
                 r_ = p_.add_run()
                 r_.text = ln
-                r_.font.size = Pt(10)
+                r_.font.size = Pt(14)
                 r_.font.color.rgb = RGBColor(255, 255, 255)
 
         def para(tf, text, lvl, first):
