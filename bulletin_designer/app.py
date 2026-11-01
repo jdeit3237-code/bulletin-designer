@@ -4768,6 +4768,69 @@ def create_app(config=None):
         buf.seek(0)
         return send_file(buf, as_attachment=True, download_name=f"ChatGPT-slides-{mass_date}.zip", mimetype="application/zip")
 
+    @app.route("/slides/outline-export")
+    @need()
+    @need_area("slides")
+    def slides_outline_export():
+        """Text outline (Header / Subheader / Body / Copyright per slide) that PowerPoint opens as an outline,
+        or a CSV with those four columns (?format=csv)."""
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        plan, _ = plan_slides(mass_date, chosen_graphics())
+
+        def clean(t):
+            return (t or "").replace("\xa0", " ").replace("\t", " ").strip()
+
+        def own_credit(t):
+            kept = [ln for ln in clean(t).split("\n") if ln.strip() and "ONE LICENSE" not in ln.upper()]
+            return "\n".join(kept)
+
+        rows = []
+        last_song = None
+        for it in plan:
+            if it.get("type") == "image":
+                last_song = None
+                rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
+            elif it.get("type") == "text":
+                title = clean(it.get("title"))
+                if it.get("style") == "song" and title and title == last_song:
+                    rows.append(("", "", clean(it.get("text")), ""))
+                    continue
+                last_song = title if it.get("style") == "song" else None
+                rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
+        if request.args.get("format") == "csv":
+            import csv
+            out = io.StringIO()
+            w = csv.writer(out)
+            w.writerow(["Slide", "Header", "Subheader", "Body", "Copyright"])
+            for n, r in enumerate(rows, 1):
+                w.writerow([n, *r])
+            data, mime, ext = "\ufeff" + out.getvalue(), "text/csv; charset=utf-8", "csv"
+        else:
+            lines = []
+            for header, sub, body, credit in rows:
+                level = 0
+                if header:
+                    lines.append(header)
+                    level = 1
+                if sub:
+                    lines.append("\t" * level + sub)
+                    level += 1
+                body_lines = [ln.strip() for ln in body.split("\n") if ln.strip()]
+                if level == 0 and body_lines:
+                    lines.append("\x0b".join(body_lines))
+                    level = 1
+                else:
+                    lines += ["\t" * level + ln for ln in body_lines]
+                    level += 1 if body_lines else 0
+                lines += ["\t" * level + ln.strip() for ln in credit.split("\n") if ln.strip()]
+            data, mime, ext = "\n".join(lines) + "\n", "text/plain; charset=utf-8", "txt"
+        resp = make_response(data)
+        resp.headers["Content-Type"] = mime
+        resp.headers["Content-Disposition"] = f'attachment; filename="Mass-outline-{mass_date}.{ext}"'
+        return resp
+
     @app.route("/slides/package")
     @need()
     @need_area("slides")

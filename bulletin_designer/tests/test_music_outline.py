@@ -458,3 +458,19 @@ def test_chatgpt_per_slide_zip(app):
     assert "00_START_HERE.txt" in names and "SLIDE-01.txt" in names
     assert "IMAGE GENERATION" in z.read("00_START_HERE.txt").decode()
     assert any("and I will give you rest" in z.read(n).decode() for n in names)
+
+
+def test_outline_export_txt_and_csv(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    c.post("/slides/songs", data={"csrf": t, "title": "Come to Me", "lyrics": "Come to me, all you who labor\n\nand I will give you rest"})
+    c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": OUTLINE}, follow_redirects=True)
+    r = c.get("/slides/outline-export?date=2026-11-01")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
+    assert "\nand I will give you rest\n" in body
+    assert "ONE LICENSE" not in body
+    assert "Presentation of the Gifts\n\tCome To Me\n\t\tCome to me" in body
+    r = c.get("/slides/outline-export?date=2026-11-01&format=csv")
+    assert r.get_data(as_text=True).splitlines()[0].lstrip("\ufeff") == "Slide,Header,Subheader,Body,Copyright"
+    assert c.get("/slides/outline-export?date=x").status_code == 404
