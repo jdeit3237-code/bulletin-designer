@@ -4541,6 +4541,7 @@ def create_app(config=None):
         day = date.fromisoformat(mass_date)
         lines = ["Make a finished 16:9 picture (1920x1080) for every slide listed below, for St. Peter the Fisherman Catholic Church.",
                  f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
+                 "This list includes the regular weekly slides (Mass parts such as the Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings. "
                  "STYLE: a vivid painterly Florida coast scene with a seasonal border that fits the feast and season, a brown brush-stroke title banner at the top, "
                  "a cream text panel in the middle and a dark red footer strip at the bottom. Each section gets its own scene. The first slide of a section "
                  "uses a more distinctive design; the slides after it use a simpler version of the same design.",
@@ -4549,10 +4550,16 @@ def create_app(config=None):
                  "Do the first section first so I can check the style, then continue.", ""]
         n = 0
         for it in plan:
+            if it.get("type") == "image":
+                n += 1
+                lines += [f"SLIDE {n}", f"Existing picture ({it.get('label') or 'uploaded image'}): keep as is, do not redraw.", ""]
+                continue
             if it.get("type") != "text":
                 continue
             n += 1
             lines.append(f"SLIDE {n}")
+            if not it.get("title") and it.get("style") != "song":
+                lines.append("Regular weekly Mass slide (prayer, response or announcement): same style and border family, centered text panel, no banner unless one is given.")
             if it.get("title"):
                 lines.append("Banner: " + it["title"] + (" / " + it["subtitle"] if it.get("subtitle") else ""))
             lines.append("Text:\n" + (it.get("text") or "").replace("\xa0", " ").strip())

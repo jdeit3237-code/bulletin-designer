@@ -410,4 +410,4 @@ def test_chatgpt_prompt_lists_every_slide_text(app):
     r = c.get("/slides/chatgpt-prompt?date=2026-11-01")
     body = r.get_data(as_text=True)
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
-    assert "November 1, 2026" in body and "SLIDE 1" in body and "and I will give you rest" in body
+    assert "November 1, 2026" in body and "SLIDE 1" in body and "and I will give you rest" in body and "regular weekly slides" in body
