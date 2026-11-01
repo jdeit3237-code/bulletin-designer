@@ -3906,8 +3906,16 @@ def create_app(config=None):
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
                 raw = base64.b64decode(json.loads(resp.read())["data"][0]["b64_json"])
-        except Exception:
-            flash("The AI service could not make the picture. Check the key and account balance, or try again.", "error")
+        except Exception as exc:
+            reason = ""
+            if hasattr(exc, "read"):
+                try:
+                    reason = json.loads(exc.read()).get("error", {}).get("message", "")
+                except Exception:
+                    reason = ""
+            reason = reason or ("%s %s" % (type(exc).__name__, exc))
+            app.logger.warning("AI picture failed: %s", reason)
+            flash("The AI service could not make the picture. OpenAI said: %s" % reason[:300], "error")
             return back
         conn.execute("INSERT INTO ai_usage(day, n) VALUES(?, 1) ON CONFLICT(day) DO UPDATE SET n=n+1", (day,))
         conn.commit()
