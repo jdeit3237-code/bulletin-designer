@@ -4768,6 +4768,145 @@ def create_app(config=None):
         buf.seek(0)
         return send_file(buf, as_attachment=True, download_name=f"ChatGPT-slides-{mass_date}.zip", mimetype="application/zip")
 
+    def outline_rows(plan):
+        """One (header, subheader, body, copyright) row per slide plus its kind (SONG / BIBLE / BODY)."""
+        def clean(t):
+            return (t or "").replace("\xa0", " ").replace("\t", " ").strip()
+
+        def own_credit(t):
+            kept = [ln for ln in clean(t).split("\n") if ln.strip() and "ONE LICENSE" not in ln.upper()]
+            return "\n".join(kept)
+
+        rows = []
+        kinds = []
+        last_song = None
+        for it in plan:
+            if it.get("type") == "image":
+                last_song = None
+                kinds.append("BIBLE")
+                rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
+            elif it.get("type") == "text":
+                title = clean(it.get("title"))
+                if it.get("style") == "song" and last_song and title in ("", last_song):
+                    kinds.append("BODY")
+                    rows.append(("", "", clean(it.get("text")), ""))
+                    continue
+                last_song = title if it.get("style") == "song" else None
+                kinds.append("SONG" if it.get("style") == "song" else ("BIBLE" if title else "BODY"))
+                rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
+        return rows, kinds
+
+    def template_path():
+        custom = os.path.join(app.config["UPLOAD_DIR"], "mass_template.pptx")
+        return custom if os.path.isfile(custom) else os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "MassTemplate.pptx")
+
+    def template_layouts(prs):
+        """Pick the song (with footer), song-continuation (no footer) and plain (title only) layouts by structure, not name."""
+        song = cont = plain = None
+        for lay in prs.slide_layouts:
+            has_body = any(ph.placeholder_format.type == 2 for ph in lay.placeholders)
+            footer = any(not sh.is_placeholder and sh.has_text_frame and "ONE LICENSE" in sh.text_frame.text.upper() for sh in lay.shapes)
+            if has_body and footer and song is None:
+                song = lay
+            elif has_body and not footer and cont is None:
+                cont = lay
+            elif not has_body and plain is None:
+                plain = lay
+        return song, cont, plain
+
+    def build_template_deck(plan):
+        from pptx import Presentation
+        prs = Presentation(template_path())
+        ids = prs.slides._sldIdLst
+        for sld_id in list(ids):
+            prs.part.drop_rel(sld_id.rId)
+            ids.remove(sld_id)
+        lays = template_layouts(prs)
+        song, cont, plain = lays[0] or lays[1] or lays[2], lays[1] or lays[0] or lays[2], lays[2] or lays[0]
+        rows, kinds = outline_rows(plan)
+
+        def lines(t):
+            return "\v".join(ln.strip() for ln in (t or "").split("\n") if ln.strip())
+
+        def para(tf, text, lvl, first):
+            p_ = tf.paragraphs[0] if first else tf.add_paragraph()
+            p_.level = lvl
+            p_.text = text
+
+        for kind, (header, sub, body, credit) in zip(kinds, rows):
+            if kind == "SONG":
+                sld = prs.slides.add_slide(song)
+                sld.shapes.title.text_frame.text = header
+                ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
+                para(ph.text_frame, sub, 0, True)
+                para(ph.text_frame, lines(body), 1, False)
+                if credit:
+                    para(ph.text_frame, lines(credit), 2, False)
+            elif kind == "BODY" and not header and any(x.placeholder_format.idx == 10 for x in cont.placeholders):
+                sld = prs.slides.add_slide(cont)
+                if sld.shapes.title is not None:
+                    sld.shapes.title._element.getparent().remove(sld.shapes.title._element)
+                ph = next(x for x in sld.placeholders if x.placeholder_format.idx == 10)
+                para(ph.text_frame, lines(body), 1, True)
+            else:
+                sld = prs.slides.add_slide(plain)
+                tf = sld.shapes.title.text_frame
+                first = True
+                for part in (header, sub, body):
+                    if part:
+                        para(tf, lines(part), 0, first)
+                        first = False
+        out = io.BytesIO()
+        prs.save(out)
+        out.seek(0)
+        return out
+
+    @app.route("/slides/pptx-master")
+    @need()
+    @need_area("slides")
+    def slides_pptx_master():
+        """Deck built on the church's own master slides (Song, Song continuation, plain text layouts)."""
+        mass_date = request.args.get("date", "")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
+            abort(404)
+        plan, _ = plan_slides(mass_date, chosen_graphics())
+        return send_file(build_template_deck(plan), as_attachment=True, download_name=f"Mass-slides-master-{mass_date}.pptx",
+                         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
+
+    @app.route("/slides/template", methods=["GET", "POST"])
+    @need()
+    @need_area("slides")
+    def slides_template():
+        """Download, replace or reset the master-slides template (.pptx)."""
+        if request.method == "GET":
+            return send_file(template_path(), as_attachment=True, download_name="Mass-master-slides.pptx",
+                             mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation")
+        back = url_for("slides", date=request.form.get("date") or "")
+        custom = os.path.join(app.config["UPLOAD_DIR"], "mass_template.pptx")
+        if request.form.get("reset"):
+            if os.path.isfile(custom):
+                os.remove(custom)
+            flash("Back to the built-in master slides.", "ok")
+            return redirect(back)
+        f = request.files.get("template")
+        if not f or not f.filename.lower().endswith(".pptx"):
+            flash("Choose a PowerPoint (.pptx) file.", "error")
+            return redirect(back)
+        tmp = custom + ".new"
+        f.save(tmp)
+        try:
+            from pptx import Presentation
+            song, cont, plain = template_layouts(Presentation(tmp))
+            if not (song or cont or plain):
+                raise ValueError("no usable layouts")
+        except Exception:
+            os.remove(tmp)
+            flash("That file could not be used as master slides. Edit the downloaded template and keep its layouts.", "error")
+            return redirect(back)
+        os.replace(tmp, custom)
+        flash("Master slides updated. New decks will use them.", "ok")
+        return redirect(back)
+
     @app.route("/slides/outline-export")
     @need()
     @need_area("slides")
@@ -4778,57 +4917,78 @@ def create_app(config=None):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", mass_date):
             abort(404)
         plan, _ = plan_slides(mass_date, chosen_graphics())
-
-        def clean(t):
-            return (t or "").replace("\xa0", " ").replace("\t", " ").strip()
-
-        def own_credit(t):
-            kept = [ln for ln in clean(t).split("\n") if ln.strip() and "ONE LICENSE" not in ln.upper()]
-            return "\n".join(kept)
-
-        rows = []
-        last_song = None
-        for it in plan:
-            if it.get("type") == "image":
-                last_song = None
-                rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
-            elif it.get("type") == "text":
-                title = clean(it.get("title"))
-                if it.get("style") == "song" and title and title == last_song:
-                    rows.append(("", "", clean(it.get("text")), ""))
-                    continue
-                last_song = title if it.get("style") == "song" else None
-                rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
+        rows, kinds = outline_rows(plan)
         if request.args.get("format") == "csv":
             import csv
             out = io.StringIO()
             w = csv.writer(out)
             w.writerow(["Slide", "Header", "Subheader", "Body", "Copyright"])
             for n, r in enumerate(rows, 1):
-                w.writerow([n, *r])
+                w.writerow([n, *r[:4]])
             data, mime, ext = "\ufeff" + out.getvalue(), "text/csv; charset=utf-8", "csv"
         else:
+            # PowerPoint ignores layout names on import and turns an untabbed line into a slide title, so every
+            # slide starts with a marker title (SONG: / BIBLE: / BODY:) that the downloadable macro swaps for the layout.
             lines = []
-            for header, sub, body, credit in rows:
-                level = 0
-                if header:
-                    lines.append(header)
-                    level = 1
+            for kind, (header, sub, body, credit) in zip(kinds, rows):
+                lines.append(f"{kind}: {header}".rstrip() if kind != "BODY" else "BODY:")
                 if sub:
-                    lines.append("\t" * level + sub)
-                    level += 1
-                body_lines = [ln.strip() for ln in body.split("\n") if ln.strip()]
-                if level == 0 and body_lines:
-                    lines.append("\x0b".join(body_lines))
-                    level = 1
-                else:
-                    lines += ["\t" * level + ln for ln in body_lines]
-                    level += 1 if body_lines else 0
-                lines += ["\t" * level + ln.strip() for ln in credit.split("\n") if ln.strip()]
+                    lines.append("\t" + sub)
+                tabs = "\t\t" if sub else "\t"
+                lines += [tabs + ln.strip() for ln in body.split("\n") if ln.strip()]
+                lines += ["\t\t\t" + ln.strip() for ln in credit.split("\n") if ln.strip()]
             data, mime, ext = "\n".join(lines) + "\n", "text/plain; charset=utf-8", "txt"
         resp = make_response(data)
         resp.headers["Content-Type"] = mime
         resp.headers["Content-Disposition"] = f'attachment; filename="Mass-outline-{mass_date}.{ext}"'
+        return resp
+
+    @app.route("/slides/outline-macro")
+    @need()
+    @need_area("slides")
+    def slides_outline_macro():
+        """VBA macro that applies the Song / Bible Reading / Body Only layouts to the imported outline."""
+        code = (
+            "Attribute VB_Name = \"MassLayouts\"\n"
+            "Option Explicit\n\n"
+            "Private Function FindLayout(word As String) As CustomLayout\n"
+            "    Dim lay As CustomLayout\n"
+            "    For Each lay In ActivePresentation.SlideMaster.CustomLayouts\n"
+            "        If InStr(1, lay.Name, word, vbTextCompare) > 0 Then\n"
+            "            Set FindLayout = lay\n"
+            "            Exit Function\n"
+            "        End If\n"
+            "    Next lay\n"
+            "End Function\n\n"
+            "' After File > Open of the outline (.txt): applies the layout named by each slide's SONG: / BIBLE: / BODY: marker.\n"
+            "Sub ApplyMassLayouts()\n"
+            "    Dim sld As Slide, shp As Shape, t As String, kind As String, word As String, rest As String\n"
+            "    Dim lay As CustomLayout, i As Long\n"
+            "    For Each sld In ActivePresentation.Slides\n"
+            "        t = \"\"\n"
+            "        If sld.Shapes.HasTitle Then t = Trim(sld.Shapes.Title.TextFrame.TextRange.Text)\n"
+            "        kind = \"\"\n"
+            "        If UCase(Left(t, 5)) = \"SONG:\" Then kind = \"SONG\": word = \"Song\"\n"
+            "        If UCase(Left(t, 6)) = \"BIBLE:\" Then kind = \"BIBLE\": word = \"Bible\"\n"
+            "        If UCase(Left(t, 5)) = \"BODY:\" Then kind = \"BODY\": word = \"Body\"\n"
+            "        If kind <> \"\" Then\n"
+            "            rest = Trim(Mid(t, Len(kind) + 2))\n"
+            "            sld.Shapes.Title.TextFrame.TextRange.Text = rest\n"
+            "            Set lay = FindLayout(word)\n"
+            "            If Not lay Is Nothing Then sld.CustomLayout = lay\n"
+            "            For i = sld.Shapes.Count To 1 Step -1\n"
+            "                Set shp = sld.Shapes(i)\n"
+            "                If shp.Type = msoPlaceholder Then\n"
+            "                    If shp.PlaceholderFormat.Type = ppPlaceholderTitle And rest = \"\" Then shp.Delete\n"
+            "                End If\n"
+            "            Next i\n"
+            "        End If\n"
+            "    Next sld\n"
+            "End Sub\n"
+        )
+        resp = make_response(code.replace("\n", "\r\n"))
+        resp.headers["Content-Type"] = "text/plain; charset=utf-8"
+        resp.headers["Content-Disposition"] = 'attachment; filename="MassLayouts.bas"'
         return resp
 
     @app.route("/slides/package")

@@ -33,6 +33,11 @@
 <p class="small">Each section gets two designs: one for its first (title) slide and one for the slides after it. Each button makes one picture from this week's feast and season, and costs a few cents on your OpenAI account. Make again to replace it. Your own reference photo is used until you make one.</p>
 <table><tr><th>Section</th><th>First slide</th><th>Following slides</th></tr>
 {% for k, label, scene in design_sections %}<tr><td>{{ label }}</td>{% for role in ('title', 'body') %}<td>{% if design_has[k ~ '-' ~ role] %}<img src="{{ url_for('slides_file', kind='ref_' ~ k, name='ai-' ~ role ~ '.png', date=mass_date, inline=1) }}" alt="" style="width:120px;vertical-align:middle"> {% endif %}<form method="post" action="{{ url_for('slides_designs') }}" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}"><input type="hidden" name="kind" value="{{ k }}"><input type="hidden" name="role" value="{{ role }}"><button class="btn secondary">{% if design_has[k ~ '-' ~ role] %}Make again{% else %}Make picture{% endif %}</button></form></td>{% endfor %}</tr>{% endfor %}</table>
+<h3 id="master">Master slides (your PowerPoint template)</h3>
+<p class="small">"Download PowerPoint with master slides" builds the week's deck on this template: the first slide of a song uses the Song layout (section title, song title, words, copyright, ONE LICENSE footer), later song slides use the layout without the footer, and readings and prayers use the plain layout. To change fonts, colors or backgrounds: download the template, edit it in PowerPoint (View &gt; Slide Master), then upload it here. Keep the three layouts and their placeholders.</p>
+<form method="post" action="{{ url_for('slides_template') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}">
+<a class="btn secondary" href="{{ url_for('slides_template') }}">Download master slides (.pptx)</a>
+<input type="file" name="template" accept=".pptx" aria-label="Master slides file"> <button class="btn">Upload master slides</button> <button class="btn secondary" name="reset" value="1">Back to built-in</button></form>
 <h3>Music outline (fills in the songs automatically)</h3>
 <p class="small">Upload the weekly Liturgy.com music outline (PDF) or paste its text. Songs found in the song library below are added to the Entrance, Gifts, Communion, Going Forth and other sections. Upload a changed outline any time: only the song sections it filled are replaced; files you added yourself are left alone.</p>
 <form method="post" action="{{ url_for('slides_outline') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="date" value="{{ mass_date }}">
@@ -63,10 +68,12 @@
 <p><button class="btn" formmethod="post" formaction="{{ url_for('slides') }}" name="action" value="save_graphics">Save ticked graphics</button>
 <button class="btn" formaction="{{ url_for('slides_preview') }}">Preview slides</button>
 <button class="btn" formaction="{{ url_for('slides_pptx') }}">Download PowerPoint (.pptx)</button>
+<button class="btn" formaction="{{ url_for('slides_pptx_master') }}">Download PowerPoint with master slides</button>
 <button class="btn" formaction="{{ url_for('slides_pdf') }}">Download PDF (all slides)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_chatgpt_prompt') }}">Download ChatGPT prompt (.txt)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_outline_export') }}">Download outline (.txt)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_outline_export') }}" name="format" value="csv">Download outline (.csv)</button>
+<button class="btn secondary" formaction="{{ url_for('slides_outline_macro') }}">Download PowerPoint macro (.bas)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_chatgpt_slides') }}">Download one prompt per slide (.zip)</button>
 <button class="btn secondary" formaction="{{ url_for('slides_music_pages') }}">Download music pages (.zip)</button></p></form>
 {% endif %}
