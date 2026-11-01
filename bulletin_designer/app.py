@@ -4539,27 +4539,38 @@ def create_app(config=None):
         plan, _ = plan_slides(mass_date, chosen_graphics())
         feast = li["name"] or f"Sunday in {li['season']}"
         day = date.fromisoformat(mass_date)
-        lines = ["Make a finished 16:9 picture (1920x1080) for every slide listed below, for St. Peter the Fisherman Catholic Church.",
+        lines = ["Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
+                 "Never combine slides into a collage or contact sheet, and never reuse the same picture for two slides.",
                  f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", "",
-                 "This list includes the regular weekly slides (Mass parts such as the Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings. "
-                 "STYLE: a vivid painterly Florida coast scene with a seasonal border that fits the feast and season, a brown brush-stroke title banner at the top, "
-                 "a cream text panel in the middle and a dark red footer strip at the bottom. Each section gets its own scene. The first slide of a section "
-                 "uses a more distinctive design; the slides after it use a simpler version of the same design.",
-                 "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling. Put the credit text in the footer, "
-                 "with the music copyright on its own line separate from the ONE LICENSE line.",
-                 "Do the first section first so I can check the style, then continue.", ""]
+                 "EVERY SLIDE IS INDIVIDUALLY DESIGNED. Keep one shared look so the deck feels like a family, but give each slide its own composition: "
+                 "a different scene, angle or arrangement (for example the cross moves left or right, the sun and clouds change, a different border corner is fullest, "
+                 "a heron, lighthouse, pier, boat or rocky shore appears). Do not repeat a background from slide to slide, even within one song or reading.",
+                 "SHARED LOOK: vivid, glowing, painterly Florida coast at sunset with a border of the season (for All Saints: red and gold maple leaves, red hibiscus, "
+                 "palm fronds, pumpkins and berries, plus a wooden cross, sea, rocks and warm sun). Large, bold, very readable lettering that stays clear of busy detail.",
+                 "PANELS: put the words on a cream parchment panel with a thin gold ornamental border (dark text), or on a deep navy glass panel (white text). "
+                 "Alternate them from slide to slide. Where a slide has a title, add a dark red brush-stroke banner at the top with gold lettering "
+                 "(italic script for songs and readings, small caps for Mass parts such as Holy, Holy, Holy) and a small gold flourish under it. "
+                 "Slides without a title are text only, with no banner.",
+                 "FOOTER: when a slide has a credit, put it in a dark red strip along the bottom in small cream lettering, with the music copyright on its own line, "
+                 "separate from the ONE LICENSE line.",
+                 "MUSIC SLIDES: when a slide says it is sheet music, I will attach the music page. Redraw the slide around it: place the music exactly as given, "
+                 "notes, lyrics and hyphens unchanged, on a cream parchment panel with a gold border, with the title banner above.",
+                 "WORDS: use exactly the words given for each slide. Do not change, add or drop a word, and check the spelling of every line. "
+                 "Set sung responses such as \"Alleluia, alleluia!\" in bold dark red italics.",
+                 "This list includes the regular weekly slides (Gloria, Creed, Holy Holy Holy, Lord's Prayer, Lamb of God, announcements) as well as the songs and readings.",
+                 "Make the first slide, then wait for my OK before making the rest, so I can approve the style. Then make them one at a time.", ""]
         n = 0
         for it in plan:
             if it.get("type") == "image":
                 n += 1
-                lines += [f"SLIDE {n}", f"Existing picture ({it.get('label') or 'uploaded image'}): keep as is, do not redraw.", ""]
+                lines += [f"SLIDE {n}", f"Sheet music or existing picture ({it.get('label') or 'uploaded image'}): I will attach this picture. Use it exactly as it is, inside the design described above.", ""]
                 continue
             if it.get("type") != "text":
                 continue
             n += 1
             lines.append(f"SLIDE {n}")
             if not it.get("title") and it.get("style") != "song":
-                lines.append("Regular weekly Mass slide (prayer, response or announcement): same style and border family, centered text panel, no banner unless one is given.")
+                lines.append("Regular weekly Mass slide (prayer, response or announcement): its own individual design, text panel, no banner unless one is given.")
             if it.get("title"):
                 lines.append("Banner: " + it["title"] + (" / " + it["subtitle"] if it.get("subtitle") else ""))
             lines.append("Text:\n" + (it.get("text") or "").replace("\xa0", " ").strip())
