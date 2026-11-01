@@ -4782,6 +4782,10 @@ def create_app(config=None):
         def clean(t):
             return (t or "").replace("\xa0", " ").replace("\t", " ").strip()
 
+        def own_credit(t):
+            kept = [ln for ln in clean(t).split("\n") if ln.strip() and "ONE LICENSE" not in ln.upper()]
+            return "\n".join(kept)
+
         rows = []
         last_song = None
         for it in plan:
@@ -4794,7 +4798,7 @@ def create_app(config=None):
                     rows.append(("", "", clean(it.get("text")), ""))
                     continue
                 last_song = title if it.get("style") == "song" else None
-                rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), clean(it.get("credit"))))
+                rows.append((title, clean(it.get("subtitle")), clean(it.get("text")), own_credit(it.get("credit"))))
         if request.args.get("format") == "csv":
             import csv
             out = io.StringIO()
