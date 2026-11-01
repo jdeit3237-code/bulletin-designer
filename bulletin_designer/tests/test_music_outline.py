@@ -548,3 +548,18 @@ def test_pptx_pages_text(tmp_path):
     f = tmp_path / "s.pptx"
     prs.save(str(f))
     assert appmod.pptx_text(str(f)).split("\n\n") == ["Verse one\nline two", "Refrain here"]
+
+
+def test_copy_slide_keeps_source_slide(tmp_path):
+    from pptx import Presentation
+    from pptx.util import Inches
+    import app as appmod
+    src = Presentation()
+    sl = src.slides.add_slide(src.slide_layouts[6])
+    tb = sl.shapes.add_textbox(Inches(1), Inches(1), Inches(3), Inches(1))
+    tb.text_frame.text = "Glory to God"
+    f = tmp_path / "g.pptx"
+    src.save(str(f))
+    dst = Presentation()
+    out = appmod.copy_slide(dst, dst.slide_layouts[6], str(f), 0)
+    assert any(sh.has_text_frame and sh.text_frame.text == "Glory to God" for sh in out.shapes)

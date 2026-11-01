@@ -206,6 +206,43 @@ def ad_pages(cards, want=0, gap=AD_GAP_Y, pad=(0.0, 0.0)):
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
+def copy_slide(prs, layout, src_path, index):
+    """Append a copy of slide `index` of another .pptx (shapes, pictures, background) onto the plain layout."""
+    import copy
+    from pptx import Presentation
+    src = Presentation(src_path).slides[index]
+    dst = prs.slides.add_slide(layout)
+    for sh in list(dst.shapes):
+        sh._element.getparent().remove(sh._element)
+    rmap = {}
+    for rid, rel in src.part.rels.items():
+        if rel.reltype.endswith("/image"):
+            rmap[rid] = dst.part.get_or_add_image_part(__import__("io").BytesIO(rel.target_part.blob))[1]
+    sx = prs.slide_width / Presentation(src_path).slide_width
+    tree = dst.shapes._spTree
+    for el in src.shapes._spTree:
+        if el.tag.endswith("}nvGrpSpPr") or el.tag.endswith("}grpSpPr"):
+            continue
+        new = copy.deepcopy(el)
+        for node in new.iter():
+            for k in list(node.attrib):
+                if k.endswith("}embed") or k.endswith("}link"):
+                    node.set(k, rmap.get(node.get(k), node.get(k)))
+        tree.append(new)
+    bg = src._element.cSld.find("{http://schemas.openxmlformats.org/presentationml/2006/main}bg")
+    if bg is not None:
+        nb = copy.deepcopy(bg)
+        for node in nb.iter():
+            for k in list(node.attrib):
+                if k.endswith("}embed"):
+                    node.set(k, rmap.get(node.get(k), node.get(k)))
+        dst._element.cSld.insert(0, nb)
+    if abs(sx - 1) > 0.01:
+        for sh in dst.shapes:
+            sh.left, sh.top, sh.width, sh.height = (int(v * sx) for v in (sh.left, sh.top, sh.width, sh.height))
+    return dst
+
+
 def pptx_text(path):
     """Text of each slide in a .pptx, one blank-line-separated block per slide."""
     from pptx import Presentation
@@ -4297,6 +4334,9 @@ def create_app(config=None):
                     seen_songs.add(key)
                 path = os.path.join(slides_dir(kind, mass_date), name)
                 ext = name.rsplit(".", 1)[-1].lower()
+                if (kind == "notation" and re.match(r"(responsorial[-_ ]psalm|gospel[-_ ]acclamation)-book-page", name, re.I)) or \
+                        (kind == "standard" and re.search(r"acclam", name, re.I)):
+                    continue
                 blank_before = kind in BLACK_BETWEEN and ext in ("png", "jpg", "jpeg", "txt", "docx", "pptx")
                 if ext in ("png", "jpg", "jpeg"):
                     chunks.append({"kind": kind, "name": name, "group": None, "blank": blank_before,
@@ -4305,10 +4345,10 @@ def create_app(config=None):
                     items = []
                     try:
                         from pptx import Presentation as _P
-                        for sl in _P(path).slides:
+                        for si, sl in enumerate(_P(path).slides):
                             txt = "\n".join(p.text.strip() for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs if p.text.strip())
                             if txt and ("bilingual" in name.lower() or not music_outline.is_spanish(txt)):
-                                items.append({"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
+                                items.append({"type": "text", "src_pptx": (path, si), "title": None, "subtitle": None, "text": music_outline.no_orphans(txt),
                                               "size": 48 if len(txt) > 140 else 56, "style": "plain", "credit": "", "bg_path": None, "bg_src": None})
                     except Exception:
                         continue
@@ -4836,6 +4876,12 @@ def create_app(config=None):
                 bgl.append(bg)
                 pathl.append(it.get("path"))
                 rows.append((clean(it.get("label")) or "Picture", "", "(picture slide - attach the picture)", ""))
+            elif it.get("type") == "text" and it.get("src_pptx") and paths is not None:
+                last_song = None
+                kinds.append("COPY")
+                bgl.append(None)
+                pathl.append(it["src_pptx"])
+                rows.append(("", "", clean(it.get("text")), ""))
             elif it.get("type") == "text":
                 title = clean(it.get("title"))
                 if it.get("style") == "song" and last_song and title in ("", last_song):
@@ -4945,6 +4991,13 @@ def create_app(config=None):
             p_.text = text
 
         for kind, (header, sub, body, credit), bg, pth in zip(kinds, rows, bgs, paths):
+            if kind == "COPY":
+                try:
+                    copy_slide(prs, plain, pth[0], pth[1])
+                except Exception:
+                    sld = prs.slides.add_slide(plain)
+                    sld.shapes.title.text_frame.text = body
+                continue
             if kind == "BLANK" or (pth and os.path.isfile(pth)):
                 sld = prs.slides.add_slide(plain)
                 if sld.shapes.title is not None:
