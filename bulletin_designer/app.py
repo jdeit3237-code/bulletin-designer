@@ -1685,6 +1685,15 @@ def create_app(config=None):
             rows = [p.get("row")]
         return list(p.get("above", [])) + rows + list(p.get("right_more", [])) + list(p.get("p1_below", [])) + list(p.get("more", []))
 
+    def page_chunks_of(body):
+        return [c.strip("\n") for c in re.split(r"(?m)^[ \t]*-{3,}[ \t]*page[ \t]*-{3,}[ \t]*$", body or "")]
+
+    def page_row(r, p):
+        text = p.get("text") if hasattr(p, "get") else None
+        return dict(r, body=text) if text is not None else r
+
+    app.jinja_env.globals["page_row"] = page_row
+
     def layout(bulletin_id, include_pending=False):
         """Return (pages, toc). Full-width sections take whole pages; left/right half sections share a page
         (placed on their chosen page number, else the first free half). Total padded to a multiple of 4."""
@@ -1697,7 +1706,10 @@ def create_app(config=None):
                    and not (r["status"] == "pending" and not include_pending)]
         pages = []
         def blocks(r):
-            return [{"row": r, "part": n + 1, "of": r["pages"]} for n in range(r["pages"])]
+            chunks = page_chunks_of(r["body"]) if r["slug"] not in ("cover", "mass-schedule", "staff", "giving") else []
+            return [{"row": r, "part": n + 1, "of": r["pages"],
+                     **({"text": chunks[n] if n < len(chunks) else ""} if len(chunks) > 1 else {})}
+                    for n in range(r["pages"])]
         cover_printed = any(r["slug"] == "cover" for r in printed)
         p1_all = [] if cover_printed else sorted((r for r in printed if r["page_no"] == 1 and r["slug"] != "cover"),
                                                  key=lambda r: r["position"])
@@ -2209,6 +2221,9 @@ def create_app(config=None):
             if not can_edit_section(sid) or b["status"] == "published":
                 abort(403)
             body = request.form.get("body", "")
+            if request.form.get("per_page") and s["slug"] not in ("cover", "mass-schedule", "staff", "giving"):
+                body = "\n\n---page---\n\n".join(
+                    request.form.get(f"page_{n}", "").strip() for n in range(item["pages"]))
             if s["slug"] == "mass-schedule":
                 lines = []
                 head = request.form.get("header", "").replace("|", "/").replace("\n", " ").strip()
@@ -2453,7 +2468,7 @@ def create_app(config=None):
         _aw = {"left": 3.5, "right": 3.5, "left23": 4.7, "right23": 4.7, "left3": 2.2, "mid3": 2.2, "right3": 2.2}.get(item["area"] or "", 7.2)
         _iw = int(item["img_w"] or 0)
         print_w = round(_aw * (min(_iw, 60) if (item["img_pos"] or "") in ("inset-left", "inset-right") and _iw else 45 if (item["img_pos"] or "") in ("inset-left", "inset-right") else (_iw or 100)) / 100, 2)
-        return render_template("section.html", print_w=print_w, where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), giving=giving_data(item["body"]), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
+        return render_template("section.html", print_w=print_w, where=page_spans(rows, bid).get(sid), photos=photo_choices(), b=b, s=s, item=item, can=can_edit_section(sid), page_chunks=(page_chunks_of(item["body"]) + [""] * 8)[:item["pages"]], per_page=len(page_chunks_of(item["body"])) > 1, giving=giving_data(item["body"]), mass_header=mass_data(item["body"])[0], mass=mass_data(item["body"])[1] + [{}],
                                times=times_rows(item["body"]) + [{}],
                                staff=staff_rows(item["body"]) + [{}],
                                events=calendar_entries(item["body"]) + [dict(date="", time="", event="", lectors="", sacristans="", ministers="")] * 2,

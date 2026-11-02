@@ -260,7 +260,18 @@
       <select id="bullet_style" name="bullet_style">{% for k, v in BULLETS.items() %}<option value="{{ k }}" {{ 'selected' if (item.bullet_style or 'disc') == k }}>{{ v }}</option>{% endfor %}</select>
       <button type="button" class="btn" id="bulletbtn">Add bullets to selected text</button>
     </div>
-    <textarea id="body" name="body">{{ item.body }}</textarea>
+    {% if item.pages > 1 and s.slug not in ('cover', 'mass-schedule', 'staff', 'giving') %}
+    <label><input type="checkbox" id="per_page" name="per_page" value="1" {{ 'checked' if per_page }}> Different text on each page ({{ item.pages }} pages)</label>
+    <div id="pp" {{ '' if per_page else 'hidden' }}>
+    {% for c in page_chunks %}<label for="page_{{ loop.index0 }}">Text for page {{ loop.index }}</label>
+    <textarea id="page_{{ loop.index0 }}" name="page_{{ loop.index0 }}">{{ c }}</textarea>{% endfor %}</div>
+    <script>
+    (function(){var c=document.getElementById('per_page');
+    c.addEventListener('change',function(){document.getElementById('pp').hidden=!c.checked;document.getElementById('single').hidden=c.checked;});})();
+    </script>
+    {% endif %}
+    <div id="single" {{ 'hidden' if per_page else '' }}>
+    <textarea id="body" name="body">{{ item.body if not per_page else '' }}</textarea></div>
     {% raw %}<script>
     (function(){var t=document.getElementById('body');
     function strip(s){var p;do{p=s;s=s.replace(/\*\*(.*?)\*\*/gs,'$1').replace(/__(.*?)__/gs,'$1').replace(/~~(.*?)~~/gs,'$1').replace(/\{#[0-9a-fA-F]{6}\|(.*?)\}/gs,'$1').replace(/\{\d{1,2}pt\|(.*?)\}/gs,'$1');}while(s!==p);return s;}
