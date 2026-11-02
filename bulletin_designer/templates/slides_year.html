@@ -1,10 +1,30 @@
 {% extends "base.html" %}{% block title %}Mass slides: church year{% endblock %}
+{% macro year_table(items, label) %}
+<div class="yr-scroll"><table class="yr-table"><caption class="small">{{ label }}; numbers show files uploaded for each folder</caption>
+<thead><tr><th scope="col">Sunday</th><th scope="col">Celebration</th><th scope="col">Season and color</th><th scope="col">Imagery</th>{% for k, label in kinds %}<th scope="col">{{ k|capitalize }}</th>{% endfor %}<th scope="col">Open</th></tr></thead>
+<tbody>{% for r in items %}<tr class="yr-row"><td>{% if r.status != 'Not started' %}<a href="{{ url_for('slides', date=r.iso) }}" title="Open this week's slide deck">{{ r.iso }}</a><br><span class="small">{{ r.status }}</span>{% else %}{{ r.iso }}{% endif %}</td><td>{{ r.info.name or 'Sunday in ' ~ r.info.season }}</td><td>{{ r.info.season }}, {{ r.info.color }}</td><td>{{ r.info.ideas[:2]|join('; ') }}</td>
+{% for k, label in kinds %}<td>{{ r.have[k] or '-' }}</td>{% endfor %}<td><a href="{{ url_for('slides', date=r.iso) }}">Open week</a> | <a href="{{ r.info.readings_url }}" target="_blank" rel="noopener">Readings</a></td></tr>{% endfor %}</tbody></table></div>
+{% endmacro %}
 {% block content %}
 <h1>Mass slides: church year plan</h1>
-<p>Every Sunday's season, color and imagery are set ahead of time. For each week you only add the songs, announcements and notation, plus any optional special slides. The readings link goes to the USCCB readings for that Sunday. <a href="{{ url_for('slides') }}">Back to Mass slides</a></p>
+<p>Every Sunday's season, color and imagery are set ahead of time. For each week you only add the songs, announcements and notation, plus any optional special slides. The readings link goes to the USCCB readings for that Sunday. A date that is a link has files or a deck started; click it to open that week's slides. <a href="{{ url_for('slides') }}">Back to Mass slides</a></p>
+<p><label for="yr-search"><strong>Search</strong></label> <input id="yr-search" type="search" placeholder="Date, celebration, season, color or imagery" autocomplete="off" size="40"> <span id="yr-count" class="small" aria-live="polite"></span></p>
 <p><a href="{{ url_for('slides_year', start=prev) }}">Previous year</a> | <a href="{{ url_for('slides_year', start=nxt) }}">Next year</a></p>
-<table><caption class="small">Sundays of the church year; numbers show files uploaded for each folder</caption>
-<thead><tr><th scope="col">Sunday</th><th scope="col">Celebration</th><th scope="col">Season and color</th><th scope="col">Imagery</th>{% for k, label in kinds %}<th scope="col">{{ k|capitalize }}</th>{% endfor %}<th scope="col">Open</th></tr></thead>
-<tbody>{% for r in rows %}<tr><td>{{ r.iso }}</td><td>{{ r.info.name or 'Sunday in ' ~ r.info.season }}</td><td>{{ r.info.season }}, {{ r.info.color }}</td><td>{{ r.info.ideas[:2]|join('; ') }}</td>
-{% for k, label in kinds %}<td>{{ r.have[k] or '-' }}</td>{% endfor %}<td><a href="{{ url_for('slides', date=r.iso) }}">Open week</a> | <a href="{{ r.info.readings_url }}" target="_blank" rel="noopener">Readings</a></td></tr>{% endfor %}</tbody></table>
+{% if rows %}{{ year_table(rows, 'Upcoming Sundays of the church year') }}{% else %}<p>No upcoming Sundays in this church year.</p>{% endif %}
+{% if past %}<details id="yr-past" {{ 'open' if not rows }}><summary><strong>Past dates ({{ past|length }})</strong></summary>{{ year_table(past, 'Past Sundays of this church year') }}</details>{% endif %}
+<script>
+(function () {
+  var q = document.getElementById('yr-search'), n = document.getElementById('yr-count');
+  q.addEventListener('input', function () {
+    var t = q.value.trim().toLowerCase(), shown = 0;
+    document.querySelectorAll('.yr-row').forEach(function (tr) {
+      var ok = !t || tr.textContent.toLowerCase().indexOf(t) > -1;
+      tr.hidden = !ok; if (ok) shown++;
+    });
+    var d = document.getElementById('yr-past');
+    if (d && t && d.querySelector('.yr-row:not([hidden])')) d.open = true;
+    n.textContent = t ? shown + ' matching' : '';
+  });
+})();
+</script>
 {% endblock %}

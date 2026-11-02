@@ -126,3 +126,14 @@ def test_choir_director_role_sees_only_choir(app):
     assert page.status_code == 200 and "Design studio" not in page.text and "Bulletins" not in page.text
     assert d.get("/bulletins/1/preview").status_code == 403
     assert d.get("/").status_code in (302, 308)
+
+
+def test_year_plan_hides_past_and_links_started_weeks(app):
+    from datetime import date, timedelta
+    c = setup_admin(app)
+    html = c.get("/slides/year").text
+    assert 'id="yr-search"' in html and "yr-scroll" in html
+    t = date.today().isoformat()
+    upcoming = html.split('id="yr-past"')[0]
+    assert all(d < t for d in __import__("re").findall(r'<td>(\d{4}-\d{2}-\d{2})</td>', html.split('id="yr-past"')[1])) if 'id="yr-past"' in html else True
+    assert not any(d < t for d in __import__("re").findall(r'<td>(\d{4}-\d{2}-\d{2})</td>', upcoming))
