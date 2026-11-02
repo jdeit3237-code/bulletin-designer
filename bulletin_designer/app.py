@@ -4437,8 +4437,9 @@ def create_app(config=None):
             if n and li["name"] == "First Sunday of Advent":
                 break
             iso = sd.isoformat()
-            rows.append({"iso": iso, "info": li, "have": {k: len(slides_list(k, iso)) for k, _ in SLIDE_KINDS if k != "standard"}})
-        return render_template("slides_year.html", rows=rows, kinds=[k for k in SLIDE_KINDS if k[0] != "standard"],
+            rows.append({"iso": iso, "info": li, "status": week_status(iso), "have": {k: len(slides_list(k, iso)) for k, _ in SLIDE_KINDS if k != "standard"}})
+        today = date.today().isoformat()
+        return render_template("slides_year.html", rows=[r for r in rows if r["iso"] >= today], past=[r for r in rows if r["iso"] < today], kinds=[k for k in SLIDE_KINDS if k[0] != "standard"],
                                prev=(d - timedelta(days=364)).isoformat(), nxt=(d + timedelta(days=364)).isoformat())
 
     @app.route("/slides/file/<kind>/<name>")
