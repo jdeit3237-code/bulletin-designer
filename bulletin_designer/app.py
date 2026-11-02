@@ -4684,6 +4684,13 @@ def create_app(config=None):
             if ch["kind"] == "extra" and ch["name"] in extras:
                 ch["custom"], ch["after"] = extras[ch["name"]]["name"], extras[ch["name"]]["after"]
         chunks = music_outline.order_chunks(chunks, outline_order)
+        allel = [c for c in chunks if c["kind"] == "standard" and re.search(r"alleluia", c["name"], re.I)]
+        if allel and any(c.get("label") == "Gospel Acclamation" and c not in allel for c in chunks):
+            import copy
+            chunks = [c for c in chunks if c not in allel]
+            spots = [i for i, c in enumerate(chunks) if c.get("label") == "Gospel Acclamation"]
+            chunks = (chunks[:spots[0]] + [copy.deepcopy(c) for c in allel] + chunks[spots[0]:spots[-1] + 1]
+                      + [copy.deepcopy(c) for c in allel] + chunks[spots[-1] + 1:])
         for ch in chunks:
             first = ch["items"][0] if ch["items"] else None
             if first and first.get("style") == "song" and not first.get("title"):
