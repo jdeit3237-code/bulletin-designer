@@ -4416,6 +4416,8 @@ def create_app(config=None):
                                outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
                                photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [], selected=saved_graphics(mass_date) if mass_date else [])
 
+    app.jinja_env.filters["rolename"] = lambda r: "Choir Director" if r == "choir" else str(r).capitalize()
+
     @app.route("/slides/year")
     @need()
     @need_area("slides")
