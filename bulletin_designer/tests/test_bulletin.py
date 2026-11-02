@@ -2189,21 +2189,49 @@ def test_preview_pdf_built_per_page_matches_full_pdf(app):
 
 
 def test_pdf_with_photo_spanning_long_article_does_not_overflow(app):
-    from io import BytesIO
+    import io as _io
     import sqlite3
+    from io import BytesIO
+    from PIL import Image
+    from pypdf import PdfReader
     c = setup_admin(app)
     create_bulletin(c)
-    from PIL import Image
     buf = BytesIO()
-    Image.new("RGB", (300, 400), "gray").save(buf, "PNG")
-    png = buf.getvalue()
-    body = "\n\n".join("Dorothy Day, the most famous Catholic crusader for social justice in American history, shows the impact one ordinary person can have on society. " * 3 for _ in range(14))
-    c.post("/bulletins/1/section/5", data={"body": body, "img_pos": "cols-right", "alt": "x", "caption": "Dorothy Day",
-           "image": (BytesIO(png), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
+    Image.new("RGB", (1000, 660), "gray").save(buf, "PNG")
+    body = """**Dorothy Day: A Life of Service to the Poor**
+~~By the Honorable Judge Lurana Snow. Shortened from the original article.~~
+
+Dorothy Day, the most famous Catholic crusader for social justice in American history, shows the impact one ordinary person can have on society. Born in Brooklyn in 1897 to parents who rarely attended church, she was drawn to the Bible as a child. A young journalist in New York, she was struck by the gap between rich and poor, and in 1917 she was jailed for picketing the White House for women's suffrage.
+
+As a child in Oakland, Dorothy saw the 1906 San Francisco earthquake leave her father without work. She was deeply moved by the compassion of neighbors who shared what little they had with those who had lost everything. At ten she joined the Episcopal Church on her own. Struggling to support herself as a student and young writer, she came to believe that the churches were doing little for the poor, and she drifted away from organized religion while keeping her faith in God.
+
+The birth of her daughter in 1926 led her to the Catholic faith, and she was baptized in 1927. In 1932 she met Peter Maurin, a French immigrant and teacher who shared her passion for the poor. On May 1, 1933, they published the first issue of ~~The Catholic Worker~~, still sold for one cent. It inspired houses of hospitality that fed and sheltered the homeless, and within a few years there were 33 houses and farms nationwide.
+
+The movement faced hard times. Dorothy's uncompromising pacifism cost the paper many readers during the Spanish Civil War and World War II, and not all in the movement agreed with her. Many houses of hospitality closed as their managers were drafted. Still, she kept writing and kept serving the poor, and in 1972 the Jesuit magazine ~~America~~ devoted an entire issue to her and the Catholic Worker movement.
+
+A committed pacifist, Dorothy opposed war and the atomic bomb, and she was jailed for refusing to take part in civil defense drills. She urged the Second Vatican Council to support nonviolence, and its document "The Church in the Modern World" largely agreed. She continued her work until her death in 1980, at age 83.
+
+Today about 200 Catholic Worker communities serve people worldwide.
+Pope Benedict XVI cited Dorothy Day as an example of how to journey toward faith in a secularized environment.
+Pope Francis, in his address to the U.S. Congress, named her among the great Americans who built a better future, saying: "Her social activism, her passion for justice and for the cause of the oppressed, were inspired by the Gospel, her faith and the example of the saints."
+
+{12pt|~~A heartfelt thank you to Lurana Snow for her contribution as we learn about Servant of God Dorothy Day.~~}
+
+Source: https://stpeterbpk.org/dorothy-day-a-life-of-service-to-the-poor"""
+    c.post("/bulletins/1/section/12", data={"body": body, "img_pos": "cols-right", "alt": "x", "caption": "Dorothy Day, co-founder of the Catholic Worker Movement and its newspaper.",
+           "image": (BytesIO(buf.getvalue()), "p.png"), "csrf": tok(c, "/bulletins/1")}, content_type="multipart/form-data")
     db = sqlite3.connect(app.config["DATABASE"])
-    db.execute("UPDATE items SET cols=3, crop_h=3.2 WHERE section_id=5")
+    db.execute("UPDATE items SET cols=3, crop_t=1, hide_title=1 WHERE section_id=12")
     db.commit()
     r = c.get("/bulletins/1/download/web")
     assert r.status_code == 200 and r.data[:4] == b"%PDF"
-    html = c.get("/bulletins/1/preview").text
-    assert "cs-photo" in html
+    ys = []
+    for pg in PdfReader(_io.BytesIO(r.data)).pages:
+        if "stpeterbpk" not in (pg.extract_text() or ""):
+            continue
+
+        def visit(text, cm, tm, font, size):
+            if text.strip() and "Page " not in text and "Fisherman Catholic" not in text:
+                ys.append(cm[3] * tm[5] + cm[5])
+        pg.extract_text(visitor_text=visit)
+    assert ys and min(ys) > 45, min(ys or [0])

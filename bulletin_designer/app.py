@@ -1064,7 +1064,7 @@ def create_app(config=None):
         except Exception:
             return None
         w, h = 1 - l - r, 1 - t - b
-        return dict(box="position:relative;overflow:hidden;height:0;padding-bottom:%.3f%%" % (100 * h / (ratio * w)),
+        return dict(ar=h / (ratio * w), box="position:relative;overflow:hidden;height:0;padding-bottom:%.3f%%" % (100 * h / (ratio * w)),
                     img="position:absolute;max-width:none;width:%.3f%%;height:%.3f%%;left:-%.3f%%;top:-%.3f%%" % (100 / w, 100 / h, l / w * 100, t / h * 100))
     app.jinja_env.globals["edge_crop"] = edge_crop
 
@@ -1277,7 +1277,7 @@ def create_app(config=None):
 
         # the page body is 9.58in tall; if the whole row is taller, shorten the photo (cropped, never squashed) until it fits
         avail = (9.58 - 0.05) * 96
-        shrinkable = not any(float(r[k] or 0) for k in ("crop_t", "crop_b", "crop_l", "crop_r"))
+        shrinkable = True
         lo, total = solve(photo_h)
         used_h = None
         floor = max(1.0, photo_h * 0.4)
