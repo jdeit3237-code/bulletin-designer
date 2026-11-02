@@ -698,3 +698,19 @@ def test_add_cover_layout_to_old_template(app):
     p.slide_masters[0].slide_layouts.remove(lay)
     assert appmod.find_cover_layout(p) is None
     assert appmod.add_cover_layout(p) is not None
+
+
+def test_standard_alleluia_surrounds_gospel_acclamation(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    p = Presentation()
+    s = p.slides.add_slide(p.slide_layouts[5]); s.shapes.title.text = "ALLELUIA SLIDE"
+    buf = io.BytesIO(); p.save(buf); buf.seek(0)
+    c.post("/slides", data={"csrf": t, "kind": "standard", "files": (buf, "Alleluia.pptx")}, content_type="multipart/form-data")
+    txt = b"Reading 1\nFIRSTTEXT.\n\nAlleluia\nACCLVERSE.\n\nGospel\nGOSPELTEXT.\n"
+    c.post("/slides", data={"csrf": t, "kind": "readings", "date": "2026-11-01", "files": (io.BytesIO(txt), "Readings.txt")}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-01").get_data(as_text=True).replace("\xa0", " ")
+    assert page.count("ALLELUIA SLIDE") == 2
+    first, last = page.index("ALLELUIA SLIDE"), page.rindex("ALLELUIA SLIDE")
+    assert first < page.index("ACCLVERSE") < last < page.index("GOSPELTEXT")
