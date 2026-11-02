@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% block title %}Users{% endblock %}
 {% block content %}
 <h1>Users and access levels</h1>
-<dl>{% for r in roles %}<dt><strong>{{ r|capitalize }}</strong></dt><dd>{{ help[r] }}</dd>{% endfor %}</dl>
+<dl>{% for r in roles %}<dt><strong>{{ r|rolename }}</strong></dt><dd>{{ help[r] }}</dd>{% endfor %}</dl>
 <h2>Who has an account</h2>
 <table>
   <caption class="small">{{ users|length }} user{{ '' if users|length == 1 else 's' }}. "Online" means active in the last 10 minutes. Times are Eastern.</caption>
   <thead><tr><th scope="col">Name</th><th scope="col">Email / sign-in</th><th scope="col">Access</th><th scope="col">Verified</th><th scope="col">Status</th><th scope="col">Last sign-in</th></tr></thead>
   <tbody>{% for u in users %}
-    <tr><td>{{ u.display_name }}</td><td>{{ u.email or u.username }}</td><td>{{ u.role|capitalize }}</td>
+    <tr><td>{{ u.display_name }}</td><td>{{ u.email or u.username }}</td><td>{{ u.role|rolename }}</td>
       <td>{{ 'Yes' if info[u.id].verified else 'No' }}</td>
       <td>{{ '● Online now' if info[u.id].online and info[u.id].active else 'Offline' }} &middot; {{ info[u.id].state }}</td>
       <td>{{ info[u.id].last }}</td></tr>
@@ -20,7 +20,7 @@
     <p class="small">Email: {{ u.email or 'none yet' }}</p>
     <label for="role{{ u.id }}">Access level</label>
     <select id="role{{ u.id }}" name="role" {% if u.id == g.user.id %}disabled{% endif %}>
-      {% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == u.role }}>{{ r|capitalize }}</option>{% endfor %}
+      {% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == u.role }}>{{ r|rolename }}</option>{% endfor %}
     </select>
     <p>Areas this person may use (editors and admins always have all of them; contributors can also add cards or photos, others can only look):</p>
     {% for k, label in areas %}<label><input type="checkbox" name="areas" value="{{ k }}" {{ 'checked' if k in user_areas[u.id] }}> {{ label }}</label>{% endfor %}
@@ -62,7 +62,7 @@
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="action" value="create">
   <label for="nu">Email address</label><input id="nu" name="username" type="email" required>
   <label for="nd">Name</label><input id="nd" name="display_name" type="text">
-  <label for="nr">Access level</label><select id="nr" name="role">{% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == 'editor' }}>{{ r|capitalize }}</option>{% endfor %}</select>
+  <label for="nr">Access level</label><select id="nr" name="role">{% for r in allowed %}<option value="{{ r }}" {{ 'selected' if r == 'editor' }}>{{ r|rolename }}</option>{% endfor %}</select>
   <fieldset><legend>Areas this user may use</legend>
     {% for k, label in areas %}<label><input type="checkbox" name="areas" value="{{ k }}" {{ 'checked' if k == 'browse' }}> {{ label }}</label>{% endfor %}
   </fieldset>
