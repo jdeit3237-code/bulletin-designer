@@ -581,3 +581,8 @@ table.cs-wrap { border-collapse: collapse; table-layout: fixed; border-spacing: 
 .yr-table { margin: 0; border-collapse: separate; border-spacing: 0; }
 .yr-table thead th { position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 var(--line); }
 .yr-table caption { text-align: left; padding: .3em .5em; }
+
+.sheet .pg-head.pg-right { flex-direction: row-reverse; }
+.sheet .pg-foot.slim.pg-left .foot-row { flex-direction: row-reverse; }
+.sheet .pg-foot.slim.pg-left .foot-page { margin-left: 0; }
+.sheet .pg-foot.slim.pg-left .foot-name { margin-left: auto; }
