@@ -1241,6 +1241,7 @@ def create_app(config=None):
         aw = width_in + 0.35 + text_w_in
         title_h = "" if r["hide_title"] else "<h2>%s</h2>" % escape(r["title"] or "")
         has_rest_area = r["slug"] not in ("staff", "giving")
+        src_p = Markup('<p class="src">Source: %s</p>') % tight(r["source"], False) if r["source"] else ""
 
         def measure(c, ph):
             head, tail = split(c)
@@ -1252,8 +1253,8 @@ def create_app(config=None):
             cells = (photo + '<td class="cs-gap"></td>' + text) if r["img_pos"] == "cols-left" else (text + '<td class="cs-gap"></td>' + photo)
             html = ('<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="%sstatic/style.css">'
                     '<style>@page{size:9in 80in;margin:0}.sheet{display:block;width:9in;height:auto;margin:0;padding:0;border:0;overflow:visible}.sheet .pg-body{position:static!important;display:block;width:8in;height:auto!important;overflow:visible;flex:none}</style></head>'
-                    '<body><div class="sheet %s"><div class="pg-body"><div class="%s" style="%s"><div data-m="t">%s<table class="cs-wrap" style="width:%sin"><tr>%s</tr></table></div></div></div></div></body></html>'
-                    % (PDF_BASE, ("fit%d" % fit) if fit else "", cls, sty, title_h, aw, cells))
+                    '<body><div class="sheet %s"><div class="pg-body"><div class="%s" style="%s"><div data-m="t">%s<table class="cs-wrap" style="width:%sin"><tr>%s</tr></table>%s</div></div></div></div></body></html>'
+                    % (PDF_BASE, ("fit%d" % fit) if fit else "", cls, sty, title_h, aw, cells, src_p))
             doc = HTML(string=html, base_url=PDF_BASE, url_fetcher=pdf_fetcher).render()
             hs = {}
             for page in doc.pages:
