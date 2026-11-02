@@ -49,15 +49,17 @@ except ImportError:
 
 BULLETS = {"disc": "\u2022 Round dot", "circle": "\u25e6 Open circle", "square": "\u25aa Square", "dash": "\u2013 Dash", "check": "\u2713 Check mark", "arrow": "\u27a4 Arrow", "cross": "\u271d Cross", "star": "\u2605 Star"}
 
-ROLES = ("admin", "editor", "contributor", "webmaster", "viewer")
+ROLES = ("admin", "editor", "contributor", "webmaster", "choir", "viewer")
 ROLE_HELP = {
     "admin": "Manage users, sections and layout; everything an editor can do.",
     "editor": "Edit every section, approve contributions, publish the bulletin.",
     "contributor": "Edit only assigned sections; changes wait for editor approval.",
     "webmaster": "Sees only the list of published bulletins and can download the web PDF of each (nothing else).",
+    "choir": "Choir Director: sees only Choir music (find and download songs); no bulletins, slides or other menus.",
     "viewer": "Read-only access to drafts and published bulletins.",
 }
 WEBMASTER_PAGES = {"dashboard", "download", "password", "logout", "static", "login", "forgot", "reset_with_token", "register"}
+CHOIR_PAGES = {"choir_find", "choir_find_download", "choir_download", "password", "logout", "static", "login", "forgot", "reset_with_token", "register"}
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 PHOTO_SHAPES = {"3:2": (1.5, "Wide (3 by 2)"), "1:1": (1.0, "Square"), "2:3": (2 / 3, "Tall (2 by 3)"), "3:1": (3.0, "Banner (3 by 1)"), "16:9": (16 / 9, "Widescreen (16 by 9)")}
 LIBRARY_EXT = IMAGE_EXT | {"tif", "tiff"}
@@ -799,6 +801,10 @@ def create_app(config=None):
             return redirect(url_for("password"))
         if g.user and g.user["role"] == "webmaster" and request.endpoint not in WEBMASTER_PAGES:
             abort(403)
+        if g.user and g.user["role"] == "choir" and request.endpoint not in CHOIR_PAGES:
+            if request.endpoint == "dashboard":
+                return redirect(url_for("choir_find"))
+            abort(403)
 
     app.jinja_env.globals["csrf"] = lambda: session.get("csrf", "")
 
@@ -1195,9 +1201,11 @@ def create_app(config=None):
             if isinstance(para, tuple):
                 continue
             for l, ln in enumerate(para):
-                if marked(ln):
-                    continue
-                for q in range(1, len(ln.split(" "))):
+                ws_ = ln.split(" ")
+                for q in range(1, len(ws_)):
+                    h_ = " ".join(ws_[:q])
+                    if marked(ln) and (any(h_.count(m) % 2 for m in ("**", "~~", "__")) or h_.count("{") != h_.count("}")):
+                        continue
                     cuts.append((u, l, q))
         cuts.append((len(units), 0, 0))
 
@@ -1520,7 +1528,7 @@ def create_app(config=None):
     def has_area(name):
         if not g.user:
             return False
-        if g.user["role"] in ("admin", "editor"):
+        if g.user["role"] in ("admin", "editor") or (g.user["role"] == "choir" and name == "choir"):
             return True
         return bool(db().execute("SELECT 1 FROM user_areas WHERE user_id=? AND area=?", (g.user["id"], name)).fetchone())
 

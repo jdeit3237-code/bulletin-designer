@@ -104,3 +104,25 @@ def test_book_page_images_for_psalm_by_date(app):
     imgs = choir.book_page_images(app, song, date(2026, 11, 8))
     assert len(imgs) == 1 and imgs[0][:4] == b"\x89PNG"
     assert choir.book_page_images(app, song, date(2026, 11, 15)) == []
+
+
+def test_choir_director_role_sees_only_choir(app):
+    import sqlite3
+    from tests.test_bulletin import setup_admin, tok
+    c = setup_admin(app)
+    c.post("/admin/users", data={"action": "create", "role": "choir", "username": "dir@example.com", "display_name": "Director",
+                                 "csrf": tok(c, "/admin/users")})
+    db = sqlite3.connect(app.config["DATABASE"])
+    row = db.execute("SELECT id FROM users WHERE username='dir@example.com'").fetchone()
+    assert row
+    from bulletin_designer.app import ROLES
+    assert "choir" in ROLES
+    d = app.test_client()
+    with d.session_transaction() as sess:
+        sess["uid"] = row[0]
+        sess["csrf"] = "x"
+    db.execute("UPDATE users SET must_reset=0 WHERE id=?", (row[0],)); db.commit()
+    page = d.get("/choir/find")
+    assert page.status_code == 200 and "Design studio" not in page.text and "Bulletins" not in page.text
+    assert d.get("/bulletins/1/preview").status_code == 403
+    assert d.get("/").status_code in (302, 308)

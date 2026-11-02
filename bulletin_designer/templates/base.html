@@ -13,6 +13,7 @@
   <nav aria-label="Main">
     <a class="brand" href="{{ url_for('dashboard') }}"><img src="{{ url_for('static', filename='logo-white.png') }}" alt="St. Peter the Fisherman Catholic Church - Bulletin Designer"></a>
     {% if g.user %}
+      {% if g.user.role == 'choir' %}<a href="{{ url_for('choir_find') }}">Choir music</a>{% else %}
       <a href="{{ url_for('dashboard') }}">Bulletins</a>
       {% if g.user.role in ('admin','editor') %}<a href="{{ url_for('users') }}">Users</a>{% endif %}{% if g.user.role == 'admin' %}<a href="{{ url_for('sections_admin') }}">Sections</a>{% endif %}
       {% if has_area('library') %}<a href="{{ url_for('library') }}">Photo library</a>{% endif %}
@@ -25,6 +26,7 @@
       {% if has_area('slides') %}<a href="{{ url_for('slides') }}">Mass slides</a>{% endif %}
       {% if config.get('CHOIR_ON') %}{% if g.user.role in ('admin','editor') %}<a href="{{ url_for('choir_index') }}">Choir music</a>{% elif has_area('choir') %}<a href="{{ url_for('choir_find') }}">Choir music</a>{% endif %}{% endif %}
       <a href="{{ url_for('help_page') }}">Help</a>
+      {% endif %}
       {% endif %}
       {% if g.user and g.user.role == 'admin' %}<a href="{{ url_for('fonts') }}">Fonts</a>{% endif %}
       {% if g.user and g.user.role in ('admin','editor') %}<a href="{{ url_for('notes', page=request.path) }}">Notes to admin</a>{% endif %}
