@@ -4962,7 +4962,7 @@ def create_app(config=None):
         lines = ["READ THIS FIRST. I do NOT want a PowerPoint, a .pptx file, slide code, python, or an editable document. "
                  "Use your IMAGE GENERATION tool (the same one that draws pictures) and make each slide as a finished PICTURE, like an advertisement or poster "
                  "in which the words are part of the artwork. Do not write code. Do not offer a file to download. Just show me the picture.", "",
-                 "Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Church. "
+                 "Create ONE separate finished 16:9 image (1920x1080) for EACH slide listed below, for St. Peter the Fisherman Catholic Parish. "
                  "Never combine slides into a collage or contact sheet, and never reuse the same picture for two slides.",
                  f"Mass date: {day.strftime('%B')} {day.day}, {day.year}. Celebration: {feast} ({li['season']}).", keys_context(day, li, *slide_theme(mass_date)), "",
                  "EVERY SLIDE IS INDIVIDUALLY DESIGNED. Keep one shared look so the deck feels like a family, but give each slide its own composition: "
@@ -5057,7 +5057,7 @@ def create_app(config=None):
         plan, _ = plan_slides(mass_date, chosen_graphics())
         feast = li["name"] or f"Sunday in {li['season']}"
         start = ("Use your IMAGE GENERATION tool for every message in this chat. Never make a PowerPoint, a file, or code; just show me one picture each time.\n"
-                 "I will paste one slide description at a time. Each one is ONE finished 16:9 picture (1920x1080) for St. Peter the Fisherman Catholic Church, "
+                 "I will paste one slide description at a time. Each one is ONE finished 16:9 picture (1920x1080) for St. Peter the Fisherman Catholic Parish, "
                  "designed like a professional advertisement or poster, with the words part of the artwork.\n"
                  f"This week: {feast} ({li['season']}). " + keys_context(date.fromisoformat(mass_date), li, *slide_theme(mass_date)) + "Look: vivid, glowing, painterly Florida coast at sunset, with a seasonal border "
                  "(All Saints: red and gold maple leaves, red hibiscus, palms, pumpkins, a wooden cross, sea and rocks). "
