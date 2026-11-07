@@ -714,3 +714,24 @@ def test_standard_alleluia_surrounds_gospel_acclamation(app):
     assert page.count("ALLELUIA SLIDE") == 2
     first, last = page.index("ALLELUIA SLIDE"), page.rindex("ALLELUIA SLIDE")
     assert first < page.index("ACCLVERSE") < last < page.index("GOSPELTEXT")
+
+
+def _png():
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (16, 9), "red").save(b, "PNG")
+    return b.getvalue()
+
+
+def test_announcement_backgrounds_all_or_each(app):
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    txt = b"Our first Food Pantry BINGO event is Thursday at the Boardwalk.\n\nJesse Tree 2026 is back to give gifts to children."
+    c.post("/slides", data={"csrf": t, "kind": "announcements", "date": "2026-11-08", "files": (io.BytesIO(txt), "Ann.txt")}, content_type="multipart/form-data")
+    for n in ("bingo.png", "jesse.png"):
+        c.post("/slides", data={"csrf": t, "kind": "ref_announcements", "date": "2026-11-08", "files": (io.BytesIO(_png()), n)}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-08").get_data(as_text=True)
+    assert "bingo.png" in page and "jesse.png" not in page
+    c.post("/slides", data={"csrf": t, "date": "2026-11-08", "action": "save_announce_mode", "mode": "each"})
+    page = c.get("/slides/preview?date=2026-11-08").get_data(as_text=True)
+    assert "bingo.png" in page and "jesse.png" in page

@@ -4367,6 +4367,12 @@ def create_app(config=None):
                     json.dump({"color": c if c in ("auto", "none") + THEME_COLORS else "", "season": se if se in ("auto", "none") + THEME_SEASONS else ""}, f)
                 flash("Saved the colors for this week's slide designs.")
                 return redirect(url_for("slides", date=mass_date))
+            if action == "save_announce_mode" and mass_date:
+                os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
+                with open(os.path.join(slides_root, "weeks", mass_date, "announce_mode.json"), "w") as f:
+                    json.dump({"mode": "each" if request.form.get("mode") == "each" else "all"}, f)
+                flash("Saved the announcement background choice.")
+                return redirect(url_for("slides", date=mass_date))
             if action == "save_graphics" and mass_date:
                 os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
                 with open(os.path.join(slides_root, "weeks", mass_date, "graphics.json"), "w") as f:
@@ -4415,7 +4421,7 @@ def create_app(config=None):
                                files={k: slides_list(k, mass_date) for k, _ in SLIDE_KINDS if k == "standard" or mass_date},
                                concept=week_concept(mass_date) if mass_date else None, layouts=CONCEPT_LAYOUTS, accents=CONCEPT_ACCENTS,
                                outline=load_outline(mass_date) if mass_date else None, status=week_status(mass_date) if mass_date else "", library=song_library(),
-                               photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [], selected=saved_graphics(mass_date) if mass_date else [])
+                               photos=db().execute("SELECT id, filename, title FROM photos ORDER BY id DESC LIMIT 60").fetchall() if mass_date else [], selected=saved_graphics(mass_date) if mass_date else [], announce_mode=announce_mode(mass_date) if mass_date else "all")
 
     app.jinja_env.filters["rolename"] = lambda r: "Choir Director" if r == "choir" else str(r).capitalize()
 
@@ -4525,6 +4531,28 @@ def create_app(config=None):
             or next((n for n in names if not n.startswith("ai-")), None) or names[0]
         return (os.path.join(slides_dir("ref_" + kind, mass_date), pick),
                 url_for("slides_file", kind="ref_" + kind, name=pick, date=mass_date, inline=1))
+
+    def announce_mode(mass_date):
+        try:
+            with open(os.path.join(slides_root, "weeks", mass_date, "announce_mode.json")) as f:
+                return "each" if json.load(f).get("mode") == "each" else "all"
+        except (OSError, ValueError, AttributeError):
+            return "all"
+
+    def announce_pick(mass_date, text):
+        """With one design per announcement: the uploaded picture whose file name shares a word with this announcement."""
+        best, best_score = None, 0
+        tw = music_outline._words(text)
+        for n in slides_list("ref_announcements", mass_date):
+            if n.startswith("ai-") or n.rsplit(".", 1)[-1].lower() not in ("png", "jpg", "jpeg"):
+                continue
+            score = len(music_outline._words(re.sub(r"[_-]+", " ", os.path.splitext(n)[0])) & tw)
+            if score > best_score:
+                best, best_score = n, score
+        if not best:
+            return None, None
+        return (os.path.join(slides_dir("ref_announcements", mass_date), best),
+                url_for("slides_file", kind="ref_announcements", name=best, date=mass_date, inline=1))
 
     SONG_KINDS = ("prelude", "entrance", "songs", "extra", "gifts", "communion", "praise", "going_forth")
     SEASON_BG = {"Advent": "3B2470", "Christmas": "8A6D12", "Ordinary Time": "14527A", "Lent": "4F3A6B", "Easter": "7A6A3A", "Pentecost": "8C1D26"}
@@ -4657,6 +4685,10 @@ def create_app(config=None):
                             credit = "\n".join([" ".join(file_credit)] * bool(file_credit) + [ONELICENSE_LINE]) if k == 0 else ""
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": (bg_first if k == 0 else bg_rest)[0], "bg_src": (bg_first if k == 0 else bg_rest)[1]}
+                            if kind == "announcements" and announce_mode(mass_date) == "each":
+                                pic = announce_pick(mass_date, body)
+                                if pic[0]:
+                                    item["bg_path"], item["bg_src"] = pic
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle
                             elif k == 0 and kind in ("readings", "standard"):
