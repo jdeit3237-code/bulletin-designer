@@ -4068,7 +4068,7 @@ def create_app(config=None):
     SLIDE_KINDS = (("standard", "Standard slides (kept every week)"), ("prelude", "Prelude (before Mass, may be secular)"), ("entrance", "Entrance song"), ("gifts", "Presentation of the Gifts song"), ("communion", "Communion song"), ("praise", "Song of Praise (optional, not every week)"), ("songs", "Songs filled from the outline"), ("extra", "Extra sections (you name each one and choose where it goes)"), ("readings", "Readings"),
                    ("announcements", "Announcements"), ("notation", "Music notation"), ("going_forth", "Going Forth (after Mass, may be secular)"),
                    ("special", "Special slides (optional, this week only)"),
-                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"), ("ref_readings", "Reference photos for Readings"))
+                   ("ref_prelude", "Reference photos for Prelude"), ("ref_entrance", "Reference photos for Entrance"), ("ref_gifts", "Reference photos for Presentation of the Gifts"), ("ref_communion", "Reference photos for Communion"), ("ref_praise", "Reference photos for Song of Praise"), ("ref_going_forth", "Reference photos for Going Forth"), ("ref_readings", "Reference photos for Readings"), ("ref_announcements", "Reference photos for Announcements"))
 
     def slides_dir(kind, mass_date=""):
         return os.path.join(slides_root, "standard") if kind == "standard" else os.path.join(slides_root, "weeks", mass_date, kind)
@@ -4164,6 +4164,7 @@ def create_app(config=None):
 
     DESIGN_SECTIONS = (("entrance", "Entrance", "a wooden cross on a rocky shore at sunset, golden light on the water"),
                        ("readings", "Readings", "a Florida coast scene: a lighthouse, a white heron or a wooden pier over calm water at sunset"),
+                       ("announcements", "Announcements", "a parish bulletin board with a wooden cross, a gathering of friends and a warm welcome at the church door, golden light"),
                        ("gifts", "Presentation of the Gifts", "a small fishing boat tied to a dock at sunset, palms, offering and gratitude"),
                        ("communion", "Communion", "a golden chalice with a host, a loaf of bread, grapes and wheat, glowing light"),
                        ("going_forth", "Going Forth", "a sandy path leading to the beach at sunrise, sea oats, mission and sending"))
@@ -4641,7 +4642,7 @@ def create_app(config=None):
                             parts = [piece for part in parts for piece in music_outline.split_long(part)]
                         groups = [(label, parts)]
                     song = kind in SONG_KINDS
-                    has_bg = song or kind == "readings"
+                    has_bg = song or kind in ("readings", "announcements")
                     bg_first = section_ref(kind, mass_date, "title") if has_bg else (None, None)
                     bg_rest = section_ref(kind, mass_date, "body") if has_bg else (None, None)
                     for g, (gtitle, parts) in enumerate(groups):
@@ -4666,6 +4667,20 @@ def create_app(config=None):
                                         item["subtitle"], item["text"] = cite, music_outline.no_orphans(rest or " ")
                             items.append(item)
                         chunks.append({"kind": kind, "name": name, "group": gtitle if kind == "readings" else None, "blank": blank_before or g > 0, "items": items})
+        seen_ann = set()
+        for ch in chunks:
+            if ch["kind"] != "announcements":
+                continue
+            keep = []
+            for it in ch["items"]:
+                key = re.sub(r"[^a-z0-9]+", "", (it.get("text") or "").lower()) if it["type"] == "text" else None
+                if key and key in seen_ann:
+                    continue
+                if key:
+                    seen_ann.add(key)
+                keep.append(it)
+            ch["items"] = keep
+        chunks = [ch for ch in chunks if ch["items"] or ch["kind"] != "announcements"]
         ann_items = [it for ch in chunks if ch["kind"] == "announcements" for it in ch["items"] if it["type"] == "text"]
         for pid in photo_ids:
             row = db().execute("SELECT filename, title, alt, tags FROM photos WHERE id=?", (pid,)).fetchone()
