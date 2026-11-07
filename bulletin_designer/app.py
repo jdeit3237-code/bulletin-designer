@@ -4673,6 +4673,7 @@ def create_app(config=None):
                     has_bg = song or kind in ("readings", "announcements")
                     bg_first = section_ref(kind, mass_date, "title") if has_bg else (None, None)
                     bg_rest = section_ref(kind, mass_date, "body") if has_bg else (None, None)
+                    last_pic = None
                     for g, (gtitle, parts) in enumerate(groups):
                         items = []
                         file_credit = []
@@ -4688,7 +4689,9 @@ def create_app(config=None):
                             if kind == "announcements" and announce_mode(mass_date) == "each":
                                 pic = announce_pick(mass_date, body)
                                 if pic[0]:
-                                    item["bg_path"], item["bg_src"] = pic
+                                    last_pic = pic
+                                if last_pic:
+                                    item["bg_path"], item["bg_src"] = last_pic
                             if k == 0 and song:
                                 item["title"], item["subtitle"] = section, gtitle
                             elif k == 0 and kind in ("readings", "standard"):

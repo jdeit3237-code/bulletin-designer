@@ -61,7 +61,7 @@ def test_design_overrides_saved(app):
                                    "accent": "rope border", "color": "#336699", "scale": "120"})
     page = c.get("/slides?date=2026-11-08").data
     assert b'value="#336699"' in page and b'value="120"' in page
-    assert c.get("/slides/pptx?date=2026-11-08").data[:2] == b"PK"
+    assert c.get("/slides/pptx-master?date=2026-11-08").data[:2] == b"PK"
     c.post("/slides/design", data={"csrf": t, "date": "2026-11-08", "reset": "1"})
     assert b'value="120"' not in c.get("/slides?date=2026-11-08").data
 
@@ -735,3 +735,20 @@ def test_announcement_backgrounds_all_or_each(app):
     c.post("/slides", data={"csrf": t, "date": "2026-11-08", "action": "save_announce_mode", "mode": "each"})
     page = c.get("/slides/preview?date=2026-11-08").get_data(as_text=True)
     assert "bingo.png" in page and "jesse.png" in page
+
+
+def test_each_announcement_gets_its_own_master_layout(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    txt = (b"Our first Food Pantry BINGO event is Thursday at the Boardwalk.\n\nJesse Tree 2026 is back to give gifts to children.\n\n"
+           b"Envelopes are available after each Mass for the Jesse Tree.")
+    c.post("/slides", data={"csrf": t, "kind": "announcements", "date": "2026-11-08", "files": (io.BytesIO(txt), "Ann.txt")}, content_type="multipart/form-data")
+    for n in ("bingo.png", "jesse.png"):
+        c.post("/slides", data={"csrf": t, "kind": "ref_announcements", "date": "2026-11-08", "files": (io.BytesIO(_png()), n)}, content_type="multipart/form-data")
+    c.post("/slides", data={"csrf": t, "date": "2026-11-08", "action": "save_announce_mode", "mode": "each"})
+    r = c.get("/slides/pptx-master?date=2026-11-08")
+    assert r.status_code == 200
+    prs = Presentation(io.BytesIO(r.data))
+    used = [s.slide_layout.name for s in prs.slides if any(sh.has_text_frame and ("BINGO" in sh.text_frame.text or "Jesse" in sh.text_frame.text or "Envelopes" in sh.text_frame.text) for sh in s.shapes)]
+    assert len(used) == 3 and used[0] != used[1] and used[1] == used[2], used
