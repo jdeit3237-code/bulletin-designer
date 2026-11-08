@@ -14,6 +14,9 @@ except ImportError:  # run as a script
     import lyric_check
 
 
+from pypdf import PdfReader
+
+
 def register(app, need, need_area):
     manage = lambda fn: need("admin", "editor")(fn)  # noqa: E731
 
@@ -183,7 +186,7 @@ def register(app, need, need_area):
     def choir_library_add():
         name, code = request.form.get("name", "").strip(), request.form.get("code", "").strip().upper()
         edition = request.form.get("edition", "piano")
-        if not name or edition not in choir.EDITIONS:
+        if not name or edition not in dict(choir.EDITIONS):
             flash("Book name and edition are required.", "error")
             return redirect(url_for("choir_library"))
         try:
@@ -214,6 +217,40 @@ def register(app, need, need_area):
                              "file": filename, "page_offset": offset, "entries": entries})
         choir.save_library(current_app, lib)
         flash(f"Added {name} ({edition}).")
+        return redirect(url_for("choir_library"))
+
+    @app.route("/choir/library/song", methods=["POST"])
+    @manage
+    def choir_library_song():
+        """One song = one PDF. Stored as a one-entry book so matching, search and download work like any other book."""
+        title, number = request.form.get("title", "").strip(), request.form.get("number", "").strip()
+        edition = request.form.get("edition", "piano")
+        upload = request.files.get("pdf")
+        if not title or edition not in dict(choir.EDITIONS) or not (upload and upload.filename):
+            flash("Song title, edition and a PDF are required.", "error")
+            return redirect(url_for("choir_library"))
+        if not upload.filename.lower().endswith(".pdf"):
+            flash("Only PDF files are accepted.", "error")
+            return redirect(url_for("choir_library"))
+        folder = os.path.join(choir.library_dir(current_app), "books")
+        os.makedirs(folder, exist_ok=True)
+        filename = f"{uuid.uuid4().hex[:8]}-{secure_filename(upload.filename)}"
+        path = os.path.join(folder, filename)
+        upload.save(path)
+        try:
+            pages = len(PdfReader(path).pages)
+        except Exception:
+            pages = 0
+        if not pages:
+            os.remove(path)
+            flash("That PDF could not be read.", "error")
+            return redirect(url_for("choir_library"))
+        lib = choir.load_library(current_app)
+        lib["books"].append({"id": uuid.uuid4().hex[:8], "name": title, "code": "", "edition": edition, "file": filename,
+                             "page_offset": 0, "single": True,
+                             "entries": [{"number": number or "S", "title": title, "start": 1, "end": pages}]})
+        choir.save_library(current_app, lib)
+        flash(f"Added the song {title} ({edition}).")
         return redirect(url_for("choir_library"))
 
     @app.route("/choir/library/<book_id>/entries", methods=["POST"])

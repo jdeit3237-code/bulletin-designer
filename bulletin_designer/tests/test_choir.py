@@ -137,3 +137,26 @@ def test_year_plan_hides_past_and_links_started_weeks(app):
     upcoming = html.split('id="yr-past"')[0]
     assert all(d < t for d in __import__("re").findall(r'<td>(\d{4}-\d{2}-\d{2})</td>', html.split('id="yr-past"')[1])) if 'id="yr-past"' in html else True
     assert not any(d < t for d in __import__("re").findall(r'<td>(\d{4}-\d{2}-\d{2})</td>', upcoming))
+
+
+def test_single_song_is_added_searchable_and_downloadable(app):
+    import io
+    from pypdf import PdfWriter
+    w = PdfWriter()
+    w.add_blank_page(612, 792)
+    w.add_blank_page(612, 792)
+    buf = io.BytesIO()
+    w.write(buf)
+    c = setup_admin(app)
+    t = tok(c, "/choir/library")
+    r = c.post("/choir/library/song", data={"csrf": t, "title": "Lord of the Dance", "edition": "keyboard",
+                                            "pdf": (io.BytesIO(buf.getvalue()), "dance.pdf")}, content_type="multipart/form-data", follow_redirects=True)
+    assert b"Added the song Lord of the Dance" in r.data
+    found = c.get("/choir/find?q=dance").get_data(as_text=True)
+    assert "Lord of the Dance" in found
+    book = choir.load_library(app)["books"][0]
+    d = c.get(f"/choir/find/download/{book['id']}/0")
+    assert d.status_code == 200 and d.data.startswith(b"%PDF")
+    bad = c.post("/choir/library/song", data={"csrf": t, "title": "X", "edition": "keyboard",
+                                              "pdf": (io.BytesIO(b"not a pdf"), "x.pdf")}, content_type="multipart/form-data", follow_redirects=True)
+    assert b"could not be read" in bad.data
