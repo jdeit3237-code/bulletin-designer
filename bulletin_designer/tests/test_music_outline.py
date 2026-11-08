@@ -752,3 +752,24 @@ def test_each_announcement_gets_its_own_master_layout(app):
     prs = Presentation(io.BytesIO(r.data))
     used = [s.slide_layout.name for s in prs.slides if any(sh.has_text_frame and ("BINGO" in sh.text_frame.text or "Jesse" in sh.text_frame.text or "Envelopes" in sh.text_frame.text) for sh in s.shapes)]
     assert len(used) == 3 and used[0] != used[1] and used[1] == used[2], used
+
+
+def test_standard_confiteor_and_creed_pptx_are_included(app):
+    from pptx import Presentation
+    c = setup_admin(app)
+    t = tok(c, "/slides")
+    for name, text in (("I_Confess_to_Almighty_God.pptx", "I confess to Almighty God"), ("Profession_of_Faith.pptx", "I believe in one God")):
+        prs = Presentation()
+        s = prs.slides.add_slide(prs.slide_layouts[5])
+        s.shapes.title.text = text
+        b = io.BytesIO(); prs.save(b)
+        c.post("/slides", data={"csrf": t, "kind": "standard", "files": (io.BytesIO(b.getvalue()), name)}, content_type="multipart/form-data")
+    page = c.get("/slides/preview?date=2026-11-08").get_data(as_text=True).replace("\xa0", " ")
+    assert "I confess to Almighty God" in page and "I believe in one God" in page
+
+    from pptx import Presentation as _P
+    r = c.get("/slides/pptx-master?date=2026-11-08")
+    deck = _P(io.BytesIO(r.data))
+    alltext = " ".join(sh.text_frame.text for sl in deck.slides for sh in sl.shapes if sh.has_text_frame).replace("\xa0", " ").replace("\x0b", " ")
+    assert "I confess to Almighty God" in alltext and "I believe in one God" in alltext
+
