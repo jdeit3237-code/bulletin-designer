@@ -78,9 +78,10 @@ RA_DAYS_RE = re.compile(
 )
 BB_NAV_RE = re.compile(r"^\s*Home\s*\|.*$", re.M)
 BB_START_RE = re.compile(r"^\s*(\d{1,3})\s+(\S.*)$")
-BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?),\s*cont\.", re.I)
+BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?)(?:,\s*cont\.|\s*\(\d+\))\s*$", re.I)
 BB_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$")
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
+BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
 
 
@@ -309,6 +310,11 @@ def _numbered_songbook_entries(path):
     except (ImportError, RuntimeError, ValueError):
         reader = PdfReader(path)
         texts = [page.extract_text() or "" for page in reader.pages]
+    return _numbered_songbook_entries_from_texts(texts)
+
+
+def _numbered_songbook_entries_from_texts(texts):
+    """Parse extracted page text, using the book's own indexes to disambiguate titles like "40 Days"."""
 
     def page_lines(page_idx):
         text = BB_NAV_RE.sub("", texts[page_idx])
@@ -328,37 +334,104 @@ def _numbered_songbook_entries(path):
             stop = page_idx
             break
 
+    index_titles = {}
+    aliases = {}
+    first_lines = next(
+        (page_idx for page_idx in range(stop, len(texts)) if "First Lines and Common Titles" in texts[page_idx]),
+        None,
+    )
+    if first_lines is not None:
+        index_pages = range(first_lines, len(texts))
+    else:
+        alphabetical = [
+            page_idx for page_idx in range(stop, len(texts))
+            if texts[page_idx].lstrip().startswith("A | B | C")
+        ]
+        index_pages = alphabetical or range(stop, len(texts))
+    for page_idx in index_pages:
+        text = texts[page_idx]
+        for line in text.splitlines():
+            match = BB_INDEX_LINE_RE.match(line) or BB_ANY_INDEX_LINE_RE.match(line)
+            if not match or "|" in line or ". . ." in line:
+                continue
+            number, title = int(match.group(1)), re.sub(r"\s+", " ", match.group(2)).strip()
+            if not title or title.lower().startswith(("scriptural index", "topical index", "liturgical index")):
+                continue
+            index_titles.setdefault(number, title)
+            aliases.setdefault(_words(title), set()).add(number)
+
     found = {}
+
+    def indexed_title(number, title):
+        key = _words(title)
+        return any(
+            number in numbers and (alias == key or alias.startswith(key + " mass of"))
+            for alias, numbers in aliases.items()
+        )
+
     for page_idx in range(first, stop):
         number = title = None
-        for line in page_lines(page_idx)[:4]:
+        continuation = False
+        lines = page_lines(page_idx)[:12]
+        for line in lines:
             match = BB_CONT_RE.match(line)
             if match:
-                number, title = int(match.group(1)), match.group(2)
+                number, title, continuation = int(match.group(1)), match.group(2), True
                 break
         if number is None:
-            for line in page_lines(page_idx)[:4]:
+            for line in lines:
                 match = BB_START_RE.match(line)
-                if match and len(match.group(2)) > 3 and not re.match(r"^[\d.,/ ]+$", match.group(2)):
-                    number, title = int(match.group(1)), match.group(2)
+                if not match or len(match.group(2)) <= 3 or re.match(r"^[\d.,/ ]+$", match.group(2)):
+                    continue
+                candidate_number, candidate_title = int(match.group(1)), match.group(2)
+                if aliases and not indexed_title(candidate_number, candidate_title):
+                    continue
+                number, title = candidate_number, candidate_title
+                break
+        if number is None:
+            for line in lines:
+                match = re.fullmatch(r"(.+?)\s+(\d{1,3})", line)
+                if not match:
+                    continue
+                candidate_title, candidate_number = match.group(1), int(match.group(2))
+                if aliases and not indexed_title(candidate_number, candidate_title):
+                    continue
+                number, title = candidate_number, candidate_title
+                break
+        if number is None and aliases:
+            for line_idx, line in enumerate(lines):
+                if not re.fullmatch(r"\d{1,3}", line):
+                    continue
+                candidate_number = int(line)
+                if candidate_number == page_idx + 1:
+                    continue
+                candidates = []
+                if line_idx + 1 < len(lines):
+                    candidates.append(lines[line_idx + 1])
+                if line_idx:
+                    candidates.append(lines[line_idx - 1])
+                candidate_title = next(
+                    (candidate for candidate in candidates if indexed_title(candidate_number, candidate)),
+                    None,
+                )
+                if candidate_title:
+                    number, title = candidate_number, candidate_title
+                    break
+        if number is None and aliases:
+            for line in lines:
+                key = _words(re.sub(r"\s*\(\d+\)\s*$", "", line))
+                numbers = aliases.get(key, set())
+                if len(numbers) == 1:
+                    number, title = next(iter(numbers)), line
                     break
         if number is None:
             continue
         record = found.setdefault(number, [page_idx + 1, page_idx + 1, smart_title(title)])
-        record[1] = max(record[1], page_idx + 1)
-
-    index_titles = {}
-    for page_idx in range(stop, len(texts)):
-        text = texts[page_idx]
-        if not text.lstrip().startswith("A | B | C"):
-            continue
-        for line in text.splitlines():
-            match = BB_INDEX_LINE_RE.match(line)
-            if match and "|" not in line and ". . ." not in line:
-                index_titles.setdefault(int(match.group(1)), match.group(2))
+        if continuation or page_idx + 1 >= record[0]:
+            record[1] = max(record[1], page_idx + 1)
 
     entries = [
-        {"number": str(number), "title": index_titles.get(number, found[number][2]),
+        {"number": str(number), "title": found[number][2],
          "start": found[number][0], "end": found[number][1]}
         for number in sorted(found)
     ]

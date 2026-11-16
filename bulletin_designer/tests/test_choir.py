@@ -234,6 +234,20 @@ def test_breaking_bread_upload_generates_song_entries(app):
     assert c.get("/choir/library/add", follow_redirects=True).status_code == 200
 
 
+def test_numbered_songbook_index_disambiguates_numeric_title():
+    texts = ["Front matter"] * 14 + [
+        "Lord, Have Mercy\n2\n15",
+        "40 Days\nMatt Maher\n534",
+        "155—40 Days (2)\n535",
+        "Scriptural Index\n2 Corinthians",
+        "First Lines and Common Titles\n2 Lord, Have Mercy\n155 40 Days",
+    ]
+    assert choir._numbered_songbook_entries_from_texts(texts) == [
+        {"number": "2", "title": "Lord, Have Mercy", "start": 15, "end": 15},
+        {"number": "155", "title": "40 Days", "start": 16, "end": 17},
+    ]
+
+
 def test_requested_book_code_wins_until_that_edition_is_unavailable():
     from datetime import date
 
