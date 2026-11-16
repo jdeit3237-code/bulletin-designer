@@ -170,8 +170,27 @@ def register(app, need, need_area):
     @app.route("/choir/library")
     @manage
     def choir_library():
+        lib = choir.load_library(current_app)
+        generated = []
+        for book in lib["books"]:
+            if book.get("entries"):
+                continue
+            path = choir.book_path(current_app, book)
+            if not os.path.exists(path):
+                continue
+            try:
+                entries = choir.generate_book_entries(path, book.get("code", ""), book.get("name", ""))
+            except Exception as exc:
+                current_app.logger.warning("Could not generate choir book entries for %s: %s", book.get("file"), exc)
+                continue
+            if entries:
+                book["entries"] = entries
+                generated.append(f"{book['name']} ({len(entries)})")
+        if generated:
+            choir.save_library(current_app, lib)
+            flash("Generated entries from the PDF for " + ", ".join(generated) + ".")
         books = []
-        for b in choir.load_library(current_app)["books"]:
+        for b in lib["books"]:
             b = dict(b)
             b["entries_text"] = choir.entries_to_text(b.get("entries", []))
             b["file_ok"] = os.path.exists(choir.book_path(current_app, b))
@@ -214,7 +233,7 @@ def register(app, need, need_area):
         generated = False
         if not entries:
             try:
-                entries = choir.generate_book_entries(path)
+                entries = choir.generate_book_entries(path, code, name)
                 generated = bool(entries)
             except Exception as exc:
                 current_app.logger.warning("Could not generate choir book entries for %s: %s", filename, exc)

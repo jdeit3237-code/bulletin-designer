@@ -274,12 +274,14 @@ def entries_to_text(entries):
     return "\n".join(lines)
 
 
-def generate_book_entries(path):
+def generate_book_entries(path, code="", name=""):
     """Generate entries for a supported uploaded songbook PDF."""
     reader = PdfReader(path)
     front = [page.extract_text() or "" for page in reader.pages[:3]]
     compact = re.sub(r"[^a-z]", "", "\n".join(front).lower())
-    if "respondacclaim" not in compact:
+    identity = _norm(f"{code} {name}")
+    known_ra = identity.startswith("ra") or ("respond" in identity and "acclaim" in identity)
+    if not known_ra and "respondacclaim" not in compact:
         return []
     entries = _respond_acclaim_outline_entries(reader, "\n".join(front))
     if entries:
@@ -340,7 +342,8 @@ def _respond_acclaim_outline_entries(reader, cover):
     entries = []
     current_year = years[1]
     previous_month = years[0]
-    for destination in section(reader.outline):
+    outline = getattr(reader, "outline", None) or getattr(reader, "outlines", [])
+    for destination in section(outline):
         parts = [line.strip() for line in getattr(destination, "title", "").splitlines() if line.strip()]
         if len(parts) < 2:
             continue
