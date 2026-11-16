@@ -4138,9 +4138,27 @@ def create_app(config=None):
             if kind in dict(SLIDE_KINDS) and os.path.isfile(path):
                 os.remove(path)
         lib, auto, report = song_library(), [], []
+        resolved = []
         for song in songs:
             key, names = song_files(lib, song)
             status = "found" if names else ("mass part" if song["setting"] else "missing")
+            resolved.append((song, names, status))
+        book_candidates = [
+            song for song, _, status in resolved
+            if status == "missing" and song["kind"]
+            and song["label"] not in ("Responsorial Psalm", "Gospel Acclamation")
+        ]
+        book_pages = {}
+        if routes_choir and book_candidates:
+            try:
+                pages = routes_choir.choir.book_page_images_for_songs(
+                    app, book_candidates, date.fromisoformat(mass_date)
+                )
+                book_pages = {id(song): images for song, images in zip(book_candidates, pages)}
+            except Exception as exc:
+                app.logger.warning("Could not render music book pages for outline %s: %s", mass_date, exc)
+                book_pages = {}
+        for song, names, status in resolved:
             if names and song["kind"]:
                 for n in names:
                     ext = n.rsplit(".", 1)[-1].lower()
@@ -4154,12 +4172,7 @@ def create_app(config=None):
                     auto.append([kind, out])
             if status == "missing" and (song["label"] in ("Responsorial Psalm", "Gospel Acclamation") or song["kind"]):
                 words_in_readings = song["label"] in ("Responsorial Psalm", "Gospel Acclamation")
-                pages = []
-                if routes_choir and not words_in_readings:
-                    try:
-                        pages = routes_choir.choir.book_page_images(app, song, date.fromisoformat(mass_date))
-                    except Exception:
-                        pages = []
+                pages = book_pages.get(id(song), [])
                 dest = slides_dir("notation", mass_date)
                 for i, png in enumerate(pages, 1):
                     os.makedirs(dest, exist_ok=True)

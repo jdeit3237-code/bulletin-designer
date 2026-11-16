@@ -106,6 +106,50 @@ def test_book_page_images_for_psalm_by_date(app):
     assert choir.book_page_images(app, song, date(2026, 11, 15)) == []
 
 
+def test_book_page_images_opens_shared_book_once(app, monkeypatch):
+    import fitz
+    import io
+    import os
+    from datetime import date
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    for title in ("first song", "second song"):
+        cv.drawString(72, 720, title)
+        cv.showPage()
+    cv.save()
+    with open(os.path.join(choir.library_dir(app), "books", "songs.pdf"), "wb") as f:
+        f.write(buf.getvalue())
+    choir.save_library(app, {"books": [{
+        "id": "songs", "name": "Songs", "code": "BB27", "edition": "keyboard",
+        "file": "songs.pdf", "page_offset": 0,
+        "entries": [
+            {"number": "1", "title": "First Song", "start": 1, "end": 1},
+            {"number": "2", "title": "Second Song", "start": 2, "end": 2},
+        ],
+    }]})
+    opened = []
+    real_open = fitz.open
+
+    def counted_open(*args, **kwargs):
+        opened.append(args[0])
+        return real_open(*args, **kwargs)
+
+    monkeypatch.setattr(fitz, "open", counted_open)
+    songs = [
+        {"label": "Entrance", "title": "First Song", "setting": "", "composer": "",
+         "book": "BB27", "number": "1", "kind": "entrance"},
+        {"label": "Communion", "title": "Second Song", "setting": "", "composer": "",
+         "book": "BB27", "number": "2", "kind": "communion"},
+    ]
+    images = choir.book_page_images_for_songs(app, songs, date(2026, 11, 8))
+    assert [len(pages) for pages in images] == [1, 1]
+    assert all(pages[0][:4] == b"\x89PNG" for pages in images)
+    assert len(opened) == 1
+
+
 def test_respond_acclaim_upload_generates_entries(app):
     import io
 

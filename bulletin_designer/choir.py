@@ -719,24 +719,35 @@ def match_songs(lib, songs, outline_date, language="english"):
     return out
 
 
-def book_page_images(app, song, outline_date):
-    """PNG bytes of a song's pages in its primary book (used for psalm/acclamation slides)."""
+def book_page_images_for_songs(app, songs, outline_date):
+    """PNG bytes for each song, opening each referenced book only once."""
     import fitz
 
     lib = load_library(app)
-    src = match_songs(lib, [song], outline_date)[0].get("primary")
-    book = _book_by_id(lib, src["book_id"]) if src else None
-    path = book_path(app, book) if book else ""
-    if not path or not os.path.exists(path):
-        return []
-    offset = int(book.get("page_offset", 0))
-    out = []
-    with fitz.open(path) as doc:
-        for p in range(src["start"], src["end"] + 1):
-            idx = p + offset - 1
-            if 0 <= idx < len(doc):
-                out.append(doc[idx].get_pixmap(dpi=150).tobytes("png"))
-    return out
+    results = [[] for _ in songs]
+    grouped = {}
+    for result_idx, matched in enumerate(match_songs(lib, songs, outline_date)):
+        src = matched.get("primary")
+        book = _book_by_id(lib, src["book_id"]) if src else None
+        path = book_path(app, book) if book else ""
+        if path and os.path.exists(path):
+            grouped.setdefault(path, []).append((result_idx, src, int(book.get("page_offset", 0))))
+    for path, requests in grouped.items():
+        with fitz.open(path) as doc:
+            rendered = {}
+            for result_idx, src, offset in requests:
+                for page in range(src["start"], src["end"] + 1):
+                    doc_idx = page + offset - 1
+                    if 0 <= doc_idx < len(doc):
+                        if doc_idx not in rendered:
+                            rendered[doc_idx] = doc[doc_idx].get_pixmap(dpi=150).tobytes("png")
+                        results[result_idx].append(rendered[doc_idx])
+    return results
+
+
+def book_page_images(app, song, outline_date):
+    """PNG bytes of a song's pages in its primary book."""
+    return book_page_images_for_songs(app, [song], outline_date)[0]
 
 
 def _source(hit):
