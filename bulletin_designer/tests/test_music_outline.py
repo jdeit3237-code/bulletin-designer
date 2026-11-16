@@ -35,6 +35,7 @@ def test_outline_fills_slides_and_replaces_on_change(app):
     assert b"Not in song library" in r.data
     plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")
     assert b"who from their labors rest" in plan.data and b"Come to me, all you who labor" in plan.data
+    assert b"For All The Saints \xc2\xb7 Breaking Bread #718" in plan.data and b"font-size:.8rem" in plan.data
     changed = OUTLINE.replace("Come to Me (Gregory Norbet) BB26-538", "Another Hymn (X) BB26-1")
     c.post("/slides/outline", data={"csrf": t, "date": "2026-11-01", "outline_text": changed})
     plan = c.get("/slides/preview?date=2026-11-01"); plan.data = plan.data.replace(b"\xc2\xa0", b" ")

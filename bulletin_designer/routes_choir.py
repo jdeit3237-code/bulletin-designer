@@ -183,7 +183,7 @@ def register(app, need, need_area):
     def choir_library_add():
         name, code = request.form.get("name", "").strip(), request.form.get("code", "").strip().upper()
         edition = request.form.get("edition", "piano")
-        if not name or edition not in choir.EDITIONS:
+        if not name or edition not in dict(choir.EDITIONS):
             flash("Book name and edition are required.", "error")
             return redirect(url_for("choir_library"))
         try:
@@ -203,17 +203,31 @@ def register(app, need, need_area):
                 flash("Only PDF files are accepted.", "error")
                 return redirect(url_for("choir_library"))
             filename = f"{uuid.uuid4().hex[:8]}-{secure_filename(upload.filename)}"
-            upload.save(os.path.join(folder, filename))
+            path = os.path.join(folder, filename)
+            upload.save(path)
         elif existing and os.path.exists(os.path.join(folder, existing)):
             filename = existing
+            path = os.path.join(folder, filename)
         else:
             flash("Upload a PDF, or name a file already placed in the books folder.", "error")
             return redirect(url_for("choir_library"))
+        generated = False
+        if not entries:
+            try:
+                entries = choir.generate_book_entries(path)
+                generated = bool(entries)
+            except Exception as exc:
+                current_app.logger.warning("Could not generate choir book entries for %s: %s", filename, exc)
         lib = choir.load_library(current_app)
         lib["books"].append({"id": uuid.uuid4().hex[:8], "name": name, "code": code, "edition": edition,
                              "file": filename, "page_offset": offset, "entries": entries})
         choir.save_library(current_app, lib)
-        flash(f"Added {name} ({edition}).")
+        if generated:
+            flash(f"Added {name} ({edition}) with {len(entries)} entries read from the PDF.")
+        elif entries:
+            flash(f"Added {name} ({edition}).")
+        else:
+            flash(f"Added {name} ({edition}), but no entries were found automatically. Add them below.", "error")
         return redirect(url_for("choir_library"))
 
     @app.route("/choir/library/<book_id>/entries", methods=["POST"])

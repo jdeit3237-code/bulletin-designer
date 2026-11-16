@@ -106,6 +106,75 @@ def test_book_page_images_for_psalm_by_date(app):
     assert choir.book_page_images(app, song, date(2026, 11, 15)) == []
 
 
+def test_respond_acclaim_upload_generates_entries(app):
+    import io
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    cv.drawString(72, 720, "Respond & Acclaim 2027")
+    cv.drawString(72, 700, "November 29, 2026 - November 27, 2027")
+    cv.showPage()
+    cv.drawString(72, 750, "4")
+    cv.drawString(72, 730, "Home | Indexes | List of Page Numbers")
+    cv.drawString(72, 710, "First Sunday of Advent")
+    cv.drawString(72, 690, "November 29")
+    cv.drawString(72, 670, "Responsorial Psalm: Psalm 80")
+    cv.showPage()
+    cv.drawString(72, 750, "5")
+    cv.drawString(72, 730, "FIRST SUNDAY OF ADVENT, cont. (2)")
+    cv.drawString(72, 710, "Gospel Acclamation: Psalm 85:8")
+    cv.showPage()
+    cv.drawString(72, 750, "32")
+    cv.drawString(72, 730, "Third Sunday in Ordinary Time")
+    cv.drawString(72, 710, "January 24")
+    cv.drawString(72, 690, "Responsorial Psalm: Psalm 19")
+    cv.showPage()
+    cv.drawString(72, 750, "33")
+    cv.drawString(72, 730, "THIRD SUNDAY IN ORDINARY TIME, cont. (2)")
+    cv.drawString(72, 710, "Gospel Acclamation: Luke 4:18")
+    cv.save()
+    buf.seek(0)
+
+    c = setup_admin(app)
+    r = c.post("/choir/library/add", data={
+        "csrf": tok(c, "/choir/library"),
+        "name": "Respond and Acclaim 2027",
+        "code": "RA27",
+        "edition": "keyboard",
+        "page_offset": "0",
+        "entries": "",
+        "pdf": (buf, "Respond_And_Acclaim_2027.pdf"),
+    }, content_type="multipart/form-data", follow_redirects=True)
+    assert r.status_code == 200
+    entries = choir.load_library(app)["books"][0]["entries"]
+    assert [(e["kind"], e["date"], e["start"]) for e in entries] == [
+        ("psalm", "2026-11-29", 4),
+        ("acclamation", "2026-11-29", 5),
+        ("psalm", "2027-01-24", 32),
+        ("acclamation", "2027-01-24", 33),
+    ]
+
+
+def test_requested_book_code_wins_until_that_edition_is_unavailable():
+    from datetime import date
+
+    def book(book_id, code):
+        return {"id": book_id, "name": code, "code": code, "edition": "keyboard", "file": book_id + ".pdf",
+                "entries": [{"number": "459", "title": "Companions on the Journey", "start": 10, "end": 11}]}
+
+    song = {"label": "Final Song", "title": "Companions on the Journey", "setting": "", "composer": "",
+            "book": "BB27", "number": "459"}
+    matched = choir.match_songs({"books": [book("old", "BB26"), book("new", "BB27")]}, [song], date(2027, 1, 24))[0]
+    assert matched["primary"]["book_id"] == "new"
+
+    unavailable = book("empty", "BB27")
+    unavailable["entries"] = []
+    fallback = choir.match_songs({"books": [book("old", "BB26"), unavailable]}, [song], date(2027, 1, 24))[0]
+    assert fallback["primary"]["book_id"] == "old"
+
+
 def test_choir_director_role_sees_only_choir(app):
     import sqlite3
     from tests.test_bulletin import setup_admin, tok

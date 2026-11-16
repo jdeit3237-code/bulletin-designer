@@ -4570,6 +4570,17 @@ def create_app(config=None):
         seen_sigs = []
         outline_order = (load_outline(mass_date) or {}).get("order") or []
         outline_songs = (load_outline(mass_date) or {}).get("songs") or []
+
+        def breaking_bread_number(filename):
+            lower = filename.lower()
+            for outline_song in outline_songs:
+                book = (outline_song.get("book") or "").upper()
+                number = str(outline_song.get("number") or "").strip()
+                prefix = secure_filename(outline_song.get("label") or "").lower()
+                if re.fullmatch(r"BB\d{2}", book) and number and prefix and lower.startswith(prefix + "-"):
+                    return f"Breaking Bread #{number}"
+            return ""
+
         GENERIC_SONG_LABELS = ("entrance", "communion", "song of praise", "final song", "final song or hymn", "presentation of the gifts",
                                "presentation and preparation of the gifts", "offertory", "recessional", "other song")
         d0 = date.fromisoformat(mass_date)
@@ -4662,6 +4673,7 @@ def create_app(config=None):
                     for g, (gtitle, parts) in enumerate(groups):
                         items = []
                         file_credit = []
+                        music_number = breaking_bread_number(name) if song else ""
                         if song:
                             for part in parts:
                                 file_credit += [x.strip() for x in part.splitlines() if CREDIT_RE.match(x)]
@@ -4672,7 +4684,8 @@ def create_app(config=None):
                             item = {"type": "text", "title": None, "subtitle": None, "text": music_outline.no_orphans(body), "size": 40 if kind == "readings" else music_outline.slide_size(body * 2 if (k == 0 and song) else body),
                                     "style": "song" if song else "plain", "credit": credit if song else "", "bg_path": (bg_first if k == 0 else bg_rest)[0], "bg_src": (bg_first if k == 0 else bg_rest)[1]}
                             if k == 0 and song:
-                                item["title"], item["subtitle"] = section, gtitle
+                                item["title"] = section
+                                item["subtitle"] = " · ".join(x for x in (gtitle, music_number) if x)
                             elif k == 0 and kind in ("readings", "standard"):
                                 item["title"] = gtitle
                                 if kind == "readings":
@@ -4920,7 +4933,7 @@ def create_app(config=None):
                 tfont = "Helvetica-BoldOblique" if song else "Helvetica-Bold"
                 centred([clean(it["title"])], tfont, 28, 158, H - 22 - (6 if it.get("subtitle") else 14), 644, HexColor("#FFE9A8"))
                 if it.get("subtitle"):
-                    centred([clean(it["subtitle"])], "Helvetica-Oblique", 17, 158, H - 22 - 40, 644, HexColor("#FFE9A8"))
+                    centred([clean(it["subtitle"])], "Helvetica-Oblique", 20, 158, H - 22 - 40, 644, HexColor("#FFE9A8"))
                 top = 22 + bh + 12
             bx, bw = 64.0, W - 128.0
             by_top, by_bot = H - top, bottom

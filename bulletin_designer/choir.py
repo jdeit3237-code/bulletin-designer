@@ -68,6 +68,14 @@ LABEL_KIND = {"Responsorial Psalm": "psalm", "Gospel Acclamation": "acclamation"
 MASS_PARTS = {"Penitential Act", "Glory to God", "Holy", "Mystery of Faith", "Amen", "Lamb of God", "Lord's Prayer"}
 CODE_RE = re.compile(r"\b([A-Z]{2,4}\d{2})\s*-\s*(\d+)\b")
 DATE_RE = re.compile(r"([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})")
+RA_RANGE_RE = re.compile(
+    r"([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})\s*[–—-]\s*"
+    r"([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})"
+)
+RA_DAYS_RE = re.compile(
+    r"^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})"
+    r"(?:\s+or\s+(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s+)?(\d{1,2}))?$"
+)
 
 
 def _norm(text):
@@ -266,6 +274,172 @@ def entries_to_text(entries):
     return "\n".join(lines)
 
 
+def generate_book_entries(path):
+    """Generate entries for a supported uploaded songbook PDF."""
+    reader = PdfReader(path)
+    front = [page.extract_text() or "" for page in reader.pages[:3]]
+    compact = re.sub(r"[^a-z]", "", "\n".join(front).lower())
+    if "respondacclaim" not in compact:
+        return []
+    entries = _respond_acclaim_outline_entries(reader, "\n".join(front))
+    if entries:
+        return entries
+    texts = front + [page.extract_text() or "" for page in reader.pages[3:]]
+    return _respond_acclaim_entries(texts)
+
+
+def _ra_years(cover):
+    span = RA_RANGE_RE.search(cover)
+    edition = re.search(r"Respond\s*&?\s*Acclaim\s*(20\d{2})", cover, re.I)
+    if span:
+        return datetime.strptime(span.group(1), "%B").month, int(span.group(3)), int(span.group(6))
+    if edition:
+        year = int(edition.group(1))
+        return 11, year - 1, year
+    return None
+
+
+def _ra_days(text):
+    match = RA_DAYS_RE.fullmatch(text)
+    if not match:
+        return []
+    days = [(match.group(1), match.group(2))]
+    if match.group(4):
+        days.append((match.group(3) or match.group(1), match.group(4)))
+    return days
+
+
+def _ra_pair(title, event_date, psalm_page, acclamation_page):
+    return [
+        {"number": "", "title": f"{title} – Responsorial Psalm", "start": psalm_page,
+         "end": psalm_page, "kind": "psalm", "date": event_date},
+        {"number": "", "title": f"{title} – Gospel Acclamation", "start": acclamation_page,
+         "end": acclamation_page, "kind": "acclamation", "date": event_date},
+    ]
+
+
+def _respond_acclaim_outline_entries(reader, cover):
+    """Use the book's navigation outline, which lists every celebration and page."""
+    years = _ra_years(cover)
+    if not years:
+        return []
+
+    def section(items):
+        previous_title = ""
+        for item in items:
+            if isinstance(item, list):
+                if previous_title == "Psalms & Acclamations":
+                    return item
+                found = section(item)
+                if found:
+                    return found
+            else:
+                previous_title = getattr(item, "title", "")
+        return []
+
+    entries = []
+    current_year = years[1]
+    previous_month = years[0]
+    for destination in section(reader.outline):
+        parts = [line.strip() for line in getattr(destination, "title", "").splitlines() if line.strip()]
+        if len(parts) < 2:
+            continue
+        days = _ra_days(parts[-1])
+        if not days:
+            continue
+        page = reader.get_destination_page_number(destination) + 1
+        month = datetime.strptime(days[0][0], "%B").month
+        if month < previous_month:
+            current_year = min(current_year + 1, years[2])
+        previous_month = month
+        for month_name, day in days:
+            event_month = datetime.strptime(month_name, "%B").month
+            entries.extend(_ra_pair(
+                " ".join(parts[:-1]),
+                date(current_year, event_month, int(day)).isoformat(),
+                page,
+                page + 1,
+            ))
+    return entries
+
+
+def _respond_acclaim_entries(texts):
+    """Read dated psalm/acclamation pairs from Respond & Acclaim pages."""
+    cover = "\n".join(texts[:3])
+    years = _ra_years(cover)
+    if not years:
+        return []
+
+    def printed_page(text, fallback):
+        for line in text.splitlines()[:5]:
+            line = line.strip()
+            if re.fullmatch(r"\d{1,3}", line):
+                return int(line)
+        return fallback
+
+    celebrations = []
+    current_year = years[1]
+    previous_month = years[0]
+    for page_idx, text in enumerate(texts):
+        if "Responsorial Psalm:" not in text:
+            continue
+        lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines()]
+        psalm_idx = next((i for i, line in enumerate(lines) if "Responsorial Psalm:" in line), len(lines))
+        date_hit = next(
+            ((i, _ra_days(line)) for i, line in enumerate(lines[:psalm_idx]) if _ra_days(line)),
+            None,
+        )
+        if not date_hit:
+            continue
+        date_idx, days = date_hit
+        title_lines = []
+        for line in lines[:date_idx]:
+            line = re.sub(r"^.*List of Page Numbers", "", line, flags=re.I).strip()
+            line = re.sub(r"^Psalms\s*&\s*$", "", line, flags=re.I).strip()
+            line = re.sub(r"^Acclamations\s+", "", line, flags=re.I).strip()
+            if not line or re.fullmatch(r"\d{1,3}", line) or line.lower() == "home":
+                continue
+            title_lines.append(line)
+        title = " ".join(title_lines).strip() or "Respond & Acclaim"
+        month = datetime.strptime(days[0][0], "%B").month
+        if month < previous_month:
+            current_year = min(current_year + 1, years[2])
+        previous_month = month
+        celebrations.append({
+            "page_idx": page_idx,
+            "page": printed_page(text, page_idx + 1),
+            "title": title,
+            "dates": [
+                date(current_year, datetime.strptime(month_name, "%B").month, int(day)).isoformat()
+                for month_name, day in days
+            ],
+        })
+
+    entries = []
+    for celebration in celebrations:
+        acclamation_page = None
+        for page_idx in range(celebration["page_idx"] + 1, len(texts)):
+            text = texts[page_idx]
+            if "Responsorial Psalm:" in text:
+                break
+            if "Gospel Acclamation:" in text:
+                acclamation_page = printed_page(text, page_idx + 1)
+                break
+        for event_date in celebration["dates"]:
+            if acclamation_page is not None:
+                entries.extend(_ra_pair(celebration["title"], event_date, celebration["page"], acclamation_page))
+            else:
+                entries.append({
+                    "number": "",
+                    "title": f"{celebration['title']} – Responsorial Psalm",
+                    "start": celebration["page"],
+                    "end": celebration["page"],
+                    "kind": "psalm",
+                    "date": event_date,
+                })
+    return entries
+
+
 def book_path(app, book):
     name = os.path.basename(book["file"])
     return os.path.join(library_dir(app), "books", name)
@@ -283,16 +457,22 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
     part = LABEL_PART.get(song["label"])
     want_title = _plain(song["title"], part_idx)
     want_setting = _words(song["setting"])
+    requested_code = _norm(song.get("book"))
+    requested_code_available = bool(requested_code) and any(
+        _norm(book.get("code")) == requested_code and book.get("entries") for book in lib.get("books", [])
+    )
     for book in lib.get("books", []):
         code = book.get("code", "")
         for e in book.get("entries", []):
             if song["book"] and song["number"]:
                 # The outline's hymn number does not always match the book's own numbering
                 # (BB26-718 is a psalm in the 2026 book), so a number match must agree on title.
-                if _norm(code) == _norm(song["book"]) and e["number"] == song["number"] \
+                same_code = _norm(code) == requested_code
+                if same_code and e["number"] == song["number"] \
                         and _title_match(e["title"], want_title):
                     hits.append((book, e))
-                elif not kind and not part and _title_match(e["title"], want_title) and e["number"]:
+                elif (same_code or not requested_code_available) and not kind and not part \
+                        and _title_match(e["title"], want_title) and e["number"]:
                     hits.append((book, e))
                 continue
             if iso and e.get("date") == iso and kind and e.get("kind") == kind:
