@@ -76,6 +76,12 @@ RA_DAYS_RE = re.compile(
     r"^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})"
     r"(?:\s+or\s+(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s+)?(\d{1,2}))?$"
 )
+BB_NAV_RE = re.compile(r"^\s*Home\s*\|.*$", re.M)
+BB_START_RE = re.compile(r"^\s*(\d{1,3})\s+(\S.*)$")
+BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?),\s*cont\.", re.I)
+BB_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$")
+BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
+BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
 
 
 def _norm(text):
@@ -277,9 +283,11 @@ def entries_to_text(entries):
 def generate_book_entries(path, code="", name=""):
     """Generate entries for a supported uploaded songbook PDF."""
     reader = PdfReader(path)
+    identity = _norm(f"{code} {name}")
+    if identity.startswith("bb") or ("breaking" in identity and "bread" in identity):
+        return _breaking_bread_entries(reader)
     front = [page.extract_text() or "" for page in reader.pages[:3]]
     compact = re.sub(r"[^a-z]", "", "\n".join(front).lower())
-    identity = _norm(f"{code} {name}")
     known_ra = identity.startswith("ra") or ("respond" in identity and "acclaim" in identity)
     if not known_ra and "respondacclaim" not in compact:
         return []
@@ -288,6 +296,74 @@ def generate_book_entries(path, code="", name=""):
         return entries
     texts = front + [page.extract_text() or "" for page in reader.pages[3:]]
     return _respond_acclaim_entries(texts)
+
+
+def _breaking_bread_entries(reader):
+    """Read song numbers, titles and page ranges from a Breaking Bread accompaniment book."""
+    def page_lines(page_idx):
+        text = BB_NAV_RE.sub("", reader.pages[page_idx].extract_text() or "")
+        return [line for line in text.splitlines() if line.strip()]
+
+    def smart_title(text):
+        words = re.sub(r"\s+", " ", text).strip().lower().split()
+        return " ".join(
+            word if index and word in BB_SMALL_WORDS else word[:1].upper() + word[1:]
+            for index, word in enumerate(words)
+        )
+
+    first = min(12, len(reader.pages))
+    stop = len(reader.pages)
+    for page_idx in range(first, len(reader.pages)):
+        if BB_INDEX_HEAD_RE.search((reader.pages[page_idx].extract_text() or "")[:80]):
+            stop = page_idx
+            break
+
+    found = {}
+    for page_idx in range(first, stop):
+        number = title = None
+        for line in page_lines(page_idx)[:4]:
+            match = BB_CONT_RE.match(line)
+            if match:
+                number, title = int(match.group(1)), match.group(2)
+                break
+        if number is None:
+            for line in page_lines(page_idx)[:4]:
+                match = BB_START_RE.match(line)
+                if match and len(match.group(2)) > 3 and not re.match(r"^[\d.,/ ]+$", match.group(2)):
+                    number, title = int(match.group(1)), match.group(2)
+                    break
+        if number is None:
+            continue
+        record = found.setdefault(number, [page_idx + 1, page_idx + 1, smart_title(title)])
+        record[1] = max(record[1], page_idx + 1)
+
+    index_titles = {}
+    for page_idx in range(stop, len(reader.pages)):
+        text = reader.pages[page_idx].extract_text() or ""
+        if not text.lstrip().startswith("A | B | C"):
+            continue
+        for line in text.splitlines():
+            match = BB_INDEX_LINE_RE.match(line)
+            if match and "|" not in line and ". . ." not in line:
+                index_titles.setdefault(int(match.group(1)), match.group(2))
+
+    entries = [
+        {"number": str(number), "title": index_titles.get(number, found[number][2]),
+         "start": found[number][0], "end": found[number][1]}
+        for number in sorted(found)
+    ]
+    for entry in entries:
+        match = re.match(r"^([B-HJ-NP-Z]) ([A-Za-z]{2,})(.*)$", entry["title"])
+        if match and match.group(1) != "A":
+            entry["title"] = match.group(1) + match.group(2).lower() + match.group(3)
+        entry["title"] = entry["title"].replace("’S", "’s")
+    ordered = sorted(entries, key=lambda entry: entry["start"])
+    for current, following in zip(ordered, ordered[1:]):
+        if following["start"] > current["start"]:
+            current["end"] = min(current["end"], following["start"] - 1)
+    for entry in entries:
+        entry["end"] = max(entry["start"], min(entry["end"], entry["start"] + 8))
+    return entries
 
 
 def _ra_years(cover):

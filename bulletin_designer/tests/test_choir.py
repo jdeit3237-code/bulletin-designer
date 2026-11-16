@@ -195,6 +195,41 @@ def test_library_page_repairs_existing_empty_respond_acclaim_book(app):
     assert len(choir.load_library(app)["books"][0]["entries"]) == 2
 
 
+def test_breaking_bread_upload_generates_song_entries(app):
+    import io
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    for _ in range(12):
+        cv.drawString(72, 720, "Front matter")
+        cv.showPage()
+    cv.drawString(72, 720, "101 Amazing Grace")
+    cv.showPage()
+    cv.drawString(72, 720, "101 - Amazing Grace, cont.")
+    cv.showPage()
+    cv.drawString(72, 720, "102 Be Not Afraid")
+    cv.save()
+    buf.seek(0)
+
+    c = setup_admin(app)
+    c.post("/choir/library/add", data={
+        "csrf": tok(c, "/choir/library"),
+        "name": "Breaking Bread 2027 Keyboard",
+        "code": "BB27",
+        "edition": "keyboard",
+        "page_offset": "0",
+        "entries": "",
+        "pdf": (buf, "Breaking_Bread_2027_Keyboard.pdf"),
+    }, content_type="multipart/form-data")
+    entries = choir.load_library(app)["books"][0]["entries"]
+    assert entries == [
+        {"number": "101", "title": "Amazing Grace", "start": 13, "end": 14},
+        {"number": "102", "title": "Be Not Afraid", "start": 15, "end": 15},
+    ]
+
+
 def test_requested_book_code_wins_until_that_edition_is_unavailable():
     from datetime import date
 
