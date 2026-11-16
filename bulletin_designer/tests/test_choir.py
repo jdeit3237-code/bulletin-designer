@@ -228,6 +228,9 @@ def test_breaking_bread_upload_generates_song_entries(app):
         {"number": "101", "title": "Amazing Grace", "start": 13, "end": 14},
         {"number": "102", "title": "Be Not Afraid", "start": 15, "end": 15},
     ]
+    path = choir.book_path(app, choir.load_library(app)["books"][0])
+    assert choir.generate_book_entries(path, "CP4", "Choral Praise 4") == entries
+    assert choir.generate_book_entries(path, "SSAIDE", "Spirit & Psalm") == entries
 
 
 def test_requested_book_code_wins_until_that_edition_is_unavailable():

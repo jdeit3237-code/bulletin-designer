@@ -284,22 +284,20 @@ def generate_book_entries(path, code="", name=""):
     """Generate entries for a supported uploaded songbook PDF."""
     reader = PdfReader(path)
     identity = _norm(f"{code} {name}")
-    if identity.startswith("bb") or ("breaking" in identity and "bread" in identity):
-        return _breaking_bread_entries(reader)
     front = [page.extract_text() or "" for page in reader.pages[:3]]
     compact = re.sub(r"[^a-z]", "", "\n".join(front).lower())
     known_ra = identity.startswith("ra") or ("respond" in identity and "acclaim" in identity)
-    if not known_ra and "respondacclaim" not in compact:
-        return []
-    entries = _respond_acclaim_outline_entries(reader, "\n".join(front))
-    if entries:
-        return entries
-    texts = front + [page.extract_text() or "" for page in reader.pages[3:]]
-    return _respond_acclaim_entries(texts)
+    if known_ra or "respondacclaim" in compact:
+        entries = _respond_acclaim_outline_entries(reader, "\n".join(front))
+        if entries:
+            return entries
+        texts = front + [page.extract_text() or "" for page in reader.pages[3:]]
+        return _respond_acclaim_entries(texts)
+    return _numbered_songbook_entries(reader)
 
 
-def _breaking_bread_entries(reader):
-    """Read song numbers, titles and page ranges from a Breaking Bread accompaniment book."""
+def _numbered_songbook_entries(reader):
+    """Read song numbers, titles and page ranges from an OCP accompaniment book."""
     def page_lines(page_idx):
         text = BB_NAV_RE.sub("", reader.pages[page_idx].extract_text() or "")
         return [line for line in text.splitlines() if line.strip()]
