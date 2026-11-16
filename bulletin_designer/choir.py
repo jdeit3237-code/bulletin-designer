@@ -282,24 +282,36 @@ def entries_to_text(entries):
 
 def generate_book_entries(path, code="", name=""):
     """Generate entries for a supported uploaded songbook PDF."""
-    reader = PdfReader(path)
     identity = _norm(f"{code} {name}")
+    known_ra = identity.startswith("ra") or ("respond" in identity and "acclaim" in identity)
+    if not known_ra:
+        return _numbered_songbook_entries(path)
+    reader = PdfReader(path)
     front = [page.extract_text() or "" for page in reader.pages[:3]]
     compact = re.sub(r"[^a-z]", "", "\n".join(front).lower())
-    known_ra = identity.startswith("ra") or ("respond" in identity and "acclaim" in identity)
     if known_ra or "respondacclaim" in compact:
         entries = _respond_acclaim_outline_entries(reader, "\n".join(front))
         if entries:
             return entries
         texts = front + [page.extract_text() or "" for page in reader.pages[3:]]
         return _respond_acclaim_entries(texts)
-    return _numbered_songbook_entries(reader)
+    return []
 
 
-def _numbered_songbook_entries(reader):
+def _numbered_songbook_entries(path):
     """Read song numbers, titles and page ranges from an OCP accompaniment book."""
+    try:
+        import fitz
+
+        doc = fitz.open(path)
+        texts = [page.get_text() or "" for page in doc]
+        doc.close()
+    except (ImportError, RuntimeError, ValueError):
+        reader = PdfReader(path)
+        texts = [page.extract_text() or "" for page in reader.pages]
+
     def page_lines(page_idx):
-        text = BB_NAV_RE.sub("", reader.pages[page_idx].extract_text() or "")
+        text = BB_NAV_RE.sub("", texts[page_idx])
         return [line for line in text.splitlines() if line.strip()]
 
     def smart_title(text):
@@ -309,10 +321,10 @@ def _numbered_songbook_entries(reader):
             for index, word in enumerate(words)
         )
 
-    first = min(12, len(reader.pages))
-    stop = len(reader.pages)
-    for page_idx in range(first, len(reader.pages)):
-        if BB_INDEX_HEAD_RE.search((reader.pages[page_idx].extract_text() or "")[:80]):
+    first = min(12, len(texts))
+    stop = len(texts)
+    for page_idx in range(first, len(texts)):
+        if BB_INDEX_HEAD_RE.search(texts[page_idx][:80]):
             stop = page_idx
             break
 
@@ -336,8 +348,8 @@ def _numbered_songbook_entries(reader):
         record[1] = max(record[1], page_idx + 1)
 
     index_titles = {}
-    for page_idx in range(stop, len(reader.pages)):
-        text = reader.pages[page_idx].extract_text() or ""
+    for page_idx in range(stop, len(texts)):
+        text = texts[page_idx]
         if not text.lstrip().startswith("A | B | C"):
             continue
         for line in text.splitlines():

@@ -197,9 +197,12 @@ def register(app, need, need_area):
             books.append(b)
         return render_template("choir_library.html", books=books, editions=choir.EDITIONS)
 
-    @app.route("/choir/library/add", methods=["POST"])
+    @app.route("/choir/library/add", methods=["GET", "POST"])
     @manage
     def choir_library_add():
+        if request.method == "GET":
+            flash("The previous upload request ended. Check the library before uploading the book again.", "error")
+            return redirect(url_for("choir_library"))
         name, code = request.form.get("name", "").strip(), request.form.get("code", "").strip().upper()
         edition = request.form.get("edition", "piano")
         if not name or edition not in dict(choir.EDITIONS):
