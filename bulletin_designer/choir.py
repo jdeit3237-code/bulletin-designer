@@ -81,14 +81,14 @@ BB_START_RE = re.compile(r"^\s*(\d{1,3})\s+(\S.*)$")
 BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?)(?:,\s*cont\.|\s*\(\d+\))\s*$", re.I)
 BB_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$")
 BB_MI_INDEX_RE = re.compile(
-    r"^\s*([A-Za-z\"“‘'(].*?)\s+(?:\.{2,}\s*)?BB\s*/\s*MI\s+(\d{1,3})\s+(\d{1,3})\s*$",
+    r"^\s*(.+?)\s+(?:\.{2,}\s*)?BB\s*/\s*MI\s+(\d{1,3})\s+(\d{1,3})\s*$",
     re.I,
 )
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
 PDF_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-BOOK_INDEX_VERSION = 4
+BOOK_INDEX_VERSION = 5
 
 
 def _norm(text):
@@ -362,6 +362,14 @@ def _numbered_songbook_entries_from_texts(texts):
     index_titles = {}
     index_records = {}
     aliases = {}
+    for text in texts[stop:]:
+        for cross_ref in _bb_mi_index_records(text):
+            number = int(cross_ref["ACCOMP"])
+            title = cross_ref["title"]
+            index_titles.setdefault(number, title)
+            aliases.setdefault(_words(title), set()).add(number)
+            aliases.setdefault(_plain(title), set()).add(number)
+            index_records.setdefault(number, cross_ref)
     first_lines = next(
         (page_idx for page_idx in range(stop, len(texts)) if "First Lines and Common Titles" in texts[page_idx]),
         None,
@@ -376,13 +384,6 @@ def _numbered_songbook_entries_from_texts(texts):
         index_pages = alphabetical or range(stop, len(texts))
     for page_idx in index_pages:
         text = texts[page_idx]
-        for cross_ref in _bb_mi_index_records(text):
-            number = int(cross_ref["ACCOMP"])
-            title = cross_ref["title"]
-            index_titles.setdefault(number, title)
-            aliases.setdefault(_words(title), set()).add(number)
-            aliases.setdefault(_plain(title), set()).add(number)
-            index_records.setdefault(number, cross_ref)
         for line in text.splitlines():
             if "BB/MI" in line.replace(" ", "").upper():
                 continue
@@ -499,7 +500,7 @@ def _bb_mi_index_record(line):
     match = BB_MI_INDEX_RE.match(line)
     if match:
         return {
-            "title": match.group(1).rstrip(" ."),
+            "title": match.group(1).lstrip("★* ").rstrip(" ."),
             "BB": match.group(2),
             "MI": match.group(2),
             "ACCOMP": match.group(3),
@@ -537,11 +538,18 @@ def upgrade_book_entries(book, generated):
     generated_by_number = {entry.get("number"): entry for entry in generated}
     for entry in book.get("entries", []):
         new_entry = generated_by_number.get(entry.get("number"))
-        if not new_entry or not new_entry.get("catalog_numbers"):
+        if not new_entry:
             continue
-        if entry.get("catalog_numbers") != new_entry["catalog_numbers"]:
+        if new_entry.get("catalog_numbers") and \
+                entry.get("catalog_numbers") != new_entry["catalog_numbers"]:
             entry["catalog_numbers"] = new_entry["catalog_numbers"]
             changed = True
+        if book.get("code", "").upper().startswith("BB") and \
+                _plain(entry.get("title")) == _plain(new_entry.get("title")):
+            for key in ("start", "end"):
+                if entry.get(key) != new_entry.get(key):
+                    entry[key] = new_entry[key]
+                    changed = True
     for number, entry in generated_by_number.items():
         if number not in existing_by_number:
             book.setdefault("entries", []).append(entry)
@@ -737,7 +745,7 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
                         and _title_match(e["title"], want_title):
                     hits.append((book, e))
                 elif (same_code or not requested_code_available) and not kind and not part \
-                        and _title_match(e["title"], want_title) and e["number"]:
+                        and want_title in _halves(e["title"]) and e["number"]:
                     hits.append((book, e))
                 continue
             if iso and e.get("date") == iso and kind and e.get("kind") == kind:

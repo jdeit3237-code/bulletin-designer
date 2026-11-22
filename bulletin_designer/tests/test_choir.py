@@ -361,19 +361,26 @@ def test_catalog_numbers_survive_entry_edit_and_existing_book_upgrade():
 
 
 def test_existing_book_upgrade_adds_newly_discovered_song():
-    book = {"entries": [{
+    book = {"code": "BB27", "entries": [{
         "number": "517",
         "title": "Somebody’s Knockin’ At Your Door",
         "start": 987,
         "end": 987,
+    }, {
+        "number": "104",
+        "title": "Beyond the Moon and Stars",
+        "start": 200,
+        "end": 200,
     }]}
     generated = [
         {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
         {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 986, "end": 986},
+        {"number": "104", "title": "Beyond the Moon and Stars", "start": 199, "end": 200},
     ]
     assert choir.upgrade_book_entries(book, generated)
     assert book["entries"] == [
-        {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 987, "end": 987},
+        {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 986, "end": 986},
+        {"number": "104", "title": "Beyond the Moon and Stars", "start": 199, "end": 200},
         {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
     ]
 
@@ -391,6 +398,30 @@ def test_bb_mi_index_parser_accepts_split_pdf_columns():
     assert choir._bb_mi_index_records(
         "Give Me Jesus (Spiritual) ...\nBB/MI\n517\n216"
     ) == expected
+    assert choir._bb_mi_index_records(
+        "★Give Me Jesus (Spiritual) ...\nBB/MI\n517\n216"
+    ) == expected
+
+
+def test_numbered_outline_does_not_use_partial_title_fallback():
+    from datetime import date
+
+    book = {
+        "id": "bb26",
+        "name": "Breaking Bread 2026",
+        "code": "BB26",
+        "edition": "keyboard",
+        "file": "bb26.pdf",
+        "entries": [{
+            "number": "148",
+            "title": "Come, Emmanuel",
+            "start": 299,
+            "end": 300,
+        }],
+    }
+    song = {"label": "Entrance", "title": "O Come, O Come, Emmanuel", "setting": "",
+            "composer": "", "book": "BB26", "number": "39"}
+    assert choir.match_songs({"books": [book]}, [song], date(2026, 11, 29))[0]["primary"] is None
 
 
 def test_requested_book_code_wins_until_that_edition_is_unavailable():
