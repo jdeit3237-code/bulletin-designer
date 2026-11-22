@@ -7,6 +7,6 @@
 {% for b in books %}<option value="{{ b.id }}"{% if b.id == book_id %} selected{% endif %}>{{ b.name }} ({{ b.edition|title }})</option>{% endfor %}</select></p>
 <button class="btn">Search</button></form>
 {% if searched %}{% if not results %}<p>No songs found. Try fewer letters, such as just one word of the title.</p>{% endif %}
-{% for r in results %}<p style="font-size:1.15rem"><strong>{{ r.title }}</strong><br><span class="small">{{ r.book_name }} - {{ r.edition|title }}{% if r.number %} - #{{ r.number }}{% endif %} - pages {{ r.start }}{% if r.end != r.start %}-{{ r.end }}{% endif %}</span><br>
+{% for r in results %}<p style="font-size:1.15rem"><strong>{{ r.title }}</strong><br><span class="small">{{ r.book_name }} - {{ r.edition|title }}{% if r.catalog_numbers %}{% for code, number in r.catalog_numbers|dictsort %} - {{ code }} #{{ number }}{% endfor %}{% elif r.number %} - #{{ r.number }}{% endif %} - pages {{ r.start }}{% if r.end != r.start %}-{{ r.end }}{% endif %}</span><br>
 <a class="btn" href="{{ url_for('choir_find_download', book_id=r.book_id, idx=r.idx) }}">Download</a></p><hr>{% endfor %}{% endif %}
 {% endblock %}

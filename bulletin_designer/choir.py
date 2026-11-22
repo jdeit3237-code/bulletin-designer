@@ -80,9 +80,17 @@ BB_NAV_RE = re.compile(r"^\s*Home\s*\|.*$", re.M)
 BB_START_RE = re.compile(r"^\s*(\d{1,3})\s+(\S.*)$")
 BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?)(?:,\s*cont\.|\s*\(\d+\))\s*$", re.I)
 BB_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$")
+BB_MI_INDEX_RE = re.compile(
+    r"^\s*([A-Za-z\"“‘'(].*?)\s+(?:\.{2,}\s*)?(?:BB\s*/\s*MI\s+)?(\d{1,3})\s+(\d{1,3})\s*$",
+    re.I,
+)
+BB_MI_INDEX_LEADING_RE = re.compile(
+    r"^\s*(\d{1,3})\s+(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$"
+)
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
+BOOK_INDEX_VERSION = 2
 
 
 def _norm(text):
@@ -235,9 +243,10 @@ def save_library(app, lib):
 
 
 def parse_entries(text):
-    """Entry lines: ``number | title | pages | kind | date`` (last two optional).
+    """Entry lines: ``number | title | pages | kind | date | catalog numbers``.
 
     ``pages`` is ``12`` or ``12-14`` using the book's printed page numbers.
+    Catalog numbers are optional comma-separated pairs such as ``BB=517,MI=216``.
     """
     entries, errors = [], []
     for n, raw in enumerate((text or "").splitlines(), 1):
@@ -266,6 +275,19 @@ def parse_entries(text):
             except ValueError:
                 errors.append(f"Line {n}: date must be YYYY-MM-DD.")
                 continue
+        if len(parts) > 5 and parts[5]:
+            catalog_numbers = {}
+            for pair in parts[5].split(","):
+                match = re.fullmatch(r"\s*([A-Za-z]+)\s*=\s*(\d+)\s*", pair)
+                if not match:
+                    errors.append(f"Line {n}: bad catalog number '{pair.strip()}'.")
+                    break
+                catalog_numbers[match.group(1).upper()] = match.group(2)
+            else:
+                entry["catalog_numbers"] = catalog_numbers
+                entries.append(entry)
+                continue
+            continue
         entries.append(entry)
     return entries, errors
 
@@ -275,8 +297,11 @@ def entries_to_text(entries):
     for e in entries:
         pages = str(e["start"]) if e["start"] == e["end"] else f"{e['start']}-{e['end']}"
         line = f"{e['number']} | {e['title']} | {pages}"
-        if e.get("kind") or e.get("date"):
+        if e.get("kind") or e.get("date") or e.get("catalog_numbers"):
             line += f" | {e.get('kind', '')} | {e.get('date', '')}"
+        if e.get("catalog_numbers"):
+            refs = ",".join(f"{key}={value}" for key, value in sorted(e["catalog_numbers"].items()))
+            line += f" | {refs}"
         lines.append(line)
     return "\n".join(lines)
 
@@ -335,6 +360,7 @@ def _numbered_songbook_entries_from_texts(texts):
             break
 
     index_titles = {}
+    index_records = {}
     aliases = {}
     first_lines = next(
         (page_idx for page_idx in range(stop, len(texts)) if "First Lines and Common Titles" in texts[page_idx]),
@@ -351,6 +377,14 @@ def _numbered_songbook_entries_from_texts(texts):
     for page_idx in index_pages:
         text = texts[page_idx]
         for line in text.splitlines():
+            cross_ref = _bb_mi_index_record(line)
+            if cross_ref:
+                number = int(cross_ref["MI"])
+                title = cross_ref["title"]
+                index_titles.setdefault(number, title)
+                aliases.setdefault(_words(title), set()).add(number)
+                index_records.setdefault(number, cross_ref)
+                continue
             match = BB_INDEX_LINE_RE.match(line) or BB_ANY_INDEX_LINE_RE.match(line)
             if not match or "|" in line or ". . ." in line:
                 continue
@@ -430,11 +464,19 @@ def _numbered_songbook_entries_from_texts(texts):
         if continuation or page_idx + 1 >= record[0]:
             record[1] = max(record[1], page_idx + 1)
 
-    entries = [
-        {"number": str(number), "title": found[number][2],
-         "start": found[number][0], "end": found[number][1]}
-        for number in sorted(found)
-    ]
+    entries = []
+    for number in sorted(found):
+        record = index_records.get(number, {})
+        entry = {
+            "number": str(number),
+            "title": record.get("title", found[number][2]),
+            "start": found[number][0],
+            "end": found[number][1],
+        }
+        catalog_numbers = {key: record[key] for key in ("BB", "MI") if record.get(key)}
+        if catalog_numbers:
+            entry["catalog_numbers"] = catalog_numbers
+        entries.append(entry)
     for entry in entries:
         match = re.match(r"^([B-HJ-NP-Z]) ([A-Za-z]{2,})(.*)$", entry["title"])
         if match and match.group(1) != "A":
@@ -447,6 +489,34 @@ def _numbered_songbook_entries_from_texts(texts):
     for entry in entries:
         entry["end"] = max(entry["start"], min(entry["end"], entry["start"] + 8))
     return entries
+
+
+def _bb_mi_index_record(line):
+    """Return a title plus BB/MI catalog numbers from an alphabetical-index row."""
+    match = BB_MI_INDEX_RE.match(line)
+    if match:
+        return {"title": match.group(1).rstrip(" ."), "BB": match.group(2), "MI": match.group(3)}
+    match = BB_MI_INDEX_LEADING_RE.match(line)
+    if match:
+        return {"title": match.group(3).rstrip(" ."), "BB": match.group(1), "MI": match.group(2)}
+    return None
+
+
+def upgrade_book_entries(book, generated):
+    """Merge newly discovered catalog aliases into an existing book without replacing edits."""
+    changed = False
+    generated_by_number = {entry.get("number"): entry for entry in generated}
+    for entry in book.get("entries", []):
+        new_entry = generated_by_number.get(entry.get("number"))
+        if not new_entry or not new_entry.get("catalog_numbers"):
+            continue
+        if entry.get("catalog_numbers") != new_entry["catalog_numbers"]:
+            entry["catalog_numbers"] = new_entry["catalog_numbers"]
+            changed = True
+    if book.get("index_version") != BOOK_INDEX_VERSION:
+        book["index_version"] = BOOK_INDEX_VERSION
+        changed = True
+    return changed
 
 
 def _ra_years(cover):
@@ -630,7 +700,7 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
                 # The outline's hymn number does not always match the book's own numbering
                 # (BB26-718 is a psalm in the 2026 book), so a number match must agree on title.
                 same_code = _norm(code) == requested_code
-                if same_code and e["number"] == song["number"] \
+                if same_code and _entry_matches_number(e, song["number"], requested_code) \
                         and _title_match(e["title"], want_title):
                     hits.append((book, e))
                 elif (same_code or not requested_code_available) and not kind and not part \
@@ -652,6 +722,16 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
     if part_idx:
         return exact  # other languages: exact titles only, never a look-alike song
     return exact or hits
+
+
+def _entry_matches_number(entry, number, requested_code=""):
+    if entry.get("number") == number:
+        return True
+    catalog_numbers = entry.get("catalog_numbers", {})
+    prefix = re.match(r"[a-z]+", requested_code or "")
+    if prefix and catalog_numbers.get(prefix.group(0).upper()) == number:
+        return True
+    return number in catalog_numbers.values()
 
 
 def _plain(text, part=0):
@@ -1050,7 +1130,13 @@ def search_library(app, query, book_id=""):
         if book_id and book["id"] != book_id:
             continue
         for idx, e in enumerate(book.get("entries", [])):
-            hay = _words(e["title"] + " " + e["number"] + " " + book.get("code", ""))
+            catalog_numbers = " ".join(
+                f"{key} {value} {key}-{value}" for key, value in e.get("catalog_numbers", {}).items()
+            )
+            bb_number = e.get("catalog_numbers", {}).get("BB")
+            if bb_number and book.get("code"):
+                catalog_numbers += f" {book['code']}-{bb_number}"
+            hay = _words(e["title"] + " " + e["number"] + " " + catalog_numbers + " " + book.get("code", ""))
             if not q or all(w in hay.split() or w in hay for w in q.split()):
                 results.append(
                     {
@@ -1060,6 +1146,7 @@ def search_library(app, query, book_id=""):
                         "edition": book.get("edition", ""),
                         "title": e["title"],
                         "number": e["number"],
+                        "catalog_numbers": e.get("catalog_numbers", {}),
                         "start": e["start"],
                         "end": e["end"],
                     }

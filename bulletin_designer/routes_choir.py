@@ -172,8 +172,9 @@ def register(app, need, need_area):
     def choir_library():
         lib = choir.load_library(current_app)
         generated = []
+        library_changed = False
         for book in lib["books"]:
-            if book.get("entries"):
+            if book.get("entries") and book.get("index_version") == choir.BOOK_INDEX_VERSION:
                 continue
             path = choir.book_path(current_app, book)
             if not os.path.exists(path):
@@ -183,12 +184,17 @@ def register(app, need, need_area):
             except Exception as exc:
                 current_app.logger.warning("Could not generate choir book entries for %s: %s", book.get("file"), exc)
                 continue
-            if entries:
+            if entries and not book.get("entries"):
                 book["entries"] = entries
+                book["index_version"] = choir.BOOK_INDEX_VERSION
                 generated.append(f"{book['name']} ({len(entries)})")
+                library_changed = True
+            elif book.get("entries"):
+                library_changed = choir.upgrade_book_entries(book, entries) or library_changed
         if generated:
-            choir.save_library(current_app, lib)
             flash("Generated entries from the PDF for " + ", ".join(generated) + ".")
+        if library_changed:
+            choir.save_library(current_app, lib)
         books = []
         for b in lib["books"]:
             b = dict(b)
@@ -242,7 +248,8 @@ def register(app, need, need_area):
                 current_app.logger.warning("Could not generate choir book entries for %s: %s", filename, exc)
         lib = choir.load_library(current_app)
         lib["books"].append({"id": uuid.uuid4().hex[:8], "name": name, "code": code, "edition": edition,
-                             "file": filename, "page_offset": offset, "entries": entries})
+                             "file": filename, "page_offset": offset, "entries": entries,
+                             "index_version": choir.BOOK_INDEX_VERSION})
         choir.save_library(current_app, lib)
         if generated:
             flash(f"Added {name} ({edition}) with {len(entries)} entries read from the PDF.")

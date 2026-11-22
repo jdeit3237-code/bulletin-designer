@@ -292,6 +292,70 @@ def test_numbered_songbook_index_disambiguates_numeric_title():
     ]
 
 
+def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
+    import io
+    import os
+    from datetime import date
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    for _ in range(12):
+        cv.drawString(72, 720, "Front matter")
+        cv.showPage()
+    cv.drawString(72, 720, "216 Give Me Jesus")
+    cv.showPage()
+    cv.drawString(72, 720, "Alphabetical Index")
+    cv.showPage()
+    cv.drawString(72, 720, "A | B | C")
+    cv.drawString(72, 700, "Give Me Jesus (Spiritual) ... BB/MI 517 216")
+    cv.save()
+    path = os.path.join(choir.library_dir(app), "books", "bb27.pdf")
+    with open(path, "wb") as fh:
+        fh.write(buf.getvalue())
+
+    entries = choir.generate_book_entries(path, "BB27", "Breaking Bread 2027 Keyboard")
+    assert entries == [{
+        "number": "216",
+        "title": "Give Me Jesus (Spiritual)",
+        "start": 13,
+        "end": 13,
+        "catalog_numbers": {"BB": "517", "MI": "216"},
+    }]
+
+    old_entry = {key: value for key, value in entries[0].items() if key != "catalog_numbers"}
+    book = {"id": "bb27", "name": "Breaking Bread 2027 Keyboard", "code": "BB27",
+            "edition": "keyboard", "file": "bb27.pdf", "page_offset": 0, "entries": [old_entry]}
+    choir.save_library(app, {"books": [book]})
+    assert setup_admin(app).get("/choir/library").status_code == 200
+    book = choir.load_library(app)["books"][0]
+    assert book["entries"][0]["catalog_numbers"] == {"BB": "517", "MI": "216"}
+    assert book["index_version"] == choir.BOOK_INDEX_VERSION
+
+    song = {"label": "Final Song", "title": "Give Me Jesus", "setting": "", "composer": "James Hansen",
+            "book": "BB27", "number": "517"}
+    matched = choir.match_songs({"books": [book]}, [song], date(2027, 1, 24))[0]
+    assert matched["primary"]["entry_number"] == "216"
+    assert [r["title"] for r in choir.search_library(app, "Give Me Jesus")] == ["Give Me Jesus (Spiritual)"]
+    assert len(choir.search_library(app, "517")) == 1
+    assert len(choir.search_library(app, "216")) == 1
+    assert len(choir.search_library(app, "BB27-517")) == 1
+
+
+def test_catalog_numbers_survive_entry_edit_and_existing_book_upgrade():
+    entries = [{"number": "216", "title": "Give Me Jesus", "start": 40, "end": 42,
+                "catalog_numbers": {"BB": "517", "MI": "216"}}]
+    reparsed, errors = choir.parse_entries(choir.entries_to_text(entries))
+    assert errors == []
+    assert reparsed == entries
+
+    old_book = {"entries": [{"number": "216", "title": "Give Me Jesus", "start": 40, "end": 42}]}
+    assert choir.upgrade_book_entries(old_book, entries)
+    assert old_book["entries"][0]["catalog_numbers"] == {"BB": "517", "MI": "216"}
+    assert old_book["index_version"] == choir.BOOK_INDEX_VERSION
+
+
 def test_requested_book_code_wins_until_that_edition_is_unavailable():
     from datetime import date
 
