@@ -383,16 +383,23 @@ def test_existing_book_upgrade_adds_newly_discovered_song():
         "title": "Beyond the Moon and Stars",
         "start": 200,
         "end": 200,
+    }, {
+        "number": "400",
+        "title": "O C Ome, o Come, Emmanuel",
+        "start": 800,
+        "end": 801,
     }]}
     generated = [
         {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
         {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 986, "end": 986},
         {"number": "104", "title": "Beyond the Moon and Stars", "start": 199, "end": 200},
+        {"number": "400", "title": "O Come, o Come, Emmanuel", "start": 800, "end": 801},
     ]
     assert choir.upgrade_book_entries(book, generated)
     assert book["entries"] == [
         {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 986, "end": 986},
         {"number": "104", "title": "Beyond the Moon and Stars", "start": 199, "end": 200},
+        {"number": "400", "title": "O Come, o Come, Emmanuel", "start": 800, "end": 801},
         {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
     ]
 

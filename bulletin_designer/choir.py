@@ -88,7 +88,7 @@ BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+I
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
 PDF_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-BOOK_INDEX_VERSION = 5
+BOOK_INDEX_VERSION = 6
 
 
 def _norm(text):
@@ -546,8 +546,13 @@ def upgrade_book_entries(book, generated):
                 entry.get("catalog_numbers") != new_entry["catalog_numbers"]:
             entry["catalog_numbers"] = new_entry["catalog_numbers"]
             changed = True
-        if book.get("code", "").upper().startswith("BB") and \
-                _plain(entry.get("title")) == _plain(new_entry.get("title")):
+        old_title = _plain(entry.get("title"))
+        new_title = _plain(new_entry.get("title"))
+        same_title = old_title == new_title or old_title.replace(" ", "") == new_title.replace(" ", "")
+        if same_title and entry.get("title") != new_entry.get("title"):
+            entry["title"] = new_entry["title"]
+            changed = True
+        if book.get("code", "").upper().startswith("BB") and same_title:
             for key in ("start", "end"):
                 if entry.get(key) != new_entry.get(key):
                     entry[key] = new_entry[key]
