@@ -87,7 +87,8 @@ BB_MI_INDEX_RE = re.compile(
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
-BOOK_INDEX_VERSION = 3
+PDF_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+BOOK_INDEX_VERSION = 4
 
 
 def _norm(text):
@@ -243,7 +244,8 @@ def parse_entries(text):
     """Entry lines: ``number | title | pages | kind | date | catalog numbers``.
 
     ``pages`` is ``12`` or ``12-14`` using the book's printed page numbers.
-    Catalog numbers are optional comma-separated pairs such as ``BB=517,MI=216``.
+    Catalog numbers are optional comma-separated pairs such as
+    ``BB=517,MI=517,ACCOMP=216``.
     """
     entries, errors = [], []
     for n, raw in enumerate((text or "").splitlines(), 1):
@@ -337,6 +339,7 @@ def _numbered_songbook_entries(path):
 
 def _numbered_songbook_entries_from_texts(texts):
     """Parse extracted page text, using the book's own indexes to disambiguate titles like "40 Days"."""
+    texts = [PDF_CONTROL_RE.sub("", text or "") for text in texts]
 
     def page_lines(page_idx):
         text = BB_NAV_RE.sub("", texts[page_idx])
@@ -374,7 +377,7 @@ def _numbered_songbook_entries_from_texts(texts):
     for page_idx in index_pages:
         text = texts[page_idx]
         for cross_ref in _bb_mi_index_records(text):
-            number = int(cross_ref["MI"])
+            number = int(cross_ref["ACCOMP"])
             title = cross_ref["title"]
             index_titles.setdefault(number, title)
             aliases.setdefault(_words(title), set()).add(number)
@@ -471,7 +474,9 @@ def _numbered_songbook_entries_from_texts(texts):
             "start": found[number][0],
             "end": found[number][1],
         }
-        catalog_numbers = {key: record[key] for key in ("BB", "MI") if record.get(key)}
+        catalog_numbers = {
+            key: record[key] for key in ("BB", "MI", "ACCOMP") if record.get(key)
+        }
         if catalog_numbers:
             entry["catalog_numbers"] = catalog_numbers
         entries.append(entry)
@@ -493,7 +498,12 @@ def _bb_mi_index_record(line):
     """Return a title plus BB/MI catalog numbers from an alphabetical-index row."""
     match = BB_MI_INDEX_RE.match(line)
     if match:
-        return {"title": match.group(1).rstrip(" ."), "BB": match.group(2), "MI": match.group(3)}
+        return {
+            "title": match.group(1).rstrip(" ."),
+            "BB": match.group(2),
+            "MI": match.group(2),
+            "ACCOMP": match.group(3),
+        }
     return None
 
 
@@ -512,7 +522,7 @@ def _bb_mi_index_records(text):
             record = _bb_mi_index_record(" ".join(lines[start:start + width]))
             if not record:
                 continue
-            key = (record["title"], record["BB"], record["MI"])
+            key = (record["title"], record["BB"], record["ACCOMP"])
             if key not in seen:
                 seen.add(key)
                 records.append(record)
@@ -521,8 +531,9 @@ def _bb_mi_index_records(text):
 
 
 def upgrade_book_entries(book, generated):
-    """Merge newly discovered catalog aliases into an existing book without replacing edits."""
+    """Add newly discovered songs and aliases without replacing existing entry edits."""
     changed = False
+    existing_by_number = {entry.get("number"): entry for entry in book.get("entries", [])}
     generated_by_number = {entry.get("number"): entry for entry in generated}
     for entry in book.get("entries", []):
         new_entry = generated_by_number.get(entry.get("number"))
@@ -530,6 +541,10 @@ def upgrade_book_entries(book, generated):
             continue
         if entry.get("catalog_numbers") != new_entry["catalog_numbers"]:
             entry["catalog_numbers"] = new_entry["catalog_numbers"]
+            changed = True
+    for number, entry in generated_by_number.items():
+        if number not in existing_by_number:
+            book.setdefault("entries", []).append(entry)
             changed = True
     if book.get("index_version") != BOOK_INDEX_VERSION:
         book["index_version"] = BOOK_INDEX_VERSION

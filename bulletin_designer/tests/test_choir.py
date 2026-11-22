@@ -321,7 +321,7 @@ def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
         "title": "Give Me Jesus (Spiritual)",
         "start": 13,
         "end": 13,
-        "catalog_numbers": {"BB": "517", "MI": "216"},
+        "catalog_numbers": {"BB": "517", "MI": "517", "ACCOMP": "216"},
     }]
 
     old_entry = {key: value for key, value in entries[0].items() if key != "catalog_numbers"}
@@ -330,7 +330,9 @@ def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
     choir.save_library(app, {"books": [book]})
     assert setup_admin(app).get("/choir/library").status_code == 200
     book = choir.load_library(app)["books"][0]
-    assert book["entries"][0]["catalog_numbers"] == {"BB": "517", "MI": "216"}
+    assert book["entries"][0]["catalog_numbers"] == {
+        "BB": "517", "MI": "517", "ACCOMP": "216",
+    }
     assert book["index_version"] == choir.BOOK_INDEX_VERSION
 
     song = {"label": "Final Song", "title": "Give Me Jesus", "setting": "", "composer": "James Hansen",
@@ -345,19 +347,44 @@ def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
 
 def test_catalog_numbers_survive_entry_edit_and_existing_book_upgrade():
     entries = [{"number": "216", "title": "Give Me Jesus", "start": 40, "end": 42,
-                "catalog_numbers": {"BB": "517", "MI": "216"}}]
+                "catalog_numbers": {"BB": "517", "MI": "517", "ACCOMP": "216"}}]
     reparsed, errors = choir.parse_entries(choir.entries_to_text(entries))
     assert errors == []
     assert reparsed == entries
 
     old_book = {"entries": [{"number": "216", "title": "Give Me Jesus", "start": 40, "end": 42}]}
     assert choir.upgrade_book_entries(old_book, entries)
-    assert old_book["entries"][0]["catalog_numbers"] == {"BB": "517", "MI": "216"}
+    assert old_book["entries"][0]["catalog_numbers"] == {
+        "BB": "517", "MI": "517", "ACCOMP": "216",
+    }
     assert old_book["index_version"] == choir.BOOK_INDEX_VERSION
 
 
+def test_existing_book_upgrade_adds_newly_discovered_song():
+    book = {"entries": [{
+        "number": "517",
+        "title": "Somebody’s Knockin’ At Your Door",
+        "start": 987,
+        "end": 987,
+    }]}
+    generated = [
+        {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
+        {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 986, "end": 986},
+    ]
+    assert choir.upgrade_book_entries(book, generated)
+    assert book["entries"] == [
+        {"number": "517", "title": "Somebody’s Knockin’ At Your Door", "start": 987, "end": 987},
+        {"number": "216", "title": "Give Me Jesus", "start": 410, "end": 410},
+    ]
+
+
 def test_bb_mi_index_parser_accepts_split_pdf_columns():
-    expected = [{"title": "Give Me Jesus (Spiritual)", "BB": "517", "MI": "216"}]
+    expected = [{
+        "title": "Give Me Jesus (Spiritual)",
+        "BB": "517",
+        "MI": "517",
+        "ACCOMP": "216",
+    }]
     assert choir._bb_mi_index_records(
         "Give Me Jesus (Spiritual) ... BB/MI 517 216"
     ) == expected
