@@ -356,6 +356,16 @@ def test_catalog_numbers_survive_entry_edit_and_existing_book_upgrade():
     assert old_book["index_version"] == choir.BOOK_INDEX_VERSION
 
 
+def test_bb_mi_index_parser_accepts_split_pdf_columns():
+    expected = [{"title": "Give Me Jesus (Spiritual)", "BB": "517", "MI": "216"}]
+    assert choir._bb_mi_index_records(
+        "Give Me Jesus (Spiritual) ... BB/MI 517 216"
+    ) == expected
+    assert choir._bb_mi_index_records(
+        "Give Me Jesus (Spiritual) ...\nBB/MI\n517\n216"
+    ) == expected
+
+
 def test_requested_book_code_wins_until_that_edition_is_unavailable():
     from datetime import date
 

@@ -87,7 +87,7 @@ BB_MI_INDEX_RE = re.compile(
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
 BB_SMALL_WORDS = {"of", "the", "a", "an", "and", "to", "in", "on", "for", "o", "is", "my", "me", "us"}
-BOOK_INDEX_VERSION = 2
+BOOK_INDEX_VERSION = 3
 
 
 def _norm(text):
@@ -373,15 +373,15 @@ def _numbered_songbook_entries_from_texts(texts):
         index_pages = alphabetical or range(stop, len(texts))
     for page_idx in index_pages:
         text = texts[page_idx]
+        for cross_ref in _bb_mi_index_records(text):
+            number = int(cross_ref["MI"])
+            title = cross_ref["title"]
+            index_titles.setdefault(number, title)
+            aliases.setdefault(_words(title), set()).add(number)
+            aliases.setdefault(_plain(title), set()).add(number)
+            index_records.setdefault(number, cross_ref)
         for line in text.splitlines():
-            cross_ref = _bb_mi_index_record(line)
-            if cross_ref:
-                number = int(cross_ref["MI"])
-                title = cross_ref["title"]
-                index_titles.setdefault(number, title)
-                aliases.setdefault(_words(title), set()).add(number)
-                aliases.setdefault(_plain(title), set()).add(number)
-                index_records.setdefault(number, cross_ref)
+            if "BB/MI" in line.replace(" ", "").upper():
                 continue
             match = BB_INDEX_LINE_RE.match(line) or BB_ANY_INDEX_LINE_RE.match(line)
             if not match or "|" in line or ". . ." in line:
@@ -495,6 +495,29 @@ def _bb_mi_index_record(line):
     if match:
         return {"title": match.group(1).rstrip(" ."), "BB": match.group(2), "MI": match.group(3)}
     return None
+
+
+def _bb_mi_index_records(text):
+    """Read BB/MI rows even when PDF extraction splits their columns across lines."""
+    lines = [
+        cleaned for line in (text or "").splitlines()
+        if (cleaned := re.sub(r"\s+", " ", line).strip())
+        and "|" not in cleaned
+        and not BB_INDEX_HEAD_RE.search(cleaned)
+    ]
+    records = []
+    seen = set()
+    for start in range(len(lines)):
+        for width in range(1, min(4, len(lines) - start) + 1):
+            record = _bb_mi_index_record(" ".join(lines[start:start + width]))
+            if not record:
+                continue
+            key = (record["title"], record["BB"], record["MI"])
+            if key not in seen:
+                seen.add(key)
+                records.append(record)
+            break
+    return records
 
 
 def upgrade_book_entries(book, generated):
