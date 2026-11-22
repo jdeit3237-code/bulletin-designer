@@ -1,10 +1,12 @@
 """Choir sheet-music tab: weekly packets from a Liturgy.com outline, plus a simple Find Music page."""
 import io
 import os
+import re
 import uuid
 from datetime import date
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from pypdf import PdfReader
 from werkzeug.utils import secure_filename
 
 try:
@@ -257,6 +259,78 @@ def register(app, need, need_area):
             flash(f"Added {name} ({edition}).")
         else:
             flash(f"Added {name} ({edition}), but no entries were found automatically. Add them below.", "error")
+        return redirect(url_for("choir_library"))
+
+    @app.route("/choir/library/song", methods=["POST"])
+    @manage
+    def choir_library_song():
+        """Store one song PDF as a one-entry book so normal matching and search apply."""
+        title = request.form.get("title", "").strip()
+        code = request.form.get("code", "").strip().upper()
+        number = request.form.get("number", "").strip()
+        accompaniment_number = request.form.get("accompaniment_number", "").strip()
+        edition = request.form.get("edition", "keyboard")
+        upload = request.files.get("pdf")
+        if not title or edition not in dict(choir.EDITIONS):
+            flash("Song title and edition are required.", "error")
+            return redirect(url_for("choir_library"))
+        if number and not number.isdigit():
+            flash("BB/MI number must contain digits only.", "error")
+            return redirect(url_for("choir_library"))
+        if accompaniment_number and not accompaniment_number.isdigit():
+            flash("Accompaniment number must contain digits only.", "error")
+            return redirect(url_for("choir_library"))
+        if not upload or not upload.filename or not upload.filename.lower().endswith(".pdf"):
+            flash("Upload the song as a PDF.", "error")
+            return redirect(url_for("choir_library"))
+
+        folder = os.path.join(choir.library_dir(current_app), "books")
+        filename = f"{uuid.uuid4().hex[:8]}-{secure_filename(upload.filename)}"
+        path = os.path.join(folder, filename)
+        upload.save(path)
+        try:
+            pages = len(PdfReader(path).pages)
+        except Exception as exc:
+            current_app.logger.warning("Could not read single-song PDF %s: %s", filename, exc)
+            os.remove(path)
+            flash("That PDF could not be read.", "error")
+            return redirect(url_for("choir_library"))
+        if not pages:
+            os.remove(path)
+            flash("That PDF has no pages.", "error")
+            return redirect(url_for("choir_library"))
+
+        lib = choir.load_library(current_app)
+        catalog_numbers = {}
+        prefix = "".join(re.findall(r"^[A-Z]+", code))
+        if number and prefix:
+            catalog_numbers[prefix] = number
+            if prefix == "BB":
+                catalog_numbers["MI"] = number
+        if accompaniment_number:
+            catalog_numbers["ACCOMP"] = accompaniment_number
+        entry = {
+            "number": accompaniment_number or number or "S",
+            "title": title,
+            "start": 1,
+            "end": pages,
+        }
+        if catalog_numbers:
+            entry["catalog_numbers"] = catalog_numbers
+        lib["books"].append({
+            "id": uuid.uuid4().hex[:8],
+            "name": title,
+            "code": code,
+            "edition": edition,
+            "file": filename,
+            "page_offset": 0,
+            "entries": [entry],
+            "index_version": choir.BOOK_INDEX_VERSION,
+            "single": True,
+            "single_song": True,
+        })
+        choir.save_library(current_app, lib)
+        flash(f"Added {title} ({edition}) with {pages} page{'s' if pages != 1 else ''}.")
         return redirect(url_for("choir_library"))
 
     @app.route("/choir/library/<book_id>/entries", methods=["POST"])

@@ -3,11 +3,21 @@
 <h1>Choir song library (songbooks)</h1>
 <p><a class="btn secondary" href="{{ url_for('choir_index') }}">Back</a></p>
 <p class="small">Books are stored privately on the server and are never public or committed to the repository. Supported Respond &amp; Acclaim and numbered OCP songbook PDFs fill their entries automatically when the Entries box is blank. Otherwise, list one song per line as <code>number | title | pages</code> (printed page numbers), for example <code>628 | This Day God Gives Me | 412-413</code>. For Respond &amp; Acclaim add <code>| psalm | 2026-11-08</code> or <code>| acclamation | 2026-11-08</code>. Catalog aliases may follow as <code>| BB=517,MI=517,ACCOMP=216</code>. Page offset = PDF page number minus printed page number (0 if they match). Name Mass settings like the outline, e.g. "Mass of Saint Ann".</p>
-{% for b in books %}<h2>{{ b.name }} ({{ b.edition }}){% if b.code %} {{ b.code }}{% endif %}{% if not b.file_ok %} - PDF file missing{% endif %}</h2>
+{% for b in books %}<h2>{{ b.name }} ({% if b.single or b.single_song %}single song, {% endif %}{{ b.edition }}){% if b.code %} {{ b.code }}{% endif %}{% if not b.file_ok %} - PDF file missing{% endif %}</h2>
 <form method="post" action="{{ url_for('choir_library_entries', book_id=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <label for="off-{{ b.id }}">Page offset</label><input id="off-{{ b.id }}" type="number" name="page_offset" value="{{ b.page_offset }}"><br>
 <label for="en-{{ b.id }}">Entries</label><textarea id="en-{{ b.id }}" name="entries" rows="6" style="width:100%;font-family:monospace">{{ b.entries_text }}</textarea><br><button class="btn">Save entries</button></form>
 <form method="post" action="{{ url_for('choir_library_delete', book_id=b.id) }}" onsubmit="return confirm('Remove this book and its PDF?');"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Remove book</button></form><hr>{% endfor %}
+<h2>Add a single song</h2>
+<p class="small">Use this when one PDF contains only one song. Every PDF page is included, and the optional catalog fields match Liturgy.com outline references.</p>
+<form method="post" action="{{ url_for('choir_library_song') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}">
+<label for="sn">Song title</label><input id="sn" name="title" required placeholder="Give Me Jesus">
+<label for="sc">Book code</label><input id="sc" name="code" placeholder="BB27">
+<label for="snum">BB/MI number</label><input id="snum" name="number" inputmode="numeric" placeholder="517">
+<label for="sanum">Accompaniment number</label><input id="sanum" name="accompaniment_number" inputmode="numeric" placeholder="216"><br>
+<label for="se">Edition</label><select id="se" name="edition">{% for e, label in editions %}<option value="{{ e }}">{{ label }}</option>{% endfor %}</select>
+<label for="spf">Song PDF</label><input id="spf" type="file" name="pdf" accept="application/pdf" required>
+<button class="btn">Add song</button> <span class="small">The song appears in Find music and is used in choir packets.</span></form><hr>
 <h2>Add a book</h2>
 <form method="post" action="{{ url_for('choir_library_add') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <label for="n">Name</label><input id="n" name="name" required placeholder="Breaking Bread 2026"> <label for="c">Code</label><input id="c" name="code" placeholder="BB26">

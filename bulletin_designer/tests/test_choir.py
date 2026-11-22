@@ -278,6 +278,53 @@ def test_breaking_bread_upload_generates_song_entries(app):
     assert c.get("/choir/library/add", follow_redirects=True).status_code == 200
 
 
+def test_single_song_pdf_upload_matches_outline_and_search(app):
+    import io
+    from datetime import date
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    cv = canvas.Canvas(buf)
+    cv.drawString(72, 720, "Give Me Jesus page one")
+    cv.showPage()
+    cv.drawString(72, 720, "Give Me Jesus page two")
+    cv.save()
+    buf.seek(0)
+
+    c = setup_admin(app)
+    response = c.post("/choir/library/song", data={
+        "csrf": tok(c, "/choir/library"),
+        "title": "Give Me Jesus",
+        "code": "BB27",
+        "number": "517",
+        "accompaniment_number": "216",
+        "edition": "keyboard",
+        "pdf": (buf, "give-me-jesus.pdf"),
+    }, content_type="multipart/form-data", follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Added Give Me Jesus (keyboard) with 2 pages." in response.data
+
+    book = choir.load_library(app)["books"][0]
+    assert book["single_song"] is True
+    assert book["entries"] == [{
+        "number": "216",
+        "title": "Give Me Jesus",
+        "start": 1,
+        "end": 2,
+        "catalog_numbers": {"BB": "517", "MI": "517", "ACCOMP": "216"},
+    }]
+    song = {"label": "Final Song", "title": "Give Me Jesus", "setting": "", "composer": "",
+            "book": "BB27", "number": "517"}
+    matched = choir.match_songs({"books": [book]}, [song], date(2027, 1, 24))[0]
+    assert matched["primary"]["start"] == 1
+    assert matched["primary"]["end"] == 2
+    assert len(choir.search_library(app, "BB27-517")) == 1
+    assert len(choir.search_library(app, "216")) == 1
+    download = c.get(f"/choir/find/download/{book['id']}/0")
+    assert download.status_code == 200 and download.data.startswith(b"%PDF")
+
+
 def test_numbered_songbook_index_disambiguates_numeric_title():
     texts = ["Front matter"] * 14 + [
         "Lord, Have Mercy\n2\n15",
