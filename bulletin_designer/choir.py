@@ -81,11 +81,8 @@ BB_START_RE = re.compile(r"^\s*(\d{1,3})\s+(\S.*)$")
 BB_CONT_RE = re.compile(r"^\s*(\d{1,3})\s*[—–-]\s*(.+?)(?:,\s*cont\.|\s*\(\d+\))\s*$", re.I)
 BB_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$")
 BB_MI_INDEX_RE = re.compile(
-    r"^\s*([A-Za-z\"“‘'(].*?)\s+(?:\.{2,}\s*)?(?:BB\s*/\s*MI\s+)?(\d{1,3})\s+(\d{1,3})\s*$",
+    r"^\s*([A-Za-z\"“‘'(].*?)\s+(?:\.{2,}\s*)?BB\s*/\s*MI\s+(\d{1,3})\s+(\d{1,3})\s*$",
     re.I,
-)
-BB_MI_INDEX_LEADING_RE = re.compile(
-    r"^\s*(\d{1,3})\s+(\d{1,3})\s+([A-Za-z\"“‘'(].*?)\s*$"
 )
 BB_INDEX_HEAD_RE = re.compile(r"(Scriptural|Topical|Liturgical|Alphabetical)\s+Index", re.I)
 BB_ANY_INDEX_LINE_RE = re.compile(r"^\s*(\d{1,3})\s+(.+?)\s*$")
@@ -383,6 +380,7 @@ def _numbered_songbook_entries_from_texts(texts):
                 title = cross_ref["title"]
                 index_titles.setdefault(number, title)
                 aliases.setdefault(_words(title), set()).add(number)
+                aliases.setdefault(_plain(title), set()).add(number)
                 index_records.setdefault(number, cross_ref)
                 continue
             match = BB_INDEX_LINE_RE.match(line) or BB_ANY_INDEX_LINE_RE.match(line)
@@ -496,9 +494,6 @@ def _bb_mi_index_record(line):
     match = BB_MI_INDEX_RE.match(line)
     if match:
         return {"title": match.group(1).rstrip(" ."), "BB": match.group(2), "MI": match.group(3)}
-    match = BB_MI_INDEX_LEADING_RE.match(line)
-    if match:
-        return {"title": match.group(3).rstrip(" ."), "BB": match.group(1), "MI": match.group(2)}
     return None
 
 
