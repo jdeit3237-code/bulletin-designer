@@ -482,9 +482,11 @@ def _numbered_songbook_entries_from_texts(texts):
             entry["catalog_numbers"] = catalog_numbers
         entries.append(entry)
     for entry in entries:
-        match = re.match(r"^([B-HJ-NP-Z]) ([A-Za-z]{2,})(.*)$", entry["title"])
-        if match and match.group(1) != "A":
-            entry["title"] = match.group(1) + match.group(2).lower() + match.group(3)
+        entry["title"] = re.sub(
+            r"\b([B-HJ-NP-Z]) ([A-Za-z]{2,})",
+            lambda match: match.group(1) + match.group(2).lower(),
+            entry["title"],
+        )
         entry["title"] = entry["title"].replace("’S", "’s")
     ordered = sorted(entries, key=lambda entry: entry["start"])
     for current, following in zip(ordered, ordered[1:]):

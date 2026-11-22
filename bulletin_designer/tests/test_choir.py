@@ -292,6 +292,18 @@ def test_numbered_songbook_index_disambiguates_numeric_title():
     ]
 
 
+def test_numbered_songbook_repairs_mid_title_drop_cap():
+    texts = ["Front matter"] * 12 + [
+        "400 O C Ome, O Come, Emmanuel",
+    ]
+    assert choir._numbered_songbook_entries_from_texts(texts) == [{
+        "number": "400",
+        "title": "O Come, o Come, Emmanuel",
+        "start": 13,
+        "end": 13,
+    }]
+
+
 def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
     import io
     import os
