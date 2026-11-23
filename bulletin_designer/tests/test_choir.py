@@ -344,6 +344,75 @@ def test_single_song_pdf_upload_matches_outline_and_search(app):
     assert download.status_code == 200 and download.data.startswith(b"%PDF")
 
 
+def test_single_song_upload_replaces_existing_override(app):
+    import io
+    import os
+
+    from pypdf import PdfWriter
+
+    def pdf(page_count):
+        writer = PdfWriter()
+        for _ in range(page_count):
+            writer.add_blank_page(612, 792)
+        buf = io.BytesIO()
+        writer.write(buf)
+        buf.seek(0)
+        return buf
+
+    c = setup_admin(app)
+    old_path = None
+    for pages in (1, 3):
+        response = c.post("/choir/library/song", data={
+            "csrf": tok(c, "/choir/library"),
+            "title": "Holy Is His Name",
+            "code": "BB27",
+            "number": "44",
+            "accompaniment_number": "216",
+            "edition": "keyboard",
+            "pdf": (pdf(pages), f"holy-{pages}.pdf"),
+        }, content_type="multipart/form-data", follow_redirects=True)
+        assert response.status_code == 200
+        if pages == 1:
+            old_path = choir.book_path(app, choir.load_library(app)["books"][0])
+
+    books = choir.load_library(app)["books"]
+    assert len(books) == 1
+    assert books[0]["entries"][0]["end"] == 3
+    assert os.path.exists(choir.book_path(app, books[0]))
+    assert old_path and not os.path.exists(old_path)
+
+
+def test_single_song_overrides_matching_full_book_entry():
+    from datetime import date
+
+    entry = {"number": "216", "title": "Holy Is His Name", "start": 1, "end": 2,
+             "catalog_numbers": {"BB": "44", "MI": "44", "ACCOMP": "216"}}
+    full_book = {"id": "book", "name": "Breaking Bread 2027", "code": "BB27",
+                 "edition": "keyboard", "file": "book.pdf", "entries": [entry]}
+    single = {"id": "single", "name": "Holy Is His Name", "code": "BB27",
+              "edition": "keyboard", "file": "single.pdf", "single_song": True,
+              "entries": [dict(entry, start=1, end=3)]}
+    song = {"label": "Communion", "title": "Holy Is His Name", "setting": "",
+            "composer": "", "book": "BB27", "number": "44"}
+    matched = choir.match_songs({"books": [full_book, single]}, [song], date(2027, 1, 24))[0]
+    assert matched["primary"]["book_id"] == "single"
+    assert matched["primary"]["end"] == 3
+
+    without_override = choir.match_songs({"books": [full_book]}, [song], date(2027, 1, 24))[0]
+    assert without_override["primary"]["book_id"] == "book"
+
+    wrong_number = dict(single, id="wrong", entries=[dict(entry, catalog_numbers={
+        "BB": "45", "MI": "45", "ACCOMP": "217",
+    })])
+    isolated = choir.match_songs({"books": [full_book, wrong_number]}, [song], date(2027, 1, 24))[0]
+    assert isolated["primary"]["book_id"] == "book"
+
+    guitar_override = dict(single, id="guitar", edition="guitar")
+    editions = choir.match_songs({"books": [full_book, guitar_override]}, [song], date(2027, 1, 24))[0]
+    assert editions["primary"]["book_id"] == "book"
+    assert editions["guitar"]["book_id"] == "guitar"
+
+
 def test_numbered_songbook_index_disambiguates_numeric_title():
     texts = ["Front matter"] * 14 + [
         "Lord, Have Mercy\n2\n15",
@@ -406,8 +475,8 @@ def test_breaking_bread_index_maps_bb_number_to_music_issue_entry(app):
     book = {"id": "bb27", "name": "Breaking Bread 2027 Keyboard", "code": "BB27",
             "edition": "keyboard", "file": "bb27.pdf", "page_offset": 0, "entries": [old_entry]}
     choir.save_library(app, {"books": [book]})
-    assert setup_admin(app).get("/choir/library").status_code == 200
-    book = choir.load_library(app)["books"][0]
+    assert choir.upgrade_book_entries(book, entries)
+    choir.save_library(app, {"books": [book]})
     assert book["entries"][0]["catalog_numbers"] == {
         "BB": "517", "MI": "517", "ACCOMP": "216",
     }

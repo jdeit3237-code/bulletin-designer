@@ -315,8 +315,23 @@ def register(app, need, need_area):
         }
         if catalog_numbers:
             entry["catalog_numbers"] = catalog_numbers
-        lib["books"].append({
-            "id": uuid.uuid4().hex[:8],
+        prefix = re.match(r"^[A-Z]+", code)
+        prefix = prefix.group(0) if prefix else ""
+
+        def same_override(book):
+            if not (book.get("single_song") or book.get("single")) or book.get("edition") != edition:
+                return False
+            if choir._norm(book.get("code")) != choir._norm(code):
+                return False
+            existing = (book.get("entries") or [{}])[0]
+            if number:
+                return existing.get("catalog_numbers", {}).get(prefix) == number \
+                    or (not prefix and existing.get("number") == number)
+            return choir._words(existing.get("title")) == choir._words(title)
+
+        existing_book = next((book for book in lib["books"] if same_override(book)), None)
+        old_path = choir.book_path(current_app, existing_book) if existing_book else ""
+        replacement = {
             "name": title,
             "code": code,
             "edition": edition,
@@ -326,9 +341,17 @@ def register(app, need, need_area):
             "index_version": choir.BOOK_INDEX_VERSION,
             "single": True,
             "single_song": True,
-        })
+        }
+        if existing_book:
+            existing_book.update(replacement)
+        else:
+            replacement["id"] = uuid.uuid4().hex[:8]
+            lib["books"].append(replacement)
         choir.save_library(current_app, lib)
-        flash(f"Added {title} ({edition}) with {pages} page{'s' if pages != 1 else ''}.")
+        if old_path and old_path != path and os.path.exists(old_path):
+            os.remove(old_path)
+        action = "Replaced" if existing_book else "Added"
+        flash(f"{action} {title} ({edition}) with {pages} page{'s' if pages != 1 else ''}.")
         return redirect(url_for("choir_library"))
 
     @app.route("/choir/library/<book_id>/entries", methods=["POST"])

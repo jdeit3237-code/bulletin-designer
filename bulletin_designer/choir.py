@@ -752,6 +752,7 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
                         and _title_match(e["title"], want_title):
                     hits.append((book, e))
                 elif (same_code or not requested_code_available) and not kind and not part \
+                        and not (book.get("single_song") or book.get("single")) \
                         and want_title in _halves(e["title"]) and e["number"]:
                     hits.append((book, e))
                 continue
@@ -767,9 +768,11 @@ def _entry_hits(lib, song, outline_date, part_idx=0):
                     hits.append((book, e))
     # Prefer exact title matches ("I Am the Bread of Life" must not pick "Bread of Life").
     exact = [h for h in hits if want_title in _halves(h[1]["title"])]
+    selected = exact or hits
+    selected.sort(key=lambda hit: not (hit[0].get("single_song") or hit[0].get("single")))
     if part_idx:
-        return exact  # other languages: exact titles only, never a look-alike song
-    return exact or hits
+        return [hit for hit in selected if hit in exact]  # other languages: exact titles only
+    return selected
 
 
 def _entry_matches_number(entry, number, requested_code=""):

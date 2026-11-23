@@ -9,7 +9,7 @@
 <label for="en-{{ b.id }}">Entries</label><textarea id="en-{{ b.id }}" name="entries" rows="6" style="width:100%;font-family:monospace">{{ b.entries_text }}</textarea><br><button class="btn">Save entries</button></form>
 <form method="post" action="{{ url_for('choir_library_delete', book_id=b.id) }}" onsubmit="return confirm('Remove this book and its PDF?');"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="btn secondary">Remove book</button></form><hr>{% endfor %}
 <h2>Add a single song</h2>
-<p class="small">Use this when one PDF contains only one song. Every PDF page is included, and the optional catalog fields match Liturgy.com outline references.</p>
+<p class="small">Use this when one PDF contains only one song. Every PDF page is included, and the optional catalog fields match Liturgy.com outline references. A single-song PDF overrides the matching pages in a full book for the selected edition.</p>
 <form method="post" action="{{ url_for('choir_library_song') }}" enctype="multipart/form-data"><input type="hidden" name="csrf" value="{{ csrf() }}">
 <label for="sn">Song title</label><input id="sn" name="title" required placeholder="Give Me Jesus">
 <label for="sc">Book code</label><input id="sc" name="code" placeholder="BB27">
