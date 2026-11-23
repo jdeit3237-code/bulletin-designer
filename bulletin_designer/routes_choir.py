@@ -176,7 +176,7 @@ def register(app, need, need_area):
         generated = []
         library_changed = False
         for book in lib["books"]:
-            if book.get("entries") and book.get("index_version") == choir.BOOK_INDEX_VERSION:
+            if book.get("entries"):
                 continue
             path = choir.book_path(current_app, book)
             if not os.path.exists(path):
@@ -191,8 +191,6 @@ def register(app, need, need_area):
                 book["index_version"] = choir.BOOK_INDEX_VERSION
                 generated.append(f"{book['name']} ({len(entries)})")
                 library_changed = True
-            elif book.get("entries"):
-                library_changed = choir.upgrade_book_entries(book, entries) or library_changed
         if generated:
             flash("Generated entries from the PDF for " + ", ".join(generated) + ".")
         if library_changed:

@@ -239,6 +239,25 @@ def test_library_page_repairs_existing_empty_respond_acclaim_book(app):
     assert len(choir.load_library(app)["books"][0]["entries"]) == 2
 
 
+def test_library_page_does_not_rescan_populated_books(app, monkeypatch):
+    choir.save_library(app, {"books": [{
+        "id": "bb27",
+        "name": "Breaking Bread 2027",
+        "code": "BB27",
+        "edition": "keyboard",
+        "file": "missing.pdf",
+        "page_offset": 0,
+        "entries": [{"number": "104", "title": "Beyond the Moon and Stars", "start": 199, "end": 200}],
+        "index_version": 1,
+    }]})
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("populated books must not be rescanned while rendering the library")
+
+    monkeypatch.setattr(choir, "generate_book_entries", unexpected)
+    assert setup_admin(app).get("/choir/library").status_code == 200
+
+
 def test_breaking_bread_upload_generates_song_entries(app):
     import io
 
