@@ -79,6 +79,37 @@ def test_mass_slides_package(app):
     assert c.get("/slides/package?date=bad").status_code == 404
 
 
+def test_slide_uploads_use_canonical_dated_actions_and_303(app):
+    import io, os
+    c = setup_admin(app)
+    mass_date = "2026-11-29"
+    page = c.get(f"/slides?date={mass_date}")
+    assert f'action="/slides?date={mass_date}" enctype="multipart/form-data"' in page.text
+    assert f'action="/slides/songs?date={mass_date}" enctype="multipart/form-data"' in page.text
+
+    upload = c.post(
+        f"/slides?date={mass_date}",
+        data={"csrf": tok(c, f"/slides?date={mass_date}"), "kind": "entrance", "date": mass_date,
+              "files": (io.BytesIO(b"verse one"), "Opening Hymn.txt")},
+        content_type="multipart/form-data",
+    )
+    assert upload.status_code == 303
+    assert upload.headers["Location"] == f"/slides?date={mass_date}"
+
+    song = c.post(
+        f"/slides/songs?date={mass_date}",
+        data={"csrf": tok(c, f"/slides?date={mass_date}"), "date": mass_date,
+              "title": "Opening Hymn", "lyrics": "verse one\n\nverse two"},
+        content_type="multipart/form-data",
+    )
+    assert song.status_code == 303
+    assert song.headers["Location"] == f"/slides?date={mass_date}"
+
+    slides_root = os.path.join(os.path.dirname(app.config["UPLOAD_DIR"]), "slides_files")
+    assert open(os.path.join(slides_root, "weeks", mass_date, "entrance", "Opening_Hymn.txt")).read() == "verse one"
+    assert open(os.path.join(slides_root, "songs", "opening-hymn.txt")).read() == "verse one\n\nverse two\n"
+
+
 def test_slides_area_for_av_ministry(app):
     c = setup_admin(app); create_bulletin(c)
     y = register_user(app, c, "av@x.org", "contributor")

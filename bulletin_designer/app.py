@@ -4292,10 +4292,10 @@ def create_app(config=None):
             path = os.path.join(slides_root, "songs", name)
             if name and os.path.isfile(path):
                 os.remove(path)
-            return redirect(url_for("slides", date=mass_date))
+            return redirect(url_for("slides", date=mass_date), code=303)
         if not key:
             flash("Enter the song title.", "error")
-            return redirect(url_for("slides", date=mass_date))
+            return redirect(url_for("slides", date=mass_date), code=303)
         os.makedirs(os.path.join(slides_root, "songs"), exist_ok=True)
         n = 0
         lyrics = (request.form.get("lyrics") or "").strip()
@@ -4314,7 +4314,7 @@ def create_app(config=None):
                 if fn.startswith(key + ".") and ckey != key:
                     shutil.copyfile(os.path.join(slides_root, "songs", fn), os.path.join(slides_root, "songs", ckey + "." + fn.rsplit(".", 1)[-1]))
         flash(f"Saved {title or code} to the song library." if n else "Paste the lyrics or choose a file.", "" if n else "error")
-        return redirect(url_for("slides", date=mass_date))
+        return redirect(url_for("slides", date=mass_date), code=303)
 
     def week_status(mass_date):
         try:
@@ -4380,16 +4380,16 @@ def create_app(config=None):
                 with open(os.path.join(slides_root, "weeks", mass_date, "theme.json"), "w") as f:
                     json.dump({"color": c if c in ("auto", "none") + THEME_COLORS else "", "season": se if se in ("auto", "none") + THEME_SEASONS else ""}, f)
                 flash("Saved the colors for this week's slide designs.")
-                return redirect(url_for("slides", date=mass_date))
+                return redirect(url_for("slides", date=mass_date), code=303)
             if action == "save_graphics" and mass_date:
                 os.makedirs(os.path.join(slides_root, "weeks", mass_date), exist_ok=True)
                 with open(os.path.join(slides_root, "weeks", mass_date, "graphics.json"), "w") as f:
                     json.dump([x for x in request.form.getlist("photo") if x.isdigit()][:40], f)
                 flash("Saved your ticked graphics for this week.")
-                return redirect(url_for("slides", date=mass_date))
+                return redirect(url_for("slides", date=mass_date), code=303)
             if kind not in dict(SLIDE_KINDS) or (kind != "standard" and not mass_date):
                 flash("Choose the Mass date first.", "error")
-                return redirect(url_for("slides", date=mass_date))
+                return redirect(url_for("slides", date=mass_date), code=303)
             d = slides_dir(kind, mass_date)
             if action == "delete":
                 name = secure_filename(request.form.get("name", ""))
@@ -4406,7 +4406,7 @@ def create_app(config=None):
                 after = request.form.get("after", "")
                 if kind == "extra" and (not section_name or after not in music_outline.MASS_ORDER):
                     flash("Type the section name and choose where it goes.", "error")
-                    return redirect(url_for("slides", date=mass_date))
+                    return redirect(url_for("slides", date=mass_date), code=303)
                 os.makedirs(d, exist_ok=True)
                 n = 0
                 meta = extra_meta(mass_date) if kind == "extra" else {}
@@ -4421,7 +4421,7 @@ def create_app(config=None):
                     with open(os.path.join(d, "extra.json"), "w") as f:
                         json.dump(meta, f)
                 flash(f"Uploaded {n} file(s)." if n else "Choose at least one file.", "" if n else "error")
-            return redirect(url_for("slides", date=mass_date))
+            return redirect(url_for("slides", date=mass_date), code=303)
         dates = sorted(os.listdir(os.path.join(slides_root, "weeks")), reverse=True) if os.path.isdir(os.path.join(slides_root, "weeks")) else []
         design_has = {f"{k}-{r}": os.path.isfile(os.path.join(slides_dir("ref_" + k, mass_date), f"ai-{r}.png"))
                       for k, _, _ in DESIGN_SECTIONS for r in ("title", "body")} if mass_date else {}
